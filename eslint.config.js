@@ -1,10 +1,14 @@
 import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 
-export default tseslint.config(
-  js.configs.recommended,
-  ...tseslint.configs.recommended,
+export default [
   {
+    files: ["eslint.config.js"],
+    ...js.configs.recommended,
+  },
+  {
+    files: ["src/**/*.ts"],
+    ...tseslint.configs.recommended,
     ignores: ["**/node_modules/**", "**/dist/**"],
     languageOptions: {
       parserOptions: {
@@ -20,4 +24,4 @@ export default tseslint.config(
       ],
     },
   },
-);
+];
