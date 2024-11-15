@@ -1,10 +1,13 @@
 {
-  "name": "zod-to-schema",
+  "name": "cracked-dev-cli",
   "version": "1.0.0",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
   "type": "module",
+  "bin": {
+    "calc": "./bin/run.js"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -13,7 +16,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "bin"
   ],
   "scripts": {
     "build": "tsup",
@@ -21,7 +25,16 @@
     "test": "jest",
     "typecheck": "tsc --noEmit"
   },
+  "oclif": {
+    "bin": "calc",
+    "dirname": "calc",
+    "commands": "./dist/commands",
+    "plugins": [
+      "@oclif/plugin-help"
+    ]
+  },
   "devDependencies": {
+    "@oclif/test": "^4.1.0",
     "@types/jest": "^29.5.11",
     "jest": "^29.7.0",
     "ts-jest": "^29.1.1",
@@ -29,6 +42,8 @@
     "typescript": "^5.6.3"
   },
   "dependencies": {
+    "@oclif/core": "^4.0.32",
+    "@oclif/plugin-help": "^6.2.16",
     "reflect-metadata": "^0.2.2",
     "tsup": "^8.3.5",
     "tsyringe": "^4.8.0"
