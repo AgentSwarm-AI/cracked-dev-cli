@@ -1,6 +1,6 @@
 import { Args, Command } from "@oclif/core";
 import { container } from "tsyringe";
-import { Calculator } from "../services/Calculator.js";
+import { Calculator } from "../services/Calculator/Calculator.js";
 
 export class Sum extends Command {
   static description = "Sum two numbers";
