@@ -45,9 +45,11 @@
     "@oclif/core": "^4.0.32",
     "@oclif/plugin-help": "^6.2.16",
     "axios": "^1.7.7",
+    "dotenv": "^16.4.5",
     "reflect-metadata": "^0.2.2",
     "tsup": "^8.3.5",
-    "tsyringe": "^4.8.0"
+    "tsyringe": "^4.8.0",
+    "zod": "^3.23.8"
   },
   "resolutions": {
     "string-width": "4.2.3",
