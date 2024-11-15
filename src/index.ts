@@ -1,2 +1,2 @@
-import 'reflect-metadata';
-export { Sum } from './commands/sum.js';
+import "reflect-metadata";
+export { Sum } from "./commands/sum.js";
