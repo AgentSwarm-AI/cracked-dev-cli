@@ -29,7 +29,9 @@
     "typescript": "^5.6.3"
   },
   "dependencies": {
-    "tsup": "^8.3.5"
+    "reflect-metadata": "^0.2.2",
+    "tsup": "^8.3.5",
+    "tsyringe": "^4.8.0"
   },
   "resolutions": {
     "string-width": "4.2.3",
