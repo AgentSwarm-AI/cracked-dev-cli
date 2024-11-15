@@ -1,4 +1,6 @@
 import { Args, Command } from '@oclif/core';
+import { container } from 'tsyringe';
+import { Calculator } from '../services/Calculator.js';
 
 export class Sum extends Command {
   static description = 'Sum two numbers';
@@ -23,7 +25,8 @@ export class Sum extends Command {
       this.error('Please provide valid numbers');
     }
 
-    const result = first + second;
+    const calculator = container.resolve(Calculator);
+    const result = calculator.sum(first, second);
     this.log(`${first} + ${second} = ${result}`);
   }
 }
