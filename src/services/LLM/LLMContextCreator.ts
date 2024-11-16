@@ -78,8 +78,10 @@ ${
 }
   If you don't think the task objective was achieved, decide what to do next:
 
+  <!-- Next step to achieve current goal -->
+  <!-- Feel free to use any available tags below to whats appropriate -->
   <next_step>
-    I will perform a <read_file>path/to/file</read_file> operation.
+    To achieve xyz goal, I will perform a <read_file>path/to/file</read_file> operation.
   </next_step>
 
   Else, submit the final response:
