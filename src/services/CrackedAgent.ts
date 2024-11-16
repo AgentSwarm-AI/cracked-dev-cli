@@ -100,13 +100,16 @@ export class CrackedAgent {
     if (data) {
       console.log(`\n${colors.magenta}Data:${colors.reset}`);
       if (typeof data === "object") {
-        const formattedData = JSON.stringify(data, null, 2)
+        // Convert escaped newlines to actual newlines and format JSON
+        const jsonString = JSON.stringify(data, null, 2)
+          .replace(/\\n/g, "\n")
           .split("\n")
           .map((line) => `  ${line}`)
           .join("\n");
-        console.log(`${colors.blue}${formattedData}${colors.reset}`);
+        console.log(`${colors.blue}${jsonString}${colors.reset}`);
       } else {
-        console.log(`${colors.blue}  ${data}${colors.reset}`);
+        const formattedData = String(data).replace(/\\n/g, "\n");
+        console.log(`${colors.blue}  ${formattedData}${colors.reset}`);
       }
       console.log(subDivider);
     }
