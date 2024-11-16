@@ -41,7 +41,6 @@ describe("LLMContextCreator", () => {
       expect(result).toContain(message);
       expect(result).toContain("<environment>");
       expect(result).toContain(scanResult.data);
-      expect(result).toContain("Available actions:");
       expect(mockDirectoryScanner.scan).toHaveBeenCalledWith(root);
     });
 

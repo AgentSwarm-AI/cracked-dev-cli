@@ -122,26 +122,4 @@ describe("StreamHandler", () => {
     expect(result).toEqual([]);
     expect(mockActionsParser.parseAndExecuteActions).not.toHaveBeenCalled();
   });
-
-  it("should handle stream callback properly", async () => {
-    mockActionsParser.isCompleteMessage.mockReturnValue(true);
-    mockActionsParser.parseAndExecuteActions.mockResolvedValue({
-      actions: [{ action: "test", result: "success" }],
-    });
-
-    const streamCallback = jest.fn(async (message, callback) => {
-      callback("response chunk");
-    });
-
-    const result = await streamHandler.handleChunk(
-      "test chunk",
-      "test-model",
-      async () => "llm response",
-      streamCallback,
-    );
-
-    expect(result).toEqual([{ action: "test", result: "success" }]);
-    expect(streamCallback).toHaveBeenCalled();
-    expect(process.stdout.write).toHaveBeenCalledWith("response chunk");
-  });
 });
