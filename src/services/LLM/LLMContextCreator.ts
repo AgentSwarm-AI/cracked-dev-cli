@@ -69,6 +69,11 @@ FURTHER INSTRUCTIONS
 
 - Once you've finished the task, make sure to run a test command (check on package.json if you're not sure).
 
+
+## If you get stuck in a loop of errors
+
+Try different approaches, take a step back, inspect other files. If you're still stuck, ask for help from the user or stop.
+
 ## Available Actions
 
 Available action_names are:

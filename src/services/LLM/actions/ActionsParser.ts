@@ -1,6 +1,6 @@
 import path from "path";
 import { autoInjectable } from "tsyringe";
-import { DebugLogger } from "../../DebugLogger";
+import { DebugLogger } from "../../logging/DebugLogger";
 import { LLMContextCreator } from "../LLMContextCreator";
 
 export interface ActionExecutionResult {
@@ -137,7 +137,7 @@ export class ActionsParser {
       });
 
       const actions = await this.contextCreator.parseAndExecuteActions(
-        completeTags.join("\n")
+        completeTags.join("\n"),
       );
 
       if (!actions || actions.length === 0) {

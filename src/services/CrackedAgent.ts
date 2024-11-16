@@ -1,11 +1,11 @@
 import { autoInjectable } from "tsyringe";
-import { DebugLogger } from "./DebugLogger";
 import { FileReader } from "./FileReader";
 import { ActionsParser } from "./LLM/actions/ActionsParser";
 import { ILLMProvider } from "./LLM/ILLMProvider";
 import { LLMContextCreator } from "./LLM/LLMContextCreator";
 import { LLMProvider, LLMProviderType } from "./LLM/LLMProvider";
-import { StreamHandler } from "./StreamHandler";
+import { DebugLogger } from "./logging/DebugLogger";
+import { StreamHandler } from "./streaming/StreamHandler";
 
 export interface CrackedAgentOptions {
   root?: string;

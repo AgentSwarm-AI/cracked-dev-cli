@@ -1,5 +1,5 @@
 import { container } from "tsyringe";
-import { Calculator } from "./Calculator";
+import { Calculator } from "../Calculator";
 
 describe("Calculator", () => {
   let calculator: Calculator;

@@ -1,19 +1,19 @@
 import { container } from "tsyringe";
 import { FileOperations } from "../../FileManagement/FileOperations";
 import { FileSearch } from "../../FileManagement/FileSearch";
-import { TagsExtractor } from "../../TagsExtractor/TagsExtractor";
 import { ActionExecutor } from "./ActionExecutor";
+import { ActionTagsExtractor } from "./ActionTagsExtractor";
 
 jest.mock("../../FileManagement/FileOperations");
 jest.mock("../../FileManagement/FileSearch");
-jest.mock("../../TagsExtractor/TagsExtractor");
+jest.mock("./ActionTagsExtractor");
 jest.mock("child_process");
 
 describe("ActionExecutor", () => {
   let actionExecutor: ActionExecutor;
   let mockFileOperations: jest.Mocked<FileOperations>;
   let mockFileSearch: jest.Mocked<FileSearch>;
-  let mockTagsExtractor: jest.Mocked<TagsExtractor>;
+  let mockTagsExtractor: jest.Mocked<ActionTagsExtractor>;
 
   beforeEach(() => {
     mockFileOperations = container.resolve(
@@ -21,8 +21,8 @@ describe("ActionExecutor", () => {
     ) as jest.Mocked<FileOperations>;
     mockFileSearch = container.resolve(FileSearch) as jest.Mocked<FileSearch>;
     mockTagsExtractor = container.resolve(
-      TagsExtractor,
-    ) as jest.Mocked<TagsExtractor>;
+      ActionTagsExtractor,
+    ) as jest.Mocked<ActionTagsExtractor>;
     actionExecutor = new ActionExecutor(
       mockFileOperations,
       mockFileSearch,

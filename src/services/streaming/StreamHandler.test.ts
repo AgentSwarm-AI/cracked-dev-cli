@@ -1,10 +1,11 @@
 import { container } from "tsyringe";
-import { DebugLogger } from "./DebugLogger";
-import { ActionsParser } from "./LLM/actions/ActionsParser";
+import { ActionsParser } from "../LLM/actions/ActionsParser";
+
+import { DebugLogger } from "../logging/DebugLogger";
 import { StreamHandler } from "./StreamHandler";
 
-jest.mock("./DebugLogger");
-jest.mock("./LLM/actions/ActionsParser");
+jest.mock("../logging/DebugLogger");
+jest.mock("../LLM/actions/ActionsParser");
 
 describe("StreamHandler", () => {
   let streamHandler: StreamHandler;

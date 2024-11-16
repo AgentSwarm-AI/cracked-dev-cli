@@ -1,5 +1,5 @@
 import { autoInjectable } from "tsyringe";
-import { Colors } from "../constants/colors";
+import { Colors } from "../../constants/colors";
 
 @autoInjectable()
 export class DebugLogger {

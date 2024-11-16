@@ -1,7 +1,7 @@
 import { autoInjectable } from "tsyringe";
 
 @autoInjectable()
-export class TagsExtractor {
+export class ActionTagsExtractor {
   /**
    * Extracts content from a single tag
    * @param content Full text content
@@ -9,7 +9,7 @@ export class TagsExtractor {
    * @returns The content within the tag or null if not found
    */
   extractTag(content: string, tagName: string): string | null {
-    const regex = new RegExp(`<${tagName}>([\\s\\S]*?)</${tagName}>`);
+    const regex = new RegExp(`<${tagName}>([\\s\\S]*?)<\\/${tagName}>`);
     const match = content.match(regex);
     return match ? match[1].trim() : null;
   }
@@ -21,7 +21,7 @@ export class TagsExtractor {
    * @returns Array of content within each instance of the tag
    */
   extractTags(content: string, tagName: string): string[] {
-    const regex = new RegExp(`<${tagName}>([\\s\\S]*?)</${tagName}>`, "g");
+    const regex = new RegExp(`<${tagName}>([\\s\\S]*?)<\\/${tagName}>`, "g");
     const matches = content.matchAll(regex);
     return Array.from(matches).map((match) => match[1].trim());
   }

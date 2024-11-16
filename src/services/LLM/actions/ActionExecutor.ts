@@ -4,7 +4,7 @@ import { promisify } from "util";
 import { FileOperations } from "../../FileManagement/FileOperations";
 import { FileSearch } from "../../FileManagement/FileSearch";
 import { IFileOperationResult } from "../../FileManagement/types/FileManagementTypes";
-import { TagsExtractor } from "../../TagsExtractor/TagsExtractor";
+import { ActionTagsExtractor } from "./ActionTagsExtractor";
 
 const execAsync = promisify(exec);
 
@@ -19,7 +19,7 @@ export class ActionExecutor {
   constructor(
     private fileOperations: FileOperations,
     private fileSearch: FileSearch,
-    private tagsExtractor: TagsExtractor,
+    private actionTagsExtractor: ActionTagsExtractor,
   ) {}
 
   async executeAction(actionText: string): Promise<IActionResult> {
@@ -83,7 +83,7 @@ export class ActionExecutor {
   }
 
   private async handleReadFile(content: string): Promise<IActionResult> {
-    const filePath = this.tagsExtractor.extractTag(content, "path");
+    const filePath = this.actionTagsExtractor.extractTag(content, "path");
     if (!filePath) {
       return {
         success: false,
@@ -97,8 +97,8 @@ export class ActionExecutor {
   }
 
   private async handleWriteFile(content: string): Promise<IActionResult> {
-    const filePath = this.tagsExtractor.extractTag(content, "path");
-    const fileContent = this.tagsExtractor.extractTag(content, "content");
+    const filePath = this.actionTagsExtractor.extractTag(content, "path");
+    const fileContent = this.actionTagsExtractor.extractTag(content, "content");
 
     if (!filePath || !fileContent) {
       return {
@@ -115,7 +115,7 @@ export class ActionExecutor {
   }
 
   private async handleDeleteFile(content: string): Promise<IActionResult> {
-    const filePath = this.tagsExtractor.extractTag(content, "path");
+    const filePath = this.actionTagsExtractor.extractTag(content, "path");
     if (!filePath) {
       return {
         success: false,
@@ -131,8 +131,11 @@ export class ActionExecutor {
   }
 
   private async handleMoveFile(content: string): Promise<IActionResult> {
-    const sourcePath = this.tagsExtractor.extractTag(content, "source_path");
-    const destinationPath = this.tagsExtractor.extractTag(
+    const sourcePath = this.actionTagsExtractor.extractTag(
+      content,
+      "source_path",
+    );
+    const destinationPath = this.actionTagsExtractor.extractTag(
       content,
       "destination_path",
     );
@@ -153,8 +156,11 @@ export class ActionExecutor {
   }
 
   private async handleCopyFile(content: string): Promise<IActionResult> {
-    const sourcePath = this.tagsExtractor.extractTag(content, "source_path");
-    const destinationPath = this.tagsExtractor.extractTag(
+    const sourcePath = this.actionTagsExtractor.extractTag(
+      content,
+      "source_path",
+    );
+    const destinationPath = this.actionTagsExtractor.extractTag(
       content,
       "destination_path",
     );
@@ -192,8 +198,11 @@ export class ActionExecutor {
     content: string,
   ): Promise<IActionResult> {
     try {
-      const directory = this.tagsExtractor.extractTag(content, "directory");
-      const searchTerm = this.tagsExtractor.extractTag(content, "term");
+      const directory = this.actionTagsExtractor.extractTag(
+        content,
+        "directory",
+      );
+      const searchTerm = this.actionTagsExtractor.extractTag(content, "term");
 
       if (!directory || !searchTerm) {
         return {
