@@ -14,6 +14,7 @@ export class DirectoryScanner implements IDirectoryScanner {
     ".next",
     "build",
     ".cache",
+    ".husky",
   ];
 
   private readonly DEFAULT_OPTIONS: TreeOptions = {

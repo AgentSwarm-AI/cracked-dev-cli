@@ -110,72 +110,98 @@ export class ActionsParser {
     this.messageComplete = value;
   }
 
+  private formatActionResult(action: string, result: any): string {
+    const actionMatch = /<(\w+)>([\s\S]*?)<\/\1>/.exec(action);
+    if (!actionMatch) return `[Action Result] Invalid action format`;
+
+    const [_, actionType] = actionMatch;
+
+    if (actionType === "read_file" && result.success) {
+      return `Here's the content of the requested file:\n\n${result.data}\n\nPlease analyze this content and continue with the task.`;
+    }
+
+    return `[Action Result] ${actionType}: ${result.success ? "Success" : `Failed - ${result.error}`}`;
+  }
+
   async parseAndExecuteActions(
     text: string,
     model: string,
     llmCallback: (message: string) => Promise<string>,
   ): Promise<ActionExecutionResult> {
-    // Parse strategy if present in initial message
-    if (text.includes("<strategy>")) {
-      this.taskManager.parseStrategy(text);
-      const goals = this.taskManager.getAllGoals();
-      this.debugLogger.log("Strategy", "Parsed strategy and goals", { goals });
-    }
-
-    const completeTags = this.findCompleteTags(text);
-    this.debugLogger.log("Tags", "Found complete action tags", {
-      tags: completeTags,
-    });
-
-    // Extract and log file paths
-    completeTags.forEach((tag) => {
-      const filePath = this.extractFilePath(tag);
-      if (filePath) {
-        this.debugLogger.log("FilePath", "Found file path in action", {
-          path: filePath,
+    try {
+      // Parse strategy if present in initial message
+      if (text.includes("<strategy>")) {
+        this.taskManager.parseStrategy(text);
+        const goals = this.taskManager.getAllGoals();
+        this.debugLogger.log("Strategy", "Parsed strategy and goals", {
+          goals,
         });
       }
-    });
 
-    const actions = await this.contextCreator.parseAndExecuteActions(text);
+      const completeTags = this.findCompleteTags(text);
+      this.debugLogger.log("Tags", "Found complete action tags", {
+        tags: completeTags,
+      });
 
-    if (!actions) {
+      if (completeTags.length === 0) {
+        this.debugLogger.log("Actions", "No action tags found in text");
+        return { actions: [] };
+      }
+
+      // Extract and log file paths
+      completeTags.forEach((tag) => {
+        const filePath = this.extractFilePath(tag);
+        if (filePath) {
+          this.debugLogger.log("FilePath", "Found file path in action", {
+            path: filePath,
+          });
+        }
+      });
+
+      const actions = await this.contextCreator.parseAndExecuteActions(text);
+
+      if (!actions || actions.length === 0) {
+        this.debugLogger.log("Actions", "No actions executed");
+        return { actions: [] };
+      }
+
+      const actionResults = actions
+        .map(({ action, result }) => this.formatActionResult(action, result))
+        .join("\n\n");
+
+      // Include current goal in followup message if available
+      const currentGoal = this.taskManager.getCurrentGoal();
+      const goalStatus = currentGoal
+        ? `Current Goal: ${currentGoal.description}\n\n`
+        : "";
+
+      const followupMessage = `${goalStatus}${actionResults}`;
+
+      this.debugLogger.log("Action Results", "Sending action results to LLM", {
+        message: followupMessage,
+      });
+
+      console.log("Sending followup message to LLM:", followupMessage);
+
+      const followupResponse = await llmCallback(followupMessage);
+
+      console.log("Received followup response from LLM:", followupResponse);
+
+      this.debugLogger.log(
+        "Response",
+        "Received LLM response for action results",
+        {
+          response: followupResponse,
+        },
+      );
+
+      return { actions, followupResponse };
+    } catch (error) {
+      console.error("Error in parseAndExecuteActions:", error);
+      this.debugLogger.log("Error", "Failed to parse and execute actions", {
+        error,
+      });
       return { actions: [] };
     }
-
-    if (actions.length === 0) {
-      return { actions: [] };
-    }
-
-    const actionResults = actions
-      .map(
-        ({ action, result }) =>
-          `[Action Result] ${action}: ${JSON.stringify(result)}`,
-      )
-      .join("\n");
-
-    // Include current goal in followup message if available
-    const currentGoal = this.taskManager.getCurrentGoal();
-    const goalStatus = currentGoal
-      ? `\nCurrent Goal: ${currentGoal.description}`
-      : "";
-
-    const followupMessage = `Previous actions have been executed with the following results:\n${actionResults}${goalStatus}\nPlease continue with the task.`;
-
-    this.debugLogger.log("Action Results", "Sending action results to LLM", {
-      message: followupMessage,
-    });
-
-    const followupResponse = await llmCallback(followupMessage);
-
-    this.debugLogger.log(
-      "Response",
-      "Received LLM response for action results",
-      {
-        response: followupResponse,
-      },
-    );
-
-    return { actions, followupResponse };
   }
 }

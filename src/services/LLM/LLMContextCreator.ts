@@ -75,10 +75,9 @@ To achieve the desired goal of this task, you must follow the following steps:
   - step 2
   - step 3
 
-<!-- next step should be aimed towards one of the steps above -->
-<next_step>
-  I'll perform <available_tags>file/path/here</available_tags> to achieve the desired goal.
-</next_step>
+<!-- next step should be aimed towards one of the steps above. We can have one or multiple tags on the same reply -->
+
+I'll perform <available_tags>file/path/here</available_tags> to achieve the desired goal.
 
 
 FURTHER INSTRUCTIONS (do not output this):

@@ -153,15 +153,32 @@ export class CrackedAgent {
       message,
       async (chunk: string) => {
         response += chunk;
+        this.actionsParser.appendToBuffer(chunk);
         process.stdout.write(chunk);
       },
       options,
     );
     process.stdout.write("\n");
 
+    const { actions, followupResponse } =
+      await this.actionsParser.parseAndExecuteActions(
+        this.actionsParser.buffer,
+        model,
+        async (followupMsg) => {
+          // Format followup message to match task format
+          const formattedFollowup = await this.contextCreator.create(
+            followupMsg,
+            process.cwd(),
+            false,
+          );
+          return this.llm.sendMessage(model, formattedFollowup, options);
+        },
+      );
+
+    // If we have a followup response from the LLM after executing actions, use that
     return {
-      response,
-      actions: [],
+      response: followupResponse || response,
+      actions,
     };
   }
 
@@ -177,7 +194,26 @@ export class CrackedAgent {
       conversationHistory: this.llm.getConversationContext(),
     });
 
-    return { response, actions: [] };
+    const { actions, followupResponse } =
+      await this.actionsParser.parseAndExecuteActions(
+        response,
+        model,
+        async (followupMsg) => {
+          // Format followup message to match task format
+          const formattedFollowup = await this.contextCreator.create(
+            followupMsg,
+            process.cwd(),
+            false,
+          );
+          return this.llm.sendMessage(model, formattedFollowup, options);
+        },
+      );
+
+    // If we have a followup response from the LLM after executing actions, use that
+    return {
+      response: followupResponse || response,
+      actions,
+    };
   }
 
   getConversationHistory() {
