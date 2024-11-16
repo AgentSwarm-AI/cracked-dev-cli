@@ -144,6 +144,8 @@ export class CrackedAgent {
           chunk,
           model,
           async (msg) => await this.llm.sendMessage(model, msg, options),
+          async (msg, callback) =>
+            await this.llm.streamMessage(model, msg, callback, options),
           options,
         );
       },

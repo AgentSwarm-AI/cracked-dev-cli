@@ -49,6 +49,10 @@ ${completionContent}
     chunk: string,
     model: string,
     llmCallback: StreamCallback,
+    streamCallback: (
+      message: string,
+      callback: (chunk: string) => void,
+    ) => Promise<void>,
     options?: Record<string, unknown>,
   ) {
     process.stdout.write(chunk);
@@ -84,20 +88,23 @@ ${completionContent}
         this.actionsParser.buffer,
         model,
         async (message) => {
-          const response = await llmCallback(message);
-          process.stdout.write("\n" + message + "\n");
-          process.stdout.write(response);
+          let actionResponse = "";
+          await streamCallback(message, (chunk) => {
+            process.stdout.write(chunk);
+            actionResponse += chunk;
+          });
 
           // Check for task completion in the action response
-          const actionCompletionMessage = this.checkTaskCompletion(response);
+          const actionCompletionMessage =
+            this.checkTaskCompletion(actionResponse);
           if (actionCompletionMessage) {
             this.responseBuffer = actionCompletionMessage;
             process.stdout.write("\n" + actionCompletionMessage + "\n");
-            return response;
+            return actionResponse;
           }
 
-          this.responseBuffer += response;
-          return response;
+          this.responseBuffer += actionResponse;
+          return actionResponse;
         },
       );
 
