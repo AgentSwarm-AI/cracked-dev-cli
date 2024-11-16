@@ -124,8 +124,6 @@ export class ActionsParser {
     }
 
     const completeTags = this.findCompleteTags(text);
-    if (completeTags.length === 0) return { actions: [] };
-
     this.debugLogger.log("Tags", "Found complete action tags", {
       tags: completeTags,
     });
@@ -141,7 +139,14 @@ export class ActionsParser {
     });
 
     const actions = await this.contextCreator.parseAndExecuteActions(text);
-    if (actions.length === 0) return { actions: [] };
+
+    if (!actions) {
+      return { actions: [] };
+    }
+
+    if (actions.length === 0) {
+      return { actions: [] };
+    }
 
     const actionResults = actions
       .map(
