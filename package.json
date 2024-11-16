@@ -42,6 +42,7 @@
   "devDependencies": {
     "@oclif/test": "^4.1.0",
     "@swc/core": "^1.9.2",
+    "@types/fs-extra": "^11.0.4",
     "@types/jest": "^29.5.11",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
     "@typescript-eslint/parser": "^6.21.0",
@@ -62,7 +63,11 @@
     "@oclif/plugin-help": "^6.2.16",
     "axios": "^1.7.7",
     "dotenv": "^16.4.5",
+    "fast-glob": "^3.3.2",
+    "fs-extra": "^11.2.0",
+    "minimatch": "^10.0.1",
     "reflect-metadata": "^0.2.2",
+    "tree-cli": "^0.6.7",
     "tsup": "^8.3.5",
     "tsyringe": "^4.8.0",
     "zod": "^3.23.8"
