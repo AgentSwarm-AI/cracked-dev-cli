@@ -2,13 +2,7 @@ import { autoInjectable, inject } from "tsyringe";
 import { TagsExtractor } from "../TagsExtractor/TagsExtractor";
 import { STAGE_PROMPTS, TaskStage } from "../TaskManager/TaskStage";
 
-interface DiscoveryResult {
-  requirements: string[];
-  relevantFiles: string[];
-  patterns: string[];
-}
-
-interface StrategyGoal {
+export interface StrategyGoal {
   description: string;
   steps: string[];
   considerations: string[];
@@ -43,30 +37,6 @@ export class StrategyCrafter {
 
   resetStage(): void {
     this.currentStage = TaskStage.DISCOVERY;
-  }
-
-  parseDiscoveryResponse(response: string): DiscoveryResult {
-    const discoveryContent = this.tagsExtractor.extractTag(
-      response,
-      "discovery",
-    );
-    if (!discoveryContent)
-      return { requirements: [], relevantFiles: [], patterns: [] };
-
-    return {
-      requirements: this.tagsExtractor.extractTagLines(
-        discoveryContent,
-        "requirements",
-      ),
-      relevantFiles: this.tagsExtractor.extractTagLines(
-        discoveryContent,
-        "relevant_files",
-      ),
-      patterns: this.tagsExtractor.extractTagLines(
-        discoveryContent,
-        "patterns",
-      ),
-    };
   }
 
   parseStrategyResponse(response: string): StrategyGoal[] {

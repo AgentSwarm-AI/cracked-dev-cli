@@ -46,7 +46,6 @@ describe("StrategyCrafter", () => {
         envDetails,
       );
 
-      // Should only return the stage prompt without wrapping tags
       expect(result).toBe(STAGE_PROMPTS[TaskStage.DISCOVERY]);
       expect(result).not.toContain("<task>");
       expect(result).not.toContain("<environment>");
@@ -60,50 +59,6 @@ describe("StrategyCrafter", () => {
     });
   });
 
-  describe("parseDiscoveryResponse", () => {
-    it("should parse valid discovery response", () => {
-      const mockDiscoveryContent = `
-        <requirements>Req 1</requirements>
-        <relevant_files>File 1</relevant_files>
-        <patterns>Pattern 1</patterns>
-      `;
-
-      mockTagsExtractor.extractTag.mockReturnValueOnce(mockDiscoveryContent);
-      mockTagsExtractor.extractTagLines
-        .mockReturnValueOnce(["Req 1"])
-        .mockReturnValueOnce(["File 1"])
-        .mockReturnValueOnce(["Pattern 1"]);
-
-      const result = strategyCrafter.parseDiscoveryResponse(
-        "<discovery>content</discovery>",
-      );
-
-      expect(result).toEqual({
-        requirements: ["Req 1"],
-        relevantFiles: ["File 1"],
-        patterns: ["Pattern 1"],
-      });
-
-      expect(mockTagsExtractor.extractTag).toHaveBeenCalledWith(
-        expect.any(String),
-        "discovery",
-      );
-      expect(mockTagsExtractor.extractTagLines).toHaveBeenCalledTimes(3);
-    });
-
-    it("should handle empty discovery response", () => {
-      mockTagsExtractor.extractTag.mockReturnValueOnce(null);
-
-      const result = strategyCrafter.parseDiscoveryResponse("");
-
-      expect(result).toEqual({
-        requirements: [],
-        relevantFiles: [],
-        patterns: [],
-      });
-    });
-  });
-
   describe("parseStrategyResponse", () => {
     it("should parse valid strategy response", () => {
       const mockGoalContent = `
@@ -113,8 +68,8 @@ describe("StrategyCrafter", () => {
       `;
 
       mockTagsExtractor.extractTag
-        .mockReturnValueOnce("strategy content") // For strategy tag
-        .mockReturnValueOnce("Goal 1"); // For description tag
+        .mockReturnValueOnce("strategy content")
+        .mockReturnValueOnce("Goal 1");
 
       mockTagsExtractor.extractTags.mockReturnValueOnce([mockGoalContent]);
       mockTagsExtractor.extractTagLines
@@ -135,9 +90,7 @@ describe("StrategyCrafter", () => {
 
     it("should handle empty strategy response", () => {
       mockTagsExtractor.extractTag.mockReturnValueOnce(null);
-
       const result = strategyCrafter.parseStrategyResponse("");
-
       expect(result).toEqual([]);
     });
 
@@ -154,19 +107,19 @@ describe("StrategyCrafter", () => {
       `;
 
       mockTagsExtractor.extractTag
-        .mockReturnValueOnce("strategy content") // For strategy tag
-        .mockReturnValueOnce("Goal 1") // For first description
-        .mockReturnValueOnce("Goal 2"); // For second description
+        .mockReturnValueOnce("strategy content")
+        .mockReturnValueOnce("Goal 1")
+        .mockReturnValueOnce("Goal 2");
 
       mockTagsExtractor.extractTags.mockReturnValueOnce([
         mockGoalContent1,
         mockGoalContent2,
       ]);
       mockTagsExtractor.extractTagLines
-        .mockReturnValueOnce(["Step 1A"]) // First goal steps
-        .mockReturnValueOnce(["Consider 1A"]) // First goal considerations
-        .mockReturnValueOnce(["Step 2A"]) // Second goal steps
-        .mockReturnValueOnce(["Consider 2A"]); // Second goal considerations
+        .mockReturnValueOnce(["Step 1A"])
+        .mockReturnValueOnce(["Consider 1A"])
+        .mockReturnValueOnce(["Step 2A"])
+        .mockReturnValueOnce(["Consider 2A"]);
 
       const result = strategyCrafter.parseStrategyResponse(
         "<strategy>content</strategy>",
@@ -197,8 +150,8 @@ describe("StrategyCrafter", () => {
 
       mockTagsExtractor.extractTags.mockReturnValueOnce([mockGoalContent]);
       mockTagsExtractor.extractTagLines
-        .mockReturnValueOnce([]) // Empty steps
-        .mockReturnValueOnce([]); // Empty considerations
+        .mockReturnValueOnce([])
+        .mockReturnValueOnce([]);
 
       const result = strategyCrafter.parseStrategyResponse(
         "<strategy>content</strategy>",

@@ -2,6 +2,7 @@ import { autoInjectable } from "tsyringe";
 import { ActionsParser } from "./ActionsParser";
 import { DebugLogger } from "./DebugLogger";
 import { FileReader } from "./FileReader";
+import { DiscoveryCrafter, DiscoveryResult } from "./LLM/DiscoveryCrafter";
 import { ILLMProvider } from "./LLM/ILLMProvider";
 import { LLMContextCreator } from "./LLM/LLMContextCreator";
 import { LLMProvider, LLMProviderType } from "./LLM/LLMProvider";
@@ -26,12 +27,6 @@ export interface ExecutionResult {
   actions?: Array<{ action: string; result: any }>;
 }
 
-interface DiscoveryResult {
-  requirements: string[];
-  relevantFiles: string[];
-  patterns: string[];
-}
-
 interface StrategyGoal {
   description: string;
   steps: string[];
@@ -52,6 +47,7 @@ export class CrackedAgent {
     private actionsParser: ActionsParser,
     private streamHandler: StreamHandler,
     private strategyCrafter: StrategyCrafter,
+    private discoveryCrafter: DiscoveryCrafter,
   ) {}
 
   private async setupExecution(options: CrackedAgentOptions) {
@@ -114,31 +110,76 @@ export class CrackedAgent {
     model: string,
     options?: Record<string, unknown>,
   ): Promise<void> {
-    const stagePrompt = this.strategyCrafter.getPromptForStage(
-      TaskStage.DISCOVERY,
-      message,
-      "",
-    );
-    // Only include environment details in discovery stage
-    const formattedMessage = await this.contextCreator.create(
+    this.debugLogger.log("Discovery", "Starting discovery stage", {
       message,
       root,
-      true,
-      TaskStage.DISCOVERY,
-      stagePrompt,
-    );
+    });
 
-    const response = await this.llm.sendMessage(
-      model,
-      formattedMessage,
-      options,
+    // Initialize discovery phase
+    const initialContext = await this.discoveryCrafter.initiateDiscovery(
+      message,
+      root,
     );
+    this.debugLogger.log("Discovery", "Initial context created", {
+      initialContext,
+    });
+
+    // Get LLM response for discovery
+    let response = await this.llm.sendMessage(model, initialContext, options);
+    this.debugLogger.log("Discovery", "Initial LLM response received", {
+      response,
+    });
+
+    // Execute any discovery actions (file reading, etc)
+    const actionResults =
+      await this.discoveryCrafter.executeDiscoveryActions(response);
+    this.debugLogger.log("Discovery", "Action results received", {
+      actionResults,
+    });
+
+    // If we have file content from actions, send it back to LLM for analysis
+    if (actionResults && actionResults.length > 0) {
+      const fileContents = actionResults
+        .filter((result) => result.success && result.data)
+        .map((result) => result.data)
+        .join("\n\n");
+
+      if (fileContents) {
+        this.debugLogger.log("Discovery", "Sending file contents to LLM", {
+          fileContents,
+        });
+
+        const contextWithFileContent = `Here's the content of the requested files:\n\n${fileContents}\n\nPlease analyze this content and provide a response with <task_objective_completed> tag and include the relevant information from the files.`;
+        response = await this.llm.sendMessage(
+          model,
+          contextWithFileContent,
+          options,
+        );
+
+        this.debugLogger.log(
+          "Discovery",
+          "Received LLM response with file analysis",
+          {
+            response,
+          },
+        );
+      }
+    }
+
+    // Parse discovery results
     this.discoveryResult =
-      this.strategyCrafter.parseDiscoveryResponse(response);
+      this.discoveryCrafter.parseDiscoveryResponse(response);
 
     this.debugLogger.log("Discovery", "Completed discovery stage", {
       discoveryResult: this.discoveryResult,
+      isComplete: this.discoveryCrafter.isDiscoveryComplete(response),
+      finalResponse: response,
     });
+
+    // Only proceed if discovery is complete
+    if (!this.discoveryCrafter.isDiscoveryComplete(response)) {
+      throw new Error("Discovery phase incomplete");
+    }
   }
 
   private async handleStrategyStage(
