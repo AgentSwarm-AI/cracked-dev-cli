@@ -51,7 +51,18 @@ ${context.message}
 ${context.environmentDetails}
 </environment>
 
-Available actions:
+You MUST answer following this pattern:
+
+To achieve this XYZ goal, I need to perform the following steps:
+  - your first step here
+  - second step here
+  - etc.
+
+<!-- next step should be aimed towards one of the steps above -->
+
+I'll perform <action_name> to achieve the desired goal.
+
+Available action_names are:
 - read_file: Read contents of a file
   <read_file>
     <path>/path/here</path>
@@ -107,6 +118,8 @@ Available actions:
   async parseAndExecuteActions(
     response: string,
   ): Promise<Array<{ action: string; result: any }>> {
+    console.log("🔍 LLMContextCreator: Parsing and executing actions...");
+
     const results = [];
     const actionRegex =
       /<(read_file|write_file|delete_file|update_file|move_file|copy_file_slice|execute_command|search_string|search_file)>(?:[^<]*|<(?!\/\1>)[^<]*)*<\/\1>/g;

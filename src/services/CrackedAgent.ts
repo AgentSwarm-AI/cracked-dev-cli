@@ -43,6 +43,44 @@ export class CrackedAgent {
     private streamHandler: StreamHandler,
   ) {}
 
+  async execute(
+    message: string,
+    options: CrackedAgentOptions,
+  ): Promise<ExecutionResult | void> {
+    const finalOptions = await this.setupExecution(options);
+
+    const formattedMessage = await this.contextCreator.create(
+      message,
+      finalOptions.root,
+      this.isFirstInteraction,
+    );
+
+    this.debugLogger.log("Message", "Sending message to LLM", {
+      message: formattedMessage,
+      conversationHistory: this.llm.getConversationContext(),
+    });
+
+    if (finalOptions.stream) {
+      return this.handleStreamExecution(
+        formattedMessage,
+        finalOptions.model,
+        finalOptions.options,
+      );
+    }
+
+    const result = await this.handleNormalExecution(
+      formattedMessage,
+      finalOptions.model,
+      finalOptions.options,
+    );
+
+    if (this.isFirstInteraction) {
+      this.isFirstInteraction = false;
+    }
+
+    return result;
+  }
+
   private async setupExecution(options: CrackedAgentOptions) {
     const finalOptions = {
       root: process.cwd(),
@@ -104,44 +142,6 @@ export class CrackedAgent {
     }
   }
 
-  async execute(
-    message: string,
-    options: CrackedAgentOptions,
-  ): Promise<ExecutionResult | void> {
-    const finalOptions = await this.setupExecution(options);
-
-    const formattedMessage = await this.contextCreator.create(
-      message,
-      finalOptions.root,
-      this.isFirstInteraction,
-    );
-
-    this.debugLogger.log("Message", "Sending message to LLM", {
-      message: formattedMessage,
-      conversationHistory: this.llm.getConversationContext(),
-    });
-
-    if (finalOptions.stream) {
-      return this.handleStreamExecution(
-        formattedMessage,
-        finalOptions.model,
-        finalOptions.options,
-      );
-    }
-
-    const result = await this.handleNormalExecution(
-      formattedMessage,
-      finalOptions.model,
-      finalOptions.options,
-    );
-
-    if (this.isFirstInteraction) {
-      this.isFirstInteraction = false;
-    }
-
-    return result;
-  }
-
   private async handleStreamExecution(
     message: string,
     model: string,
@@ -160,6 +160,8 @@ export class CrackedAgent {
     );
     process.stdout.write("\n");
 
+    console.log(`🔍 CrackedAgent: Parsing and executing actions...`);
+
     const { actions, followupResponse } =
       await this.actionsParser.parseAndExecuteActions(
         this.actionsParser.buffer,
@@ -174,6 +176,11 @@ export class CrackedAgent {
           return this.llm.sendMessage(model, formattedFollowup, options);
         },
       );
+
+    console.log(`🔍 CrackedAgent: Actions and followUpResponse: 
+        actions: ${actions}
+        followUpResponse: ${followupResponse}
+        `);
 
     // If we have a followup response from the LLM after executing actions, use that
     return {
