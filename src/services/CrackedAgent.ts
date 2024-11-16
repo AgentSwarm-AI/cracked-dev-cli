@@ -1,6 +1,7 @@
 import { autoInjectable } from "tsyringe";
 import { FileReader } from "./FileReader";
 import { ILLMProvider } from "./LLM/ILLMProvider";
+import { LLMContextCreator } from "./LLM/LLMContextCreator";
 import { LLMProvider, LLMProviderType } from "./LLM/LLMProvider";
 
 export interface CrackedAgentOptions {
@@ -17,7 +18,10 @@ export interface CrackedAgentOptions {
 export class CrackedAgent {
   private llm: ILLMProvider | undefined;
 
-  constructor(private fileReader: FileReader) {}
+  constructor(
+    private fileReader: FileReader,
+    private contextCreator: LLMContextCreator,
+  ) {}
 
   async execute(
     message: string,
@@ -64,10 +68,20 @@ export class CrackedAgent {
       this.llm.addSystemInstructions(instructionsContent);
     }
 
+    // Create formatted context using LLMContextCreator
+    const formattedMessage = await this.contextCreator.create(
+      message,
+      finalOptions.root,
+    );
+
+    if (finalOptions.debug) {
+      console.log(`Formatted message: ${formattedMessage}`);
+    }
+
     if (finalOptions.stream) {
       await this.llm.streamMessage(
         finalOptions.model,
-        message,
+        formattedMessage,
         (chunk: string) => {
           process.stdout.write(chunk);
         },
@@ -76,7 +90,10 @@ export class CrackedAgent {
       process.stdout.write("\n");
       return;
     } else {
-      const response = await this.llm.sendMessage(finalOptions.model, message);
+      const response = await this.llm.sendMessage(
+        finalOptions.model,
+        formattedMessage,
+      );
       return response;
     }
   }
