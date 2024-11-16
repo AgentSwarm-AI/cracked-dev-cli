@@ -112,6 +112,8 @@ export class Crkd extends Command {
         await llm.streamMessage(model, message, (chunk) => {
           process.stdout.write(chunk);
         });
+        // Add a newline after stream completes
+        process.stdout.write("\n");
       } else {
         const response = await llm.sendMessage(model, message);
         this.log(response);
