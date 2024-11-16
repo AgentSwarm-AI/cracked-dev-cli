@@ -1,7 +1,10 @@
 import { autoInjectable } from "tsyringe";
+import { TagsExtractor } from "../TagsExtractor/TagsExtractor";
 
 export interface Goal {
   description: string;
+  steps: string[];
+  considerations: string[];
   completed: boolean;
 }
 
@@ -17,17 +20,23 @@ export class TaskManager {
     currentGoalIndex: 0,
   };
 
+  constructor(private tagsExtractor: TagsExtractor) {}
+
   parseStrategy(text: string): void {
-    const strategyMatch = text.match(/<strategy>([\s\S]*?)<\/strategy>/);
-    if (!strategyMatch) return;
+    const strategyContent = this.tagsExtractor.extractTag(text, "strategy");
+    if (!strategyContent) return;
 
-    const strategyContent = strategyMatch[1];
-    const goalMatches = strategyContent.match(/<goal>([\s\S]*?)<\/goal>/g);
+    const goalTags = this.tagsExtractor.extractTags(strategyContent, "goal");
+    if (!goalTags.length) return;
 
-    if (!goalMatches) return;
-
-    this.strategy.goals = goalMatches.map((goalTag) => ({
-      description: goalTag.replace(/<\/?goal>/g, "").trim(),
+    this.strategy.goals = goalTags.map((goalContent) => ({
+      description:
+        this.tagsExtractor.extractTag(goalContent, "description") || "",
+      steps: this.tagsExtractor.extractTagLines(goalContent, "steps"),
+      considerations: this.tagsExtractor.extractTagLines(
+        goalContent,
+        "considerations",
+      ),
       completed: false,
     }));
 

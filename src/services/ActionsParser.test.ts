@@ -131,10 +131,17 @@ describe("ActionsParser", () => {
         mockActions,
       );
       mockTaskManager.getAllGoals.mockReturnValue([
-        { description: "test goal", completed: false },
+        {
+          description: "test goal",
+          steps: ["step 1"],
+          considerations: ["consideration 1"],
+          completed: false,
+        },
       ]);
       mockTaskManager.getCurrentGoal.mockReturnValue({
         description: "test goal",
+        steps: ["step 1"],
+        considerations: ["consideration 1"],
         completed: false,
       });
 

@@ -140,5 +140,76 @@ describe("StrategyCrafter", () => {
 
       expect(result).toEqual([]);
     });
+
+    it("should parse multiple goals in strategy response", () => {
+      const mockGoalContent1 = `
+        <description>Goal 1</description>
+        <steps>Step 1A</steps>
+        <considerations>Consider 1A</considerations>
+      `;
+      const mockGoalContent2 = `
+        <description>Goal 2</description>
+        <steps>Step 2A</steps>
+        <considerations>Consider 2A</considerations>
+      `;
+
+      mockTagsExtractor.extractTag
+        .mockReturnValueOnce("strategy content") // For strategy tag
+        .mockReturnValueOnce("Goal 1") // For first description
+        .mockReturnValueOnce("Goal 2"); // For second description
+
+      mockTagsExtractor.extractTags.mockReturnValueOnce([
+        mockGoalContent1,
+        mockGoalContent2,
+      ]);
+      mockTagsExtractor.extractTagLines
+        .mockReturnValueOnce(["Step 1A"]) // First goal steps
+        .mockReturnValueOnce(["Consider 1A"]) // First goal considerations
+        .mockReturnValueOnce(["Step 2A"]) // Second goal steps
+        .mockReturnValueOnce(["Consider 2A"]); // Second goal considerations
+
+      const result = strategyCrafter.parseStrategyResponse(
+        "<strategy>content</strategy>",
+      );
+
+      expect(result).toHaveLength(2);
+      expect(result[0]).toEqual({
+        description: "Goal 1",
+        steps: ["Step 1A"],
+        considerations: ["Consider 1A"],
+      });
+      expect(result[1]).toEqual({
+        description: "Goal 2",
+        steps: ["Step 2A"],
+        considerations: ["Consider 2A"],
+      });
+    });
+
+    it("should handle malformed goal content", () => {
+      const mockGoalContent = `
+        <description>Goal 1</description>
+        <!-- Missing steps and considerations -->
+      `;
+
+      mockTagsExtractor.extractTag
+        .mockReturnValueOnce("strategy content")
+        .mockReturnValueOnce("Goal 1");
+
+      mockTagsExtractor.extractTags.mockReturnValueOnce([mockGoalContent]);
+      mockTagsExtractor.extractTagLines
+        .mockReturnValueOnce([]) // Empty steps
+        .mockReturnValueOnce([]); // Empty considerations
+
+      const result = strategyCrafter.parseStrategyResponse(
+        "<strategy>content</strategy>",
+      );
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toEqual({
+        description: "Goal 1",
+        steps: [],
+        considerations: [],
+      });
+    });
   });
 });

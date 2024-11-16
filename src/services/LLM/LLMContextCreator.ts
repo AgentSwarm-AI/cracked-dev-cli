@@ -45,7 +45,10 @@ export class LLMContextCreator {
       });
     }
 
-    return this.formatSequentialMessage(baseContext);
+    return this.formatSequentialMessage({
+      ...baseContext,
+      stage,
+    });
   }
 
   private async getEnvironmentDetails(root: string): Promise<string> {
@@ -66,8 +69,10 @@ export class LLMContextCreator {
     );
   }
 
-  private formatSequentialMessage(context: SequentialMessageContext): string {
-    return this.getFormattedMessage(context.task);
+  private formatSequentialMessage(
+    context: SequentialMessageContext & { stage?: TaskStage },
+  ): string {
+    return this.getFormattedMessage(context.task, undefined, "", context.stage);
   }
 
   private getFormattedMessage(
@@ -131,7 +136,7 @@ export class LLMContextCreator {
   <search_string>string_to_search</search_string>
   <search_file>path/to/file</search_file>
   ${
-    isFirstMessage && stage === TaskStage.STRATEGY
+    stage === TaskStage.STRATEGY
       ? `
   <!-- Strategy Planning -->
   <strategy>
