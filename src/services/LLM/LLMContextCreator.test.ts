@@ -3,131 +3,121 @@ import { DirectoryScanner } from "../FileManagement/DirectoryScanner";
 import { ActionExecutor } from "./actions/ActionExecutor";
 import { LLMContextCreator } from "./LLMContextCreator";
 
+jest.mock("../FileManagement/DirectoryScanner");
+jest.mock("./actions/ActionExecutor");
+
 describe("LLMContextCreator", () => {
-  let llmContextCreator: LLMContextCreator;
+  let contextCreator: LLMContextCreator;
   let mockDirectoryScanner: jest.Mocked<DirectoryScanner>;
   let mockActionExecutor: jest.Mocked<ActionExecutor>;
 
   beforeEach(() => {
-    mockDirectoryScanner = {
-      scan: jest.fn(),
-    } as any;
-
-    mockActionExecutor = {
-      executeAction: jest.fn(),
-    } as any;
-
-    container.registerInstance(DirectoryScanner, mockDirectoryScanner);
-    container.registerInstance(ActionExecutor, mockActionExecutor);
-    llmContextCreator = container.resolve(LLMContextCreator);
+    mockDirectoryScanner = container.resolve(
+      DirectoryScanner,
+    ) as jest.Mocked<DirectoryScanner>;
+    mockActionExecutor = container.resolve(
+      ActionExecutor,
+    ) as jest.Mocked<ActionExecutor>;
+    contextCreator = new LLMContextCreator(
+      mockDirectoryScanner,
+      mockActionExecutor,
+    );
   });
 
   describe("create", () => {
-    const mockTask = "test task";
-    const mockRoot = "/test/root";
-    const mockScanResult = {
-      success: true,
-      data: "file1\nfile2",
-    };
+    it("should create first time message with environment details", async () => {
+      const message = "test message";
+      const root = "/test/root";
+      const scanResult = {
+        success: true,
+        data: "file1\nfile2",
+      };
 
-    beforeEach(() => {
-      mockDirectoryScanner.scan.mockResolvedValue(mockScanResult);
-    });
+      mockDirectoryScanner.scan.mockResolvedValue(scanResult);
 
-    it("should include environment details for first message", async () => {
-      const result = await llmContextCreator.create(mockTask, mockRoot, true);
+      const result = await contextCreator.create(message, root, true);
 
+      expect(result).toContain("<task>");
+      expect(result).toContain(message);
       expect(result).toContain("<environment>");
-      expect(result).toContain(mockScanResult.data);
-      expect(mockDirectoryScanner.scan).toHaveBeenCalledWith(mockRoot);
+      expect(result).toContain(scanResult.data);
+      expect(result).toContain("Available actions:");
+      expect(mockDirectoryScanner.scan).toHaveBeenCalledWith(root);
     });
 
-    it("should not include environment details for sequential messages", async () => {
-      const result = await llmContextCreator.create(mockTask, mockRoot, false);
+    it("should create sequential message without environment details", async () => {
+      const message = "test message";
+      const root = "/test/root";
 
-      expect(result).not.toContain("<environment>");
+      const result = await contextCreator.create(message, root, false);
+
+      expect(result).toBe(message);
       expect(mockDirectoryScanner.scan).not.toHaveBeenCalled();
     });
 
-    it("should include all action examples with proper tag format", async () => {
-      const result = await llmContextCreator.create(mockTask, mockRoot, true);
+    it("should throw error if directory scan fails", async () => {
+      const message = "test message";
+      const root = "/test/root";
+      const error = new Error("Scan failed");
 
-      expect(result).toContain(
-        "<read_file>\n    <path>/path/here</path>\n  </read_file>",
-      );
-      expect(result).toContain(
-        "<write_file>\n    <path>/path/here</path>\n    <content>",
-      );
-      expect(result).toContain(
-        "<delete_file>\n    <path>/path/here</path>\n  </delete_file>",
-      );
-      expect(result).toContain(
-        "<move_file>\n    <source_path>source/path/here</source_path>\n    <destination_path>destination/path/here</destination_path>\n  </move_file>",
-      );
-      expect(result).toContain(
-        "<copy_file_slice>\n    <source_path>source/path/here</source_path>\n    <destination_path>destination/path/here</destination_path>\n  </copy_file_slice>",
-      );
-      expect(result).toContain(
-        "<search_string>\n    <directory>/path/to/search</directory>\n    <term>pattern to search</term>\n  </search_string>",
-      );
-      expect(result).toContain(
-        "<search_file>\n    <directory>/path/to/search</directory>\n    <term>filename pattern</term>\n  </search_file>",
+      mockDirectoryScanner.scan.mockResolvedValue({
+        success: false,
+        error,
+      });
+
+      await expect(contextCreator.create(message, root, true)).rejects.toThrow(
+        "Failed to scan directory",
       );
     });
   });
 
   describe("parseAndExecuteActions", () => {
-    it("should parse and execute actions from response", async () => {
-      const mockResponse = `
-        <read_file>
-          <path>test.txt</path>
-        </read_file>
-        <execute_command>ls</execute_command>
+    it("should parse and execute all actions in text", async () => {
+      const text = `
+        <read_file><path>test1.txt</path></read_file>
+        <write_file><path>test2.txt</path><content>test</content></write_file>
       `;
-      const mockResult = { success: true };
-      mockActionExecutor.executeAction.mockResolvedValue(mockResult);
+      const mockResults = [
+        { success: true, data: "content1" },
+        { success: true },
+      ];
 
-      const results =
-        await llmContextCreator.parseAndExecuteActions(mockResponse);
+      mockActionExecutor.executeAction
+        .mockResolvedValueOnce(mockResults[0])
+        .mockResolvedValueOnce(mockResults[1]);
+
+      const results = await contextCreator.parseAndExecuteActions(text);
 
       expect(results).toHaveLength(2);
       expect(mockActionExecutor.executeAction).toHaveBeenCalledTimes(2);
-      expect(results[0].result).toEqual(mockResult);
-      expect(results[1].result).toEqual(mockResult);
+      expect(results[0].result).toBe(mockResults[0]);
+      expect(results[1].result).toBe(mockResults[1]);
     });
 
-    it("should handle responses with no actions", async () => {
-      const mockResponse = "No actions here";
-      const results =
-        await llmContextCreator.parseAndExecuteActions(mockResponse);
-
+    it("should handle text with no actions", async () => {
+      const text = "no actions here";
+      const results = await contextCreator.parseAndExecuteActions(text);
       expect(results).toHaveLength(0);
       expect(mockActionExecutor.executeAction).not.toHaveBeenCalled();
     });
 
-    it("should parse and execute complex actions with nested tags", async () => {
-      const mockResponse = `
+    it("should handle nested tags in actions", async () => {
+      const text = `
         <write_file>
           <path>test.txt</path>
           <content>
-            Hello World
+            <nested>content</nested>
           </content>
         </write_file>
-        <search_string>
-          <directory>./src</directory>
-          <term>pattern</term>
-        </search_string>
       `;
       const mockResult = { success: true };
       mockActionExecutor.executeAction.mockResolvedValue(mockResult);
 
-      const results =
-        await llmContextCreator.parseAndExecuteActions(mockResponse);
+      const results = await contextCreator.parseAndExecuteActions(text);
 
-      expect(results).toHaveLength(2);
-      expect(mockActionExecutor.executeAction).toHaveBeenCalledTimes(2);
-      expect(results[0].result).toEqual(mockResult);
-      expect(results[1].result).toEqual(mockResult);
+      expect(results).toHaveLength(1);
+      expect(mockActionExecutor.executeAction).toHaveBeenCalledTimes(1);
+      expect(results[0].result).toBe(mockResult);
     });
   });
 });

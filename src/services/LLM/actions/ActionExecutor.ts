@@ -24,46 +24,62 @@ export class ActionExecutor {
 
   async executeAction(actionText: string): Promise<IActionResult> {
     try {
-      const actionMatch = /<(\w+)>([\s\S]*?)<\/\1>/;
-      const match = actionText.match(actionMatch);
+      const actionMatch = /<(\w+)>([^<]*(?:(?!<\/\1>)<[^<]*)*)<\/\1>/g;
+      const matches = Array.from(actionText.matchAll(actionMatch));
 
-      if (!match) {
+      if (!matches.length) {
         return { success: false, error: new Error("Invalid action format") };
       }
 
-      const [_, actionType, content] = match;
+      // Execute all actions sequentially
+      let lastResult: IActionResult = { success: true };
+      console.log("matches", matches);
+      for (const match of matches) {
+        const [_, actionType, content] = match;
+        lastResult = await this.executeActionByType(actionType, content.trim());
 
-      switch (actionType) {
-        case "read_file":
-          console.log("📖 Reading file...");
-          return await this.handleReadFile(content.trim());
-        case "write_file":
-          console.log("📝 Writing to file...");
-          return await this.handleWriteFile(content);
-        case "delete_file":
-          console.log("🗑️  Deleting file...");
-          return await this.handleDeleteFile(content.trim());
-        case "move_file":
-          console.log("🚚 Moving file...");
-          return await this.handleMoveFile(content);
-        case "copy_file_slice":
-          console.log("📋 Copying file...");
-          return await this.handleCopyFile(content);
-        case "execute_command":
-          console.log("🚀 Executing command...");
-          return await this.handleExecuteCommand(content.trim());
-        case "search_string":
-        case "search_file":
-          console.log("🔍 Searching...");
-          return await this.handleSearch(actionType, content.trim());
-        default:
-          return {
-            success: false,
-            error: new Error(`Unknown action type: ${actionType}`),
-          };
+        // Stop execution if an action fails
+        if (!lastResult.success) break;
       }
+
+      return lastResult;
     } catch (error) {
       return { success: false, error: error as Error };
+    }
+  }
+
+  private async executeActionByType(
+    actionType: string,
+    content: string,
+  ): Promise<IActionResult> {
+    switch (actionType) {
+      case "read_file":
+        console.log("📖 Reading file...");
+        return await this.handleReadFile(content);
+      case "write_file":
+        console.log("📝 Writing to file...");
+        return await this.handleWriteFile(content);
+      case "delete_file":
+        console.log("🗑️  Deleting file...");
+        return await this.handleDeleteFile(content);
+      case "move_file":
+        console.log("🚚 Moving file...");
+        return await this.handleMoveFile(content);
+      case "copy_file_slice":
+        console.log("📋 Copying file...");
+        return await this.handleCopyFile(content);
+      case "execute_command":
+        console.log("🚀 Executing command...");
+        return await this.handleExecuteCommand(content);
+      case "search_string":
+      case "search_file":
+        console.log("🔍 Searching...");
+        return await this.handleSearch(actionType, content);
+      default:
+        return {
+          success: false,
+          error: new Error(`Unknown action type: ${actionType}`),
+        };
     }
   }
 

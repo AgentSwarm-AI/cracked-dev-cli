@@ -1,7 +1,6 @@
 import path from "path";
 import { autoInjectable } from "tsyringe";
 import { DebugLogger } from "../../DebugLogger";
-import { TaskManager } from "../../TaskManager/TaskManager";
 import { LLMContextCreator } from "../LLMContextCreator";
 
 export interface ActionExecutionResult {
@@ -19,7 +18,6 @@ export class ActionsParser {
   constructor(
     private debugLogger: DebugLogger,
     private contextCreator: LLMContextCreator,
-    private taskManager: TaskManager,
   ) {}
 
   reset() {
@@ -27,27 +25,10 @@ export class ActionsParser {
     this.currentMessageBuffer = "";
     this.isProcessingAction = false;
     this.messageComplete = false;
-    this.taskManager.reset();
   }
 
   isCompleteMessage(text: string): boolean {
-    const sections = [
-      "<strategy>",
-      "</strategy>",
-      "<next_step>",
-      "</next_step>",
-    ];
-
-    let lastIndex = -1;
-    for (const section of sections) {
-      const index = text.indexOf(section);
-      if (index === -1 || index < lastIndex) {
-        return false;
-      }
-      lastIndex = index;
-    }
-
-    return true;
+    return true; // Always consider messages complete for now
   }
 
   extractFilePath(tag: string): string | null {
@@ -93,6 +74,7 @@ export class ActionsParser {
 
   clearBuffer() {
     this.currentMessageBuffer = "";
+    this.processedTags.clear(); // Clear processed tags when clearing buffer
   }
 
   get buffer() {
@@ -134,15 +116,6 @@ export class ActionsParser {
     llmCallback: (message: string) => Promise<string>,
   ): Promise<ActionExecutionResult> {
     try {
-      // Parse strategy if present in initial message
-      if (text.includes("<strategy>")) {
-        this.taskManager.parseStrategy(text);
-        const goals = this.taskManager.getAllGoals();
-        this.debugLogger.log("Strategy", "Parsed strategy and goals", {
-          goals,
-        });
-      }
-
       const completeTags = this.findCompleteTags(text);
       this.debugLogger.log("Tags", "Found complete action tags", {
         tags: completeTags,
@@ -174,19 +147,7 @@ export class ActionsParser {
         .map(({ action, result }) => this.formatActionResult(action, result))
         .join("\n\n");
 
-      // Include current goal in followup message if available
-      const currentGoal = this.taskManager.getCurrentGoal();
-      const goalStatus = currentGoal
-        ? `Current Goal: ${currentGoal.description}\n\n`
-        : "";
-
-      const followupMessage = `${goalStatus}${actionResults}`;
-
-      this.debugLogger.log("Action Results", "Sending action results to LLM", {
-        message: followupMessage,
-      });
-
-      const followupResponse = await llmCallback(followupMessage);
+      const followupResponse = await llmCallback(actionResults);
 
       console.log("\n🤖:", followupResponse);
 

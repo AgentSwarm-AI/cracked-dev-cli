@@ -1,18 +1,15 @@
 import { container } from "tsyringe";
 import { DebugLogger } from "../../DebugLogger";
-import { TaskManager } from "../../TaskManager/TaskManager";
 import { LLMContextCreator } from "../LLMContextCreator";
 import { ActionsParser } from "./ActionsParser";
 
 jest.mock("../../DebugLogger");
 jest.mock("../LLMContextCreator");
-jest.mock("../../TaskManager/TaskManager");
 
 describe("ActionsParser", () => {
   let actionsParser: ActionsParser;
   let mockDebugLogger: jest.Mocked<DebugLogger>;
   let mockContextCreator: jest.Mocked<LLMContextCreator>;
-  let mockTaskManager: jest.Mocked<TaskManager>;
 
   beforeEach(() => {
     mockDebugLogger = container.resolve(
@@ -21,14 +18,7 @@ describe("ActionsParser", () => {
     mockContextCreator = container.resolve(
       LLMContextCreator,
     ) as jest.Mocked<LLMContextCreator>;
-    mockTaskManager = container.resolve(
-      TaskManager,
-    ) as jest.Mocked<TaskManager>;
-    actionsParser = new ActionsParser(
-      mockDebugLogger,
-      mockContextCreator,
-      mockTaskManager,
-    );
+    actionsParser = new ActionsParser(mockDebugLogger, mockContextCreator);
   });
 
   describe("reset", () => {
@@ -42,24 +32,29 @@ describe("ActionsParser", () => {
       expect(actionsParser.buffer).toBe("");
       expect(actionsParser.isProcessing).toBe(false);
       expect(actionsParser.isComplete).toBe(false);
-      expect(mockTaskManager.reset).toHaveBeenCalled();
+    });
+
+    it("should allow reprocessing of previously processed tags after reset", () => {
+      const tag = "<read_file><path>test.txt</path></read_file>";
+
+      // First processing
+      let tags = actionsParser.findCompleteTags(tag);
+      expect(tags).toHaveLength(1);
+
+      // Should not find tags second time
+      tags = actionsParser.findCompleteTags(tag);
+      expect(tags).toHaveLength(0);
+
+      // After reset, should find tags again
+      actionsParser.reset();
+      tags = actionsParser.findCompleteTags(tag);
+      expect(tags).toHaveLength(1);
     });
   });
 
   describe("isCompleteMessage", () => {
-    it("should return true for message with all required sections in order", () => {
-      const message = "<strategy>test</strategy><next_step>test</next_step>";
-      expect(actionsParser.isCompleteMessage(message)).toBe(true);
-    });
-
-    it("should return false for message with missing sections", () => {
-      const message = "<strategy>test</strategy>";
-      expect(actionsParser.isCompleteMessage(message)).toBe(false);
-    });
-
-    it("should return false for message with incorrect order", () => {
-      const message = "<next_step>test</next_step><strategy>test</strategy>";
-      expect(actionsParser.isCompleteMessage(message)).toBe(false);
+    it("should always return true", () => {
+      expect(actionsParser.isCompleteMessage("any text")).toBe(true);
     });
   });
 
@@ -100,12 +95,35 @@ describe("ActionsParser", () => {
       expect(tags).toHaveLength(0);
     });
 
-    it("should not return previously processed tags", () => {
+    it("should not return previously processed tags until buffer is cleared", () => {
       const text = "<read_file><path>test.txt</path></read_file>";
+
+      // First run should find the tag
       const firstRun = actionsParser.findCompleteTags(text);
-      const secondRun = actionsParser.findCompleteTags(text);
       expect(firstRun).toHaveLength(1);
+
+      // Second run should not find the tag
+      const secondRun = actionsParser.findCompleteTags(text);
       expect(secondRun).toHaveLength(0);
+
+      // After clearing buffer, should find the tag again
+      actionsParser.clearBuffer();
+      const thirdRun = actionsParser.findCompleteTags(text);
+      expect(thirdRun).toHaveLength(1);
+    });
+
+    it("should handle nested tags properly", () => {
+      const text = `
+        <write_file>
+          <path>test.txt</path>
+          <content>
+            <some_nested_tag>content</some_nested_tag>
+          </content>
+        </write_file>
+      `;
+      const tags = actionsParser.findCompleteTags(text);
+      expect(tags).toHaveLength(1);
+      expect(tags[0]).toContain("write_file");
     });
   });
 
@@ -116,10 +134,19 @@ describe("ActionsParser", () => {
       expect(actionsParser.buffer).toBe("test1test2");
     });
 
-    it("should clear buffer", () => {
-      actionsParser.appendToBuffer("test");
+    it("should clear buffer and processed tags", () => {
+      const tag = "<read_file><path>test.txt</path></read_file>";
+      actionsParser.appendToBuffer(tag);
+
+      // First find should work
+      let tags = actionsParser.findCompleteTags(tag);
+      expect(tags).toHaveLength(1);
+
+      // Clear and should find again
       actionsParser.clearBuffer();
       expect(actionsParser.buffer).toBe("");
+      tags = actionsParser.findCompleteTags(tag);
+      expect(tags).toHaveLength(1);
     });
   });
 
@@ -132,6 +159,65 @@ describe("ActionsParser", () => {
         async (msg) => "response",
       );
       expect(result.actions).toEqual([]);
+    });
+
+    it("should execute actions and return results", async () => {
+      const text = "<read_file><path>test.txt</path></read_file>";
+      const mockActions = [
+        { action: text, result: { success: true, data: "content" } },
+      ];
+      mockContextCreator.parseAndExecuteActions.mockResolvedValue(mockActions);
+
+      const result = await actionsParser.parseAndExecuteActions(
+        text,
+        "test-model",
+        async (msg) => "response",
+      );
+
+      expect(result.actions).toEqual(mockActions);
+    });
+
+    it("should format read_file results differently", async () => {
+      const text = "<read_file><path>test.txt</path></read_file>";
+      const mockActions = [
+        {
+          action: text,
+          result: { success: true, data: "file content" },
+        },
+      ];
+      mockContextCreator.parseAndExecuteActions.mockResolvedValue(mockActions);
+
+      const result = await actionsParser.parseAndExecuteActions(
+        text,
+        "test-model",
+        async (msg) => {
+          expect(msg).toContain("Here's the content of the requested file");
+          expect(msg).toContain("file content");
+          return "response";
+        },
+      );
+
+      expect(result.actions).toEqual(mockActions);
+    });
+
+    it("should handle errors in action execution", async () => {
+      const text = "<read_file><path>test.txt</path></read_file>";
+      mockContextCreator.parseAndExecuteActions.mockRejectedValue(
+        new Error("Test error"),
+      );
+
+      const result = await actionsParser.parseAndExecuteActions(
+        text,
+        "test-model",
+        async (msg) => "response",
+      );
+
+      expect(result.actions).toEqual([]);
+      expect(mockDebugLogger.log).toHaveBeenCalledWith(
+        "Error",
+        "Failed to parse and execute actions",
+        expect.any(Object),
+      );
     });
   });
 });

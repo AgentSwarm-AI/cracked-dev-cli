@@ -1,4 +1,5 @@
 import { autoInjectable } from "tsyringe";
+import { WriteStream } from "tty";
 import { DebugLogger } from "./DebugLogger";
 import { ActionsParser } from "./LLM/actions/ActionsParser";
 
@@ -19,10 +20,39 @@ export class StreamHandler {
   reset() {
     this.responseBuffer = "";
     this.isStreamComplete = false;
+    this.actionsParser.reset();
   }
 
   get response() {
     return this.responseBuffer;
+  }
+
+  private safeWriteToStdout(text: string) {
+    try {
+      process.stdout.write(text);
+    } catch (error) {
+      // Ignore write errors in non-TTY environments
+    }
+  }
+
+  private safeClearLine() {
+    try {
+      if ((process.stdout as WriteStream).clearLine) {
+        (process.stdout as WriteStream).clearLine(0);
+      }
+    } catch (error) {
+      // Ignore clear errors in non-TTY environments
+    }
+  }
+
+  private safeCursorTo(x: number) {
+    try {
+      if ((process.stdout as WriteStream).cursorTo) {
+        (process.stdout as WriteStream).cursorTo(x);
+      }
+    } catch (error) {
+      // Ignore cursor errors in non-TTY environments
+    }
   }
 
   async handleChunk(
@@ -35,7 +65,7 @@ export class StreamHandler {
     ) => Promise<void>,
     options?: Record<string, unknown>,
   ) {
-    process.stdout.write(chunk);
+    this.safeWriteToStdout(chunk);
 
     this.actionsParser.appendToBuffer(chunk);
     this.responseBuffer += chunk;
@@ -48,7 +78,7 @@ export class StreamHandler {
       this.actionsParser.isComplete = true;
       this.isStreamComplete = true;
       this.debugLogger.log("Status", "Complete message detected", null);
-      process.stdout.write("\n");
+      this.safeWriteToStdout("\n");
     }
 
     // Only process actions if the stream is complete and we're not already processing
@@ -62,7 +92,7 @@ export class StreamHandler {
         async (message) => {
           let actionResponse = "";
           await streamCallback(message, (chunk) => {
-            process.stdout.write(chunk);
+            this.safeWriteToStdout(chunk);
             actionResponse += chunk;
           });
 
@@ -71,18 +101,18 @@ export class StreamHandler {
         },
       );
 
+      // Reset all state after action execution
       this.actionsParser.clearBuffer();
       this.actionsParser.isProcessing = false;
-
-      // Reset stream completion state after processing actions
+      this.actionsParser.isComplete = false;
       this.isStreamComplete = false;
 
       // Refresh terminal state for new input
-      process.stdout.write("\n");
-      process.stdout.write("\x1B[?25h"); // Show cursor
-      process.stdout.clearLine(0);
-      process.stdout.cursorTo(0);
-      process.stdout.write("> "); // Write prompt character immediately
+      this.safeWriteToStdout("\n");
+      this.safeWriteToStdout("\x1B[?25h"); // Show cursor
+      this.safeClearLine();
+      this.safeCursorTo(0);
+      this.safeWriteToStdout("> "); // Write prompt character immediately
 
       return actionResult.actions;
     }

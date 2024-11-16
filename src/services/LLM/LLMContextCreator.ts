@@ -1,20 +1,10 @@
 import { autoInjectable } from "tsyringe";
 import { DirectoryScanner } from "../FileManagement/DirectoryScanner";
-import { TaskStage } from "../TaskManager/TaskStage";
 import { ActionExecutor } from "./actions/ActionExecutor";
 
 interface MessageContext {
   message: string;
   environmentDetails?: string;
-}
-
-interface FirstTimeMessageContext extends MessageContext {
-  stage: TaskStage;
-  stagePrompt: string;
-}
-
-interface SequentialMessageContext extends MessageContext {
-  previousContext?: string;
 }
 
 @autoInjectable()
@@ -28,8 +18,6 @@ export class LLMContextCreator {
     message: string,
     root: string,
     isFirstMessage: boolean = true,
-    stage: TaskStage = TaskStage.DISCOVERY,
-    stagePrompt: string = "",
   ): Promise<string> {
     const baseContext: MessageContext = {
       message,
@@ -40,15 +28,10 @@ export class LLMContextCreator {
       return this.formatFirstTimeMessage({
         ...baseContext,
         environmentDetails,
-        stage,
-        stagePrompt,
       });
     }
 
-    return this.formatSequentialMessage({
-      ...baseContext,
-      stage,
-    });
+    return this.formatSequentialMessage(baseContext);
   }
 
   private async getEnvironmentDetails(root: string): Promise<string> {
@@ -59,7 +42,7 @@ export class LLMContextCreator {
     return `# Current Working Directory (${root}) Files\n${scanResult.data}`;
   }
 
-  private formatFirstTimeMessage(context: FirstTimeMessageContext): string {
+  private formatFirstTimeMessage(context: MessageContext): string {
     return `<task>
 ${context.message}
 </task>
@@ -68,6 +51,7 @@ ${context.message}
 ${context.environmentDetails}
 </environment>
 
+<<<<<<< Updated upstream
 You MUST answer following this pattern:
 
 To achieve this XYZ goal, I need to perform the following steps:
@@ -79,6 +63,9 @@ To achieve this XYZ goal, I need to perform the following steps:
 
 I'll perform <action_name> to achieve the desired goal.
 
+
+=======
+>>>>>>> Stashed changes
 Available actions:
 - read_file: Read contents of a file
   <read_file>
@@ -128,9 +115,7 @@ Available actions:
 `;
   }
 
-  private formatSequentialMessage(
-    context: SequentialMessageContext & { stage?: TaskStage },
-  ): string {
+  private formatSequentialMessage(context: MessageContext): string {
     return context.message;
   }
 
