@@ -17,9 +17,7 @@ export interface CrackedAgentOptions {
 export class CrackedAgent {
   private llm: ILLMProvider;
 
-  constructor(private fileReader: FileReader) {
-    this.llm = LLMProvider.getInstance(LLMProviderType.OpenRouter);
-  }
+  constructor(private fileReader: FileReader) {}
 
   async execute(
     message: string,
@@ -33,6 +31,8 @@ export class CrackedAgent {
         debug: false,
         ...options,
       };
+
+      this.llm = LLMProvider.getInstance(finalOptions.provider);
 
       // Get instructions content
       let instructionsContent = "";
