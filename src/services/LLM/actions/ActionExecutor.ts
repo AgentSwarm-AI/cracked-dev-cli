@@ -33,7 +33,6 @@ export class ActionExecutor {
 
       // Execute all actions sequentially
       let lastResult: IActionResult = { success: true };
-      console.log("matches", matches);
       for (const match of matches) {
         const [_, actionType, content] = match;
         lastResult = await this.executeActionByType(actionType, content.trim());

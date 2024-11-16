@@ -169,11 +169,6 @@ export class CrackedAgent {
         options,
       );
 
-    console.log(`🔍 CrackedAgent: Actions and followUpResponse: 
-        actions: ${actions}
-        followUpResponse: ${followupResponse}
-        `);
-
     return {
       response: followupResponse || response,
       actions,
