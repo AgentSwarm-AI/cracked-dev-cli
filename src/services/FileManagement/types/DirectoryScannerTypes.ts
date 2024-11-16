@@ -12,7 +12,6 @@ export interface IDirectoryScanner {
     path: string,
     options?: Partial<TreeOptions>,
   ): Promise<IFileOperationResult>;
-  scanLight(path: string): Promise<IFileOperationResult>;
 }
 
 export interface TreeOptions {

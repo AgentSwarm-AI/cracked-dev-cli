@@ -1,13 +1,14 @@
-import treeCliDefault from "tree-cli";
+import fs from "fs";
+import path from "path";
 import { autoInjectable } from "tsyringe";
 import { IDirectoryScanner, TreeOptions } from "./types/DirectoryScannerTypes";
 import { IFileOperationResult } from "./types/FileManagementTypes";
 
 @autoInjectable()
 export class DirectoryScanner implements IDirectoryScanner {
+  private readonly REQUIRED_IGNORE = ["node_modules", ".git"];
+
   private readonly DEFAULT_IGNORE = [
-    "node_modules",
-    ".git",
     "dist",
     "coverage",
     ".next",
@@ -21,33 +22,70 @@ export class DirectoryScanner implements IDirectoryScanner {
     maxDepth: 4,
     noreport: true,
     base: ".",
+    directoryFirst: true,
   };
 
-  /**
-   * Scans a directory and returns a tree structure
-   * @param path - Directory path to scan
-   * @param options - Optional tree-cli options
-   */
+  private getAllFiles(
+    dirPath: string,
+    basePath: string,
+    arrayOfFiles: string[] = [],
+    ignore: string[] = [],
+    currentDepth: number = 0,
+    maxDepth: number = 4,
+  ): string[] {
+    if (currentDepth > maxDepth) return arrayOfFiles;
+
+    const files = fs.readdirSync(dirPath);
+
+    files.forEach((file) => {
+      if (ignore.includes(file)) return;
+
+      const fullPath = path.join(dirPath, file);
+      const relativePath = path.relative(basePath, fullPath);
+
+      if (fs.statSync(fullPath).isDirectory()) {
+        arrayOfFiles.push(`${relativePath}/`);
+        this.getAllFiles(
+          fullPath,
+          basePath,
+          arrayOfFiles,
+          ignore,
+          currentDepth + 1,
+          maxDepth,
+        );
+      } else {
+        arrayOfFiles.push(relativePath);
+      }
+    });
+
+    return arrayOfFiles;
+  }
+
   public async scan(
-    path: string,
+    dirPath: string,
     options?: Partial<TreeOptions>,
   ): Promise<IFileOperationResult> {
     try {
-      const scanOptions: TreeOptions = {
-        ...this.DEFAULT_OPTIONS,
-        ...options,
-        base: path,
-      };
+      const scanOptions = { ...this.DEFAULT_OPTIONS, ...options };
+      // Combine required ignores with user provided ignores
+      const ignore = [
+        ...this.REQUIRED_IGNORE,
+        ...(options?.ignore || this.DEFAULT_IGNORE),
+      ];
+      const absolutePath = path.resolve(dirPath);
 
-      // Merge ignore patterns if provided in options
-      if (options?.ignore) {
-        scanOptions.ignore = [...this.DEFAULT_IGNORE, ...options.ignore];
-      }
+      const files = this.getAllFiles(
+        absolutePath,
+        absolutePath,
+        [],
+        ignore,
+        0,
+        scanOptions.maxDepth,
+      ).sort();
 
-      const result = await treeCliDefault(scanOptions);
       return {
         success: true,
-        data: JSON.stringify(result, null, 2),
+        data: files.map((f) => f.trim()).join("\n"),
       };
     } catch (error) {
       return {
@@ -55,21 +93,5 @@ export class DirectoryScanner implements IDirectoryScanner {
         error: error instanceof Error ? error : new Error(String(error)),
       };
     }
-  }
-
-  /**
-   * Scans a directory and returns a simplified tree structure
-   * Optimized for token efficiency by limiting depth and excluding unnecessary info
-   */
-  public async scanLight(path: string): Promise<IFileOperationResult> {
-    const options: TreeOptions = {
-      ...this.DEFAULT_OPTIONS,
-      base: path,
-      maxDepth: 3,
-      noreport: true,
-      directoryFirst: true,
-    };
-
-    return this.scan(path, options);
   }
 }

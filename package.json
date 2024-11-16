@@ -3,18 +3,9 @@
   "version": "1.0.0",
   "license": "MIT",
   "main": "./dist/index.js",
-  "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
-  "type": "module",
   "bin": {
     "crkd": "./bin/run.js"
-  },
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js"
-    }
   },
   "files": [
     "dist",
@@ -28,7 +19,8 @@
     "lint": "eslint 'src/**/*.{ts,tsx}'",
     "format": "prettier --write . --loglevel silent",
     "prepack": "yarn build",
-    "dev:cli": "node bin/run.js"
+    "dev:cli": "node bin/run.js",
+    "playground": "ts-node ./src/playground.ts"
   },
   "oclif": {
     "bin": "crkd",

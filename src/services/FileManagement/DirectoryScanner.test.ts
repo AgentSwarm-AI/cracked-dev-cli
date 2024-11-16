@@ -1,79 +1,53 @@
+import fs from "fs";
 import { container } from "tsyringe";
 import { DirectoryScanner } from "./DirectoryScanner";
-import { TreeResult } from "./types/DirectoryScannerTypes";
 
-jest.mock("tree-cli", () => {
-  return jest.fn();
-});
-
-describe("DirectoryScanner", () => {
-  const mockTreeCli = jest.requireMock("tree-cli");
+describe("DirectoryScanner.ts", () => {
   let directoryScanner: DirectoryScanner;
 
-  beforeEach(() => {
-    jest.clearAllMocks();
+  beforeAll(() => {
     directoryScanner = container.resolve(DirectoryScanner);
   });
 
-  it("should scan directory with default options", async () => {
-    const mockResult: TreeResult = {
-      name: "test-dir",
-      size: 1024,
-      type: "directory",
-      children: [{ name: "file1.txt", size: 100, type: "file" }],
-    };
-    mockTreeCli.mockResolvedValue(mockResult);
-
-    const result = await directoryScanner.scan("./test-dir");
+  it("should return a clean list of relative paths", async () => {
+    const result = await directoryScanner.scan(".");
 
     expect(result.success).toBe(true);
-    expect(result.data).toBe(JSON.stringify(mockResult, null, 2));
-    expect(mockTreeCli).toHaveBeenCalledWith(
-      expect.objectContaining({
-        base: "./test-dir",
-        ignore: expect.arrayContaining(["node_modules"]),
-        maxDepth: 4,
-        noreport: true,
-      }),
-    );
+    expect(typeof result.data).toBe("string");
+
+    const paths = (result.data as string).split("\n");
+
+    // Verify paths are relative and clean
+    paths.forEach((path) => {
+      expect(path).not.toContain("/home");
+      if (fs.statSync(path).isDirectory()) {
+        expect(path).toMatch(/\/$/);
+      }
+    });
+
+    // Verify required folders are always ignored
+    expect(paths).not.toContain("node_modules");
+    expect(paths).not.toContain("node_modules/");
+    expect(paths).not.toContain(".git");
+    expect(paths).not.toContain(".git/");
   });
 
-  it("should merge custom ignore patterns with defaults", async () => {
-    const mockResult: TreeResult = { name: "test", size: 0, type: "directory" };
-    mockTreeCli.mockResolvedValue(mockResult);
-    const customIgnore = ["custom-ignore"];
+  it("should allow custom ignores while maintaining required ignores", async () => {
+    const result = await directoryScanner.scan(".", {
+      ignore: ["docs"],
+    });
 
-    await directoryScanner.scan("./test-dir", { ignore: customIgnore });
+    expect(result.success).toBe(true);
+    const paths = (result.data as string).split("\n");
 
-    expect(mockTreeCli).toHaveBeenCalledWith(
-      expect.objectContaining({
-        ignore: expect.arrayContaining([...customIgnore, "node_modules"]),
-      }),
-    );
-  });
+    // Custom ignore should work
+    expect(paths).not.toContain("docs");
+    expect(paths).not.toContain("docs/");
 
-  it("should use light scan options", async () => {
-    const mockResult: TreeResult = { name: "test", size: 0, type: "directory" };
-    mockTreeCli.mockResolvedValue(mockResult);
-
-    await directoryScanner.scanLight("./test-dir");
-
-    expect(mockTreeCli).toHaveBeenCalledWith(
-      expect.objectContaining({
-        maxDepth: 3,
-        directoryFirst: true,
-        noreport: true,
-      }),
-    );
-  });
-
-  it("should handle scan errors", async () => {
-    const errorMessage = "Scan failed";
-    mockTreeCli.mockRejectedValue(new Error(errorMessage));
-
-    const result = await directoryScanner.scan("./test-dir");
-
-    expect(result.success).toBe(false);
-    expect(result.error?.message).toBe(errorMessage);
+    // Required ignores should still apply
+    expect(paths).not.toContain("node_modules");
+    expect(paths).not.toContain("node_modules/");
+    expect(paths).not.toContain(".git");
+    expect(paths).not.toContain(".git/");
   });
 });
