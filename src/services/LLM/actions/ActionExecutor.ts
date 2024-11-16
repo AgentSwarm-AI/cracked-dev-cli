@@ -2,7 +2,9 @@ import { exec } from "child_process";
 import { autoInjectable } from "tsyringe";
 import { promisify } from "util";
 import { FileOperations } from "../../FileManagement/FileOperations";
+import { FileSearch } from "../../FileManagement/FileSearch";
 import { IFileOperationResult } from "../../FileManagement/types/FileManagementTypes";
+import { TagsExtractor } from "../../TagsExtractor/TagsExtractor";
 
 const execAsync = promisify(exec);
 
@@ -14,7 +16,11 @@ interface IActionResult {
 
 @autoInjectable()
 export class ActionExecutor {
-  constructor(private fileOperations: FileOperations) {}
+  constructor(
+    private fileOperations: FileOperations,
+    private fileSearch: FileSearch,
+    private tagsExtractor: TagsExtractor,
+  ) {}
 
   async executeAction(actionText: string): Promise<IActionResult> {
     try {
@@ -61,20 +67,25 @@ export class ActionExecutor {
     }
   }
 
-  private async handleReadFile(filePath: string): Promise<IActionResult> {
+  private async handleReadFile(content: string): Promise<IActionResult> {
+    const filePath = this.tagsExtractor.extractTag(content, "path");
+    if (!filePath) {
+      return {
+        success: false,
+        error: new Error("Invalid read_file format. Must include <path> tag."),
+      };
+    }
+
     console.log(`📁 File path: ${filePath}`);
     const result = await this.fileOperations.read(filePath);
     return this.convertFileResult(result);
   }
 
   private async handleWriteFile(content: string): Promise<IActionResult> {
-    const pathMatch = /<path>(.*?)<\/path>/;
-    const contentMatch = /<content>([\s\S]*?)<\/content>/;
+    const filePath = this.tagsExtractor.extractTag(content, "path");
+    const fileContent = this.tagsExtractor.extractTag(content, "content");
 
-    const pathResult = content.match(pathMatch);
-    const contentResult = content.match(contentMatch);
-
-    if (!pathResult || !contentResult) {
+    if (!filePath || !fileContent) {
       return {
         success: false,
         error: new Error(
@@ -83,47 +94,68 @@ export class ActionExecutor {
       };
     }
 
-    const filePath = pathResult[1];
-    const fileContent = contentResult[1];
-
     console.log(`📁 File path: ${filePath}`);
     const result = await this.fileOperations.write(filePath, fileContent);
     return this.convertFileResult(result);
   }
 
-  private async handleDeleteFile(filePath: string): Promise<IActionResult> {
+  private async handleDeleteFile(content: string): Promise<IActionResult> {
+    const filePath = this.tagsExtractor.extractTag(content, "path");
+    if (!filePath) {
+      return {
+        success: false,
+        error: new Error(
+          "Invalid delete_file format. Must include <path> tag.",
+        ),
+      };
+    }
+
     console.log(`📁 File path: ${filePath}`);
     const result = await this.fileOperations.delete(filePath);
     return this.convertFileResult(result);
   }
 
   private async handleMoveFile(content: string): Promise<IActionResult> {
-    const [source, destination] = content
-      .split("\n")
-      .map((line) => line.trim());
+    const sourcePath = this.tagsExtractor.extractTag(content, "source_path");
+    const destinationPath = this.tagsExtractor.extractTag(
+      content,
+      "destination_path",
+    );
 
-    if (!source || !destination) {
-      return { success: false, error: new Error("Invalid move_file format") };
+    if (!sourcePath || !destinationPath) {
+      return {
+        success: false,
+        error: new Error(
+          "Invalid move_file format. Must include both <source_path> and <destination_path> tags.",
+        ),
+      };
     }
 
-    console.log(`📁 Source path: ${source}`);
-    console.log(`📁 Destination path: ${destination}`);
-    const result = await this.fileOperations.move(source, destination);
+    console.log(`📁 Source path: ${sourcePath}`);
+    console.log(`📁 Destination path: ${destinationPath}`);
+    const result = await this.fileOperations.move(sourcePath, destinationPath);
     return this.convertFileResult(result);
   }
 
   private async handleCopyFile(content: string): Promise<IActionResult> {
-    const [source, destination] = content
-      .split("\n")
-      .map((line) => line.trim());
+    const sourcePath = this.tagsExtractor.extractTag(content, "source_path");
+    const destinationPath = this.tagsExtractor.extractTag(
+      content,
+      "destination_path",
+    );
 
-    if (!source || !destination) {
-      return { success: false, error: new Error("Invalid copy_file format") };
+    if (!sourcePath || !destinationPath) {
+      return {
+        success: false,
+        error: new Error(
+          "Invalid copy_file format. Must include both <source_path> and <destination_path> tags.",
+        ),
+      };
     }
 
-    console.log(`📁 Source path: ${source}`);
-    console.log(`📁 Destination path: ${destination}`);
-    const result = await this.fileOperations.copy(source, destination);
+    console.log(`📁 Source path: ${sourcePath}`);
+    console.log(`📁 Destination path: ${destinationPath}`);
+    const result = await this.fileOperations.copy(sourcePath, destinationPath);
     return this.convertFileResult(result);
   }
 
@@ -144,11 +176,37 @@ export class ActionExecutor {
     type: string,
     content: string,
   ): Promise<IActionResult> {
-    // Implement search functionality
-    return {
-      success: false,
-      error: new Error("Search functionality not implemented yet"),
-    };
+    try {
+      const directory = this.tagsExtractor.extractTag(content, "directory");
+      const searchTerm = this.tagsExtractor.extractTag(content, "term");
+
+      if (!directory || !searchTerm) {
+        return {
+          success: false,
+          error: new Error(
+            "Invalid search format. Must include both <directory> and <term> tags.",
+          ),
+        };
+      }
+
+      let results;
+      if (type === "search_string") {
+        results = await this.fileSearch.findByContent(searchTerm, directory);
+      } else {
+        // search_file
+        results = await this.fileSearch.findByName(searchTerm, directory);
+      }
+
+      return {
+        success: true,
+        data: results,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error as Error,
+      };
+    }
   }
 
   private convertFileResult(result: IFileOperationResult): IActionResult {

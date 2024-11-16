@@ -11,6 +11,7 @@ import {
 export class FileOperations implements IFileOperations {
   async read(filePath: string): Promise<IFileOperationResult> {
     try {
+      console.log("trying to read file", filePath);
       const content = await fs.readFile(filePath, "utf-8");
       return { success: true, data: content };
     } catch (error) {
@@ -23,6 +24,7 @@ export class FileOperations implements IFileOperations {
     content: string | Buffer,
   ): Promise<IFileOperationResult> {
     try {
+      console.log("trying to write file", filePath);
       await fs.ensureDir(path.dirname(filePath));
       await fs.writeFile(filePath, content);
       return { success: true };
@@ -33,6 +35,7 @@ export class FileOperations implements IFileOperations {
 
   async delete(filePath: string): Promise<IFileOperationResult> {
     try {
+      console.log("trying to delete file", filePath);
       await fs.remove(filePath);
       return { success: true };
     } catch (error) {
@@ -45,6 +48,7 @@ export class FileOperations implements IFileOperations {
     destination: string,
   ): Promise<IFileOperationResult> {
     try {
+      console.log("trying to copy file", source, destination);
       await fs.ensureDir(path.dirname(destination));
       await fs.copy(source, destination);
       return { success: true };
@@ -58,6 +62,7 @@ export class FileOperations implements IFileOperations {
     destination: string,
   ): Promise<IFileOperationResult> {
     try {
+      console.log("trying to move file", source, destination);
       await fs.ensureDir(path.dirname(destination));
       await fs.move(source, destination);
       return { success: true };

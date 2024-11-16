@@ -82,12 +82,12 @@ I'll perform <action_name> to achieve the desired goal.
 Available actions:
 - read_file: Read contents of a file
   <read_file>
-    <pathfile/path/here</path>
+    <path>/path/here</path>
   </read_file>
 
 - write_file: Write content to a file
   <write_file>
-    <pathfile/path/here</path>
+    <path>/path/here</path>
     <content>
     // Your file content here
     </content>
@@ -95,19 +95,19 @@ Available actions:
 
 - delete_file: Delete a file
   <delete_file>
-    <pathfile/path/here</path>
+    <path>/path/here</path>
   </delete_file>
 
 - move_file: Move/rename a file
   <move_file>
-    source/path/here
-    destination/path/here
+    <source_path>source/path/here</source_path>
+    <destination_path>destination/path/here</destination_path>
   </move_file>
 
 - copy_file_slice: Copy a file
   <copy_file_slice>
-    source/path/here
-    destination/path/here
+    <source_path>source/path/here</source_path>
+    <destination_path>destination/path/here</destination_path>
   </copy_file_slice>
 
 - execute_command: Execute a CLI command
@@ -117,8 +117,14 @@ Available actions:
 
 - search_string/search_file: Search in files
   <search_string>
-    pattern to search
+    <directory>/path/to/search</directory>
+    <term>pattern to search</term>
   </search_string>
+
+  <search_file>
+    <directory>/path/to/search</directory>
+    <term>filename pattern</term>
+  </search_file>
 `;
   }
 
