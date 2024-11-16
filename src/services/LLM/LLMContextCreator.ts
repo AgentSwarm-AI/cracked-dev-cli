@@ -60,7 +60,38 @@ export class LLMContextCreator {
   }
 
   private formatFirstTimeMessage(context: FirstTimeMessageContext): string {
-    return context.message;
+    return `<task>
+${context.message}
+</task>
+
+<environment>
+${context.environmentDetails}
+</environment>
+
+You MUST answer following this pattern:
+
+To achieve the desired goal of this task, you must follow the following steps:
+  - step 1
+  - step 2
+  - step 3
+
+<!-- next step should be aimed towards one of the steps above -->
+<next_step>
+  I'll perform <available_tags>file/path/here</available_tags> to achieve the desired goal.
+</next_step>
+
+
+FURTHER INSTRUCTIONS (do not output this):
+
+<available_tags>
+    <read_file>file/path/here</read_file>
+    <write_file>file/path/here</write_file>
+    <delete_file>file/path/here</delete_file>
+    <update_file>file/path/here</update_file>
+    <move_file>file/path/here</move_file>
+    <copy_file_slice>file/path/here</copy_file_slice>
+</available_tags>
+`;
   }
 
   private formatSequentialMessage(

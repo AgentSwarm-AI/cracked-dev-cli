@@ -110,8 +110,11 @@ export class CrackedAgent {
   ): Promise<ExecutionResult | void> {
     const finalOptions = await this.setupExecution(options);
 
-    // Pass the message directly without task formatting
-    const formattedMessage = message;
+    const formattedMessage = await this.contextCreator.create(
+      message,
+      finalOptions.root,
+      this.isFirstInteraction,
+    );
 
     this.debugLogger.log("Message", "Sending message to LLM", {
       message: formattedMessage,
@@ -126,11 +129,17 @@ export class CrackedAgent {
       );
     }
 
-    return this.handleNormalExecution(
+    const result = await this.handleNormalExecution(
       formattedMessage,
       finalOptions.model,
       finalOptions.options,
     );
+
+    if (this.isFirstInteraction) {
+      this.isFirstInteraction = false;
+    }
+
+    return result;
   }
 
   private async handleStreamExecution(
