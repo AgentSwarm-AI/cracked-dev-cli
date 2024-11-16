@@ -149,8 +149,6 @@ export class ActionsParser {
 
       const followupResponse = await llmCallback(actionResults);
 
-      console.log("\n🤖:", followupResponse);
-
       this.debugLogger.log(
         "Response",
         "Received LLM response for action results",
