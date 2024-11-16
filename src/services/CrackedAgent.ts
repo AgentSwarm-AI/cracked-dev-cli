@@ -37,34 +37,7 @@ export class CrackedAgent {
     private streamHandler: StreamHandler,
   ) {}
 
-  private initializeLLM(provider: LLMProviderType) {
-    this.llm = LLMProvider.getInstance(provider);
-  }
-
-  private checkTaskCompletion(response: string): string | null {
-    const completionMatch = response.match(
-      /<task_objective_completed>\s*([\s\S]*?)\s*<\/task_objective_completed>/,
-    );
-    if (completionMatch) {
-      const completionContent = completionMatch[1].trim();
-      return `
-🎯 Task Objective Completed! 🎉
-
-${completionContent}
-
-✨ Session ended successfully. ✨
-
--------------------
-🔚 Interaction Complete
-`;
-    }
-    return null;
-  }
-
-  async execute(
-    message: string,
-    options: CrackedAgentOptions,
-  ): Promise<ExecutionResult | void> {
+  private async setupExecution(options: CrackedAgentOptions) {
     const finalOptions = {
       root: process.cwd(),
       provider: LLMProviderType.OpenRouter,
@@ -76,52 +49,67 @@ ${completionContent}
     };
 
     this.debugLogger.setDebug(finalOptions.debug);
-    this.initializeLLM(finalOptions.provider);
+    this.llm = LLMProvider.getInstance(finalOptions.provider);
     this.streamHandler.reset();
     this.actionsParser.reset();
 
     if (finalOptions.clearContext) {
-      this.llm.clearConversationContext();
-      this.isFirstInteraction = true;
+      this.clearConversationHistory();
     }
 
-    let instructionsContent = "";
-    if (finalOptions.instructionsPath) {
-      instructionsContent = await this.fileReader.readInstructionsFile(
-        finalOptions.instructionsPath,
-      );
-    } else if (finalOptions.instructions) {
-      instructionsContent = finalOptions.instructions;
-    }
+    await this.validateModel(finalOptions.model);
+    await this.setupInstructions(finalOptions);
 
-    const isValidModel = await this.llm.validateModel(finalOptions.model);
+    return finalOptions;
+  }
+
+  private async validateModel(model: string) {
+    const isValidModel = await this.llm.validateModel(model);
     if (!isValidModel) {
       const availableModels = await this.llm.getAvailableModels();
       throw new Error(
-        `Invalid model: ${finalOptions.model}. Available models: ${availableModels.join(", ")}`,
+        `Invalid model: ${model}. Available models: ${availableModels.join(", ")}`,
+      );
+    }
+  }
+
+  private async setupInstructions(options: CrackedAgentOptions) {
+    if (!this.isFirstInteraction) return;
+
+    let instructions = options.instructions;
+    if (options.instructionsPath) {
+      instructions = await this.fileReader.readInstructionsFile(
+        options.instructionsPath,
       );
     }
 
-    const modelInfo = await this.llm.getModelInfo(finalOptions.model);
-    this.debugLogger.log("Model Info", "Using model configuration", modelInfo);
-
-    if (instructionsContent && this.isFirstInteraction) {
+    if (instructions) {
       this.debugLogger.log("Instructions", "Adding system instructions", {
-        instructions: instructionsContent,
+        instructions,
       });
-      this.llm.addSystemInstructions(instructionsContent);
+      this.llm.addSystemInstructions(instructions);
     }
+  }
 
-    let formattedMessage: string;
-    if (this.isFirstInteraction) {
-      formattedMessage = await this.contextCreator.create(
-        message,
-        finalOptions.root,
-      );
-      this.isFirstInteraction = false;
-    } else {
-      formattedMessage = message;
-    }
+  private async formatMessage(message: string, root: string): Promise<string> {
+    const formattedMessage = await this.contextCreator.create(
+      message,
+      root,
+      this.isFirstInteraction,
+    );
+    this.isFirstInteraction = false;
+    return formattedMessage;
+  }
+
+  async execute(
+    message: string,
+    options: CrackedAgentOptions,
+  ): Promise<ExecutionResult | void> {
+    const finalOptions = await this.setupExecution(options);
+    const formattedMessage = await this.formatMessage(
+      message,
+      finalOptions.root,
+    );
 
     this.debugLogger.log("Message", "Sending formatted message to LLM", {
       message: formattedMessage,
@@ -129,94 +117,72 @@ ${completionContent}
     });
 
     if (finalOptions.stream) {
-      await this.llm.streamMessage(
-        finalOptions.model,
+      return this.handleStreamExecution(
         formattedMessage,
-        async (chunk: string) => {
-          await this.streamHandler.handleChunk(
-            chunk,
-            finalOptions.model,
-            async (message) => {
-              return await this.llm.sendMessage(
-                finalOptions.model,
-                message,
-                finalOptions.options,
-              );
-            },
-            finalOptions.options,
-          );
-        },
+        finalOptions.model,
         finalOptions.options,
       );
-      process.stdout.write("\n");
-
-      // Check if task completion was detected in the stream handler
-      if (this.streamHandler.response.includes("Task Objective Completed!")) {
-        this.clearConversationHistory();
-        return { response: this.streamHandler.response, actions: [] };
-      }
-
-      return { response: this.streamHandler.response, actions: [] };
-    } else {
-      const response = await this.llm.sendMessage(
-        finalOptions.model,
-        formattedMessage,
-        finalOptions.options,
-      );
-
-      this.debugLogger.log("Response", "Received LLM response", {
-        response,
-        conversationHistory: this.llm.getConversationContext(),
-      });
-
-      const completionMessage = this.checkTaskCompletion(response);
-      if (completionMessage) {
-        this.clearConversationHistory();
-        return { response: completionMessage, actions: [] };
-      }
-
-      const actionResult = await this.actionsParser.parseAndExecuteActions(
-        response,
-        finalOptions.model,
-        async (message) => {
-          const actionResponse = await this.llm.sendMessage(
-            finalOptions.model,
-            message,
-            finalOptions.options,
-          );
-
-          // Check for task completion in action response
-          const actionCompletionMessage =
-            this.checkTaskCompletion(actionResponse);
-          if (actionCompletionMessage) {
-            this.clearConversationHistory();
-            return actionCompletionMessage;
-          }
-
-          return actionResponse;
-        },
-      );
-
-      if (actionResult.followupResponse) {
-        // Check for task completion in followup response
-        const followupCompletionMessage = this.checkTaskCompletion(
-          actionResult.followupResponse,
-        );
-        if (followupCompletionMessage) {
-          this.clearConversationHistory();
-          return {
-            response: followupCompletionMessage,
-            actions: actionResult.actions,
-          };
-        }
-        return {
-          response: actionResult.followupResponse,
-          actions: actionResult.actions,
-        };
-      }
-
-      return { response, actions: [] };
     }
+
+    return this.handleNormalExecution(
+      formattedMessage,
+      finalOptions.model,
+      finalOptions.options,
+    );
+  }
+
+  private async handleStreamExecution(
+    message: string,
+    model: string,
+    options?: Record<string, unknown>,
+  ): Promise<ExecutionResult> {
+    await this.llm.streamMessage(
+      model,
+      message,
+      async (chunk: string) => {
+        await this.streamHandler.handleChunk(
+          chunk,
+          model,
+          async (msg) => await this.llm.sendMessage(model, msg, options),
+          options,
+        );
+      },
+      options,
+    );
+    process.stdout.write("\n");
+
+    return {
+      response: this.streamHandler.response,
+      actions: [],
+    };
+  }
+
+  private async handleNormalExecution(
+    message: string,
+    model: string,
+    options?: Record<string, unknown>,
+  ): Promise<ExecutionResult> {
+    const response = await this.llm.sendMessage(model, message, options);
+
+    this.debugLogger.log("Response", "Received LLM response", {
+      response,
+      conversationHistory: this.llm.getConversationContext(),
+    });
+
+    const actionResult = await this.actionsParser.parseAndExecuteActions(
+      response,
+      model,
+      async (msg) => await this.llm.sendMessage(model, msg, options),
+    );
+
+    if (actionResult.followupResponse) {
+      return {
+        response: actionResult.followupResponse,
+        actions: actionResult.actions,
+      };
+    }
+
+    return { response, actions: [] };
   }
 
   getConversationHistory() {

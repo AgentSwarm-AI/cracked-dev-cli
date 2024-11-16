@@ -5,6 +5,7 @@ import { DirectoryScanner } from "../FileManagement/DirectoryScanner";
 export interface ILLMContext {
   task: string;
   environmentDetails: string;
+  isFirstMessage: boolean;
 }
 
 @autoInjectable()
@@ -14,7 +15,11 @@ export class LLMContextCreator {
     private actionExecutor: ActionExecutor,
   ) {}
 
-  async create(message: string, root: string): Promise<string> {
+  async create(
+    message: string,
+    root: string,
+    isFirstMessage: boolean = true,
+  ): Promise<string> {
     const scanResult = await this.directoryScanner.scan(root);
     if (!scanResult.success) {
       throw new Error(`Failed to scan directory: ${scanResult.error}`);
@@ -23,6 +28,7 @@ export class LLMContextCreator {
     const context: ILLMContext = {
       task: message,
       environmentDetails: `# Current Working Directory (${root}) Files\n${scanResult.data}`,
+      isFirstMessage,
     };
 
     return this.format(context);
@@ -49,7 +55,7 @@ export class LLMContextCreator {
   }
 
   private format(context: ILLMContext): string {
-    return `<task>
+    const baseFormat = `<task>
   ${context.task}
 </task>
 
@@ -59,16 +65,17 @@ export class LLMContextCreator {
 
 <instructions>
   Your response must adhere to the following structured format:
-
-  <!-- Just output a strategy on the first time the user interacts -->
+${
+  context.isFirstMessage
+    ? `
   <strategy>
-    **Plan to accomplish the task:**
-    1. **Step 1**: [Action] - *Reason*
-    2. **Step 2**: [Action] - *Reason*
-    3. **Step 3**: [Action] - *Reason*
+    <goal>This is the first step</goal>
+    <goal>This is the second step</goal>
     <!-- Add more steps as needed -->
   </strategy>
-
+`
+    : ""
+}
   If you don't think the task objective was achieved, decide what to do next:
 
   <next_step>
@@ -117,5 +124,7 @@ export class LLMContextCreator {
   </edit_code_file>
 </available_tags>
 `;
+
+    return baseFormat;
   }
 }
