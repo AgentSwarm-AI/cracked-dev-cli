@@ -69,9 +69,17 @@ export class LLMContextCreator {
     <!-- Add more steps as needed -->
   </strategy>
 
+  If you don't think the task objective was achieved, decide what to do next:
+
   <next_step>
     I will perform a <read_file>path/to/file</read_file> operation.
   </next_step>
+
+  Else, submit the final response:
+
+    <task_objective_completed>
+      Some final response here summarizing what was done briefly and why did it achieved the task objective.
+    </task_objective_completed>
   
 </instructions>
 
