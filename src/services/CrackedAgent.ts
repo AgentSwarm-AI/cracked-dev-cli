@@ -5,7 +5,9 @@ import { FileReader } from "./FileReader";
 import { ILLMProvider } from "./LLM/ILLMProvider";
 import { LLMContextCreator } from "./LLM/LLMContextCreator";
 import { LLMProvider, LLMProviderType } from "./LLM/LLMProvider";
+import { StrategyCrafter } from "./LLM/StrategyCrafter";
 import { StreamHandler } from "./StreamHandler";
+import { TaskStage } from "./TaskManager/TaskStage";
 
 export interface CrackedAgentOptions {
   root?: string;
@@ -24,10 +26,24 @@ export interface ExecutionResult {
   actions?: Array<{ action: string; result: any }>;
 }
 
+interface DiscoveryResult {
+  requirements: string[];
+  relevantFiles: string[];
+  patterns: string[];
+}
+
+interface StrategyGoal {
+  description: string;
+  steps: string[];
+  considerations: string[];
+}
+
 @autoInjectable()
 export class CrackedAgent {
   private llm!: ILLMProvider;
   private isFirstInteraction: boolean = true;
+  private discoveryResult: DiscoveryResult | null = null;
+  private strategyGoals: StrategyGoal[] = [];
 
   constructor(
     private fileReader: FileReader,
@@ -35,6 +51,7 @@ export class CrackedAgent {
     private debugLogger: DebugLogger,
     private actionsParser: ActionsParser,
     private streamHandler: StreamHandler,
+    private strategyCrafter: StrategyCrafter,
   ) {}
 
   private async setupExecution(options: CrackedAgentOptions) {
@@ -91,14 +108,69 @@ export class CrackedAgent {
     }
   }
 
-  private async formatMessage(message: string, root: string): Promise<string> {
+  private async handleDiscoveryStage(
+    message: string,
+    root: string,
+    model: string,
+    options?: Record<string, unknown>,
+  ): Promise<void> {
+    const stagePrompt = this.strategyCrafter.getPromptForStage(
+      TaskStage.DISCOVERY,
+      message,
+      "",
+    );
+    // Only include environment details in discovery stage
     const formattedMessage = await this.contextCreator.create(
       message,
       root,
-      this.isFirstInteraction,
+      true,
+      TaskStage.DISCOVERY,
+      stagePrompt,
     );
-    this.isFirstInteraction = false;
-    return formattedMessage;
+
+    const response = await this.llm.sendMessage(
+      model,
+      formattedMessage,
+      options,
+    );
+    this.discoveryResult =
+      this.strategyCrafter.parseDiscoveryResponse(response);
+
+    this.debugLogger.log("Discovery", "Completed discovery stage", {
+      discoveryResult: this.discoveryResult,
+    });
+  }
+
+  private async handleStrategyStage(
+    message: string,
+    root: string,
+    model: string,
+    options?: Record<string, unknown>,
+  ): Promise<void> {
+    const stagePrompt = this.strategyCrafter.getPromptForStage(
+      TaskStage.STRATEGY,
+      message,
+      "",
+    );
+    // Don't include environment details in strategy stage
+    const formattedMessage = await this.contextCreator.create(
+      message,
+      root,
+      false,
+      TaskStage.STRATEGY,
+      stagePrompt,
+    );
+
+    const response = await this.llm.sendMessage(
+      model,
+      formattedMessage,
+      options,
+    );
+    this.strategyGoals = this.strategyCrafter.parseStrategyResponse(response);
+
+    this.debugLogger.log("Strategy", "Completed strategy stage", {
+      strategyGoals: this.strategyGoals,
+    });
   }
 
   async execute(
@@ -106,14 +178,35 @@ export class CrackedAgent {
     options: CrackedAgentOptions,
   ): Promise<ExecutionResult | void> {
     const finalOptions = await this.setupExecution(options);
-    const formattedMessage = await this.formatMessage(
+
+    if (this.isFirstInteraction) {
+      await this.handleDiscoveryStage(
+        message,
+        finalOptions.root,
+        finalOptions.model,
+        finalOptions.options,
+      );
+      await this.handleStrategyStage(
+        message,
+        finalOptions.root,
+        finalOptions.model,
+        finalOptions.options,
+      );
+      this.isFirstInteraction = false;
+    }
+
+    const formattedMessage = await this.contextCreator.create(
       message,
       finalOptions.root,
+      false,
     );
 
     this.debugLogger.log("Message", "Sending formatted message to LLM", {
       message: formattedMessage,
       conversationHistory: this.llm.getConversationContext(),
+      currentStage: this.strategyCrafter.getCurrentStage(),
+      discoveryResult: this.discoveryResult,
+      strategyGoals: this.strategyGoals,
     });
 
     if (finalOptions.stream) {
@@ -194,5 +287,8 @@ export class CrackedAgent {
   clearConversationHistory() {
     this.llm.clearConversationContext();
     this.isFirstInteraction = true;
+    this.discoveryResult = null;
+    this.strategyGoals = [];
+    this.strategyCrafter.resetStage();
   }
 }

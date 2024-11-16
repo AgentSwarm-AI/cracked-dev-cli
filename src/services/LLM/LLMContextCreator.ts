@@ -1,14 +1,16 @@
 import { autoInjectable } from "tsyringe";
 import { ActionExecutor } from "../ActionExecutor/ActionExecutor";
 import { DirectoryScanner } from "../FileManagement/DirectoryScanner";
+import { TaskStage } from "../TaskManager/TaskStage";
 
 interface MessageContext {
   task: string;
-  environmentDetails: string;
+  environmentDetails?: string;
 }
 
 interface FirstTimeMessageContext extends MessageContext {
-  strategySection: string;
+  stage: TaskStage;
+  stagePrompt: string;
 }
 
 interface SequentialMessageContext extends MessageContext {
@@ -26,18 +28,20 @@ export class LLMContextCreator {
     message: string,
     root: string,
     isFirstMessage: boolean = true,
+    stage: TaskStage = TaskStage.DISCOVERY,
+    stagePrompt: string = "",
   ): Promise<string> {
-    const environmentDetails = await this.getEnvironmentDetails(root);
-
     const baseContext: MessageContext = {
       task: message,
-      environmentDetails,
     };
 
     if (isFirstMessage) {
+      const environmentDetails = await this.getEnvironmentDetails(root);
       return this.formatFirstTimeMessage({
         ...baseContext,
-        strategySection: this.getStrategySection(),
+        environmentDetails,
+        stage,
+        stagePrompt,
       });
     }
 
@@ -52,44 +56,44 @@ export class LLMContextCreator {
     return `# Current Working Directory (${root}) Files\n${scanResult.data}`;
   }
 
-  private getStrategySection(): string {
-    return `
-  <strategy>
-    <goal>This is the first step</goal>
-    <goal>This is the second step</goal>
-    <!-- Add more steps as needed -->
-  </strategy>`;
-  }
-
   private formatFirstTimeMessage(context: FirstTimeMessageContext): string {
     return this.getFormattedMessage(
       context.task,
       context.environmentDetails,
-      context.strategySection,
+      context.stagePrompt,
     );
   }
 
   private formatSequentialMessage(context: SequentialMessageContext): string {
-    return this.getFormattedMessage(context.task, context.environmentDetails);
+    return this.getFormattedMessage(context.task);
   }
 
   private getFormattedMessage(
     task: string,
-    environmentDetails: string,
-    strategySection: string = "",
+    environmentDetails?: string,
+    stagePrompt: string = "",
   ): string {
-    return `<task>
-  ${task}
-</task>
+    // Start with task (with 2 spaces indentation)
+    let message = `<task>\n  ${task}\n</task>`;
 
-<environment>
-  ${environmentDetails}
-</environment>
+    // Add environment if provided
+    if (environmentDetails) {
+      message += `\n\n<environment>\n${environmentDetails}\n</environment>`;
+    }
 
-<instructions>
-  Your response must adhere to the following structured format:
-${strategySection}
-  If you don't think the task objective was achieved, decide what to do next:
+    // Add instructions with stage prompt if provided
+    message += `\n\n<instructions>\n`;
+    if (stagePrompt) {
+      // Remove any task and environment tags from stage prompt
+      const cleanedPrompt = stagePrompt
+        .replace(/<task>[\s\S]*?<\/task>/g, "")
+        .replace(/<environment>[\s\S]*?<\/environment>/g, "")
+        .trim();
+      message += cleanedPrompt + "\n";
+    }
+
+    // Add standard instructions
+    message += `  If you don't think the task objective was achieved, decide what to do next:
 
   <!-- Next step to achieve current goal -->
   <!-- Feel free to use any available tags below to whats appropriate to achieve your goal -->
@@ -125,6 +129,8 @@ ${strategySection}
   
  
 </available_tags>`;
+
+    return message;
   }
 
   async parseAndExecuteActions(
