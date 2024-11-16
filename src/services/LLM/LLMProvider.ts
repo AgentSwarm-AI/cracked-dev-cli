@@ -2,7 +2,7 @@ import { OpenRouterAPI } from "../LLMProviders/OpenRouter/OpenRouterAPI";
 import { ILLMProvider } from "./ILLMProvider";
 
 export enum LLMProviderType {
-  OPENROUTER = "openrouter",
+  OpenRouter = "open-router",
 }
 
 export class LLMProvider {
@@ -11,6 +11,9 @@ export class LLMProvider {
   private currentProvider: ILLMProvider | null = null;
 
   private constructor(type: LLMProviderType) {
+    if (!type) {
+      throw new Error("Provider type must be specified");
+    }
     this.providers = new Map();
     this.initializeProvider(type);
   }
@@ -19,7 +22,7 @@ export class LLMProvider {
     let provider: ILLMProvider;
 
     switch (type) {
-      case LLMProviderType.OPENROUTER:
+      case LLMProviderType.OpenRouter:
         provider = new OpenRouterAPI();
         break;
       default:

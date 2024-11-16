@@ -38,7 +38,7 @@ export class Crkd extends Command {
       char: "p",
       description: "LLM provider to use",
       options: Object.values(LLMProviderType),
-      default: LLMProviderType.OPENROUTER,
+      required: true,
     }),
     stream: Flags.boolean({
       char: "s",

@@ -19,7 +19,7 @@ export class CrackedAgent {
   constructor(options: CrackedAgentOptions) {
     this.options = {
       root: process.cwd(),
-      provider: LLMProviderType.OPENROUTER,
+      provider: LLMProviderType.OpenRouter,
       stream: false,
       debug: false,
       ...options,
