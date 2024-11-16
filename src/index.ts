@@ -1,2 +1,3 @@
 import "reflect-metadata";
-export { Sum } from "./commands/sum.js";
+
+export { Crkd } from "./commands/crkd.js";

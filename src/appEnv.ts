@@ -3,8 +3,8 @@ import { z } from "zod";
 
 const envSchema = z.object({
   OPENROUTER_API_KEY: z.string().nonempty(),
-  YOUR_SITE_URL: z.string().nonempty().url(),
-  YOUR_SITE_NAME: z.string().nonempty(),
+  APP_URL: z.string().nonempty().url(),
+  APP_NAME: z.string().nonempty(),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);

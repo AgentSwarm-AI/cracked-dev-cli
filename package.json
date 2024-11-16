@@ -7,7 +7,7 @@
   "types": "./dist/index.d.ts",
   "type": "module",
   "bin": {
-    "calc": "./bin/run.js"
+    "crkd": "./bin/run.js"
   },
   "exports": {
     ".": {
@@ -26,18 +26,22 @@
     "test": "jest",
     "typecheck": "tsc --noEmit",
     "lint": "eslint 'src/**/*.{ts,tsx}'",
-    "format": "prettier --write . --loglevel silent"
+    "format": "prettier --write . --loglevel silent",
+    "prepack": "yarn build",
+    "crkd": "node bin/run.js"
   },
   "oclif": {
-    "bin": "calc",
-    "dirname": "calc",
+    "bin": "crkd",
+    "dirname": "crkd",
     "commands": "./dist/commands",
     "plugins": [
       "@oclif/plugin-help"
-    ]
+    ],
+    "topicSeparator": " "
   },
   "devDependencies": {
     "@oclif/test": "^4.1.0",
+    "@swc/core": "^1.9.2",
     "@types/jest": "^29.5.11",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
     "@typescript-eslint/parser": "^6.21.0",
