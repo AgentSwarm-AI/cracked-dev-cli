@@ -1,6 +1,6 @@
 import { autoInjectable } from "tsyringe";
-import { ActionsParser } from "./ActionsParser";
 import { DebugLogger } from "./DebugLogger";
+import { ActionsParser } from "./LLM/actions/ActionsParser";
 
 export interface StreamCallback {
   (message: string): Promise<string>;

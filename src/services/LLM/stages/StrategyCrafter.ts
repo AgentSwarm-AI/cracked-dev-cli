@@ -1,6 +1,6 @@
 import { autoInjectable, inject } from "tsyringe";
-import { TagsExtractor } from "../TagsExtractor/TagsExtractor";
-import { STAGE_PROMPTS, TaskStage } from "../TaskManager/TaskStage";
+import { TagsExtractor } from "../../TagsExtractor/TagsExtractor";
+import { STAGE_PROMPTS, TaskStage } from "../../TaskManager/TaskStage";
 
 export interface StrategyGoal {
   description: string;

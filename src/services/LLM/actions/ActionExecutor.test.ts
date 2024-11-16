@@ -1,8 +1,8 @@
 import { container } from "tsyringe";
-import { FileOperations } from "../FileManagement/FileOperations";
+import { FileOperations } from "../../FileManagement/FileOperations";
 import { ActionExecutor } from "./ActionExecutor";
 
-jest.mock("../FileManagement/FileOperations");
+jest.mock("../../FileManagement/FileOperations");
 
 describe("ActionExecutor", () => {
   let actionExecutor: ActionExecutor;

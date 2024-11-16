@@ -1,12 +1,15 @@
 import { autoInjectable } from "tsyringe";
-import { ActionsParser } from "./ActionsParser";
 import { DebugLogger } from "./DebugLogger";
 import { FileReader } from "./FileReader";
-import { DiscoveryCrafter, DiscoveryResult } from "./LLM/DiscoveryCrafter";
+import { ActionsParser } from "./LLM/actions/ActionsParser";
 import { ILLMProvider } from "./LLM/ILLMProvider";
 import { LLMContextCreator } from "./LLM/LLMContextCreator";
 import { LLMProvider, LLMProviderType } from "./LLM/LLMProvider";
-import { StrategyCrafter } from "./LLM/StrategyCrafter";
+import {
+  DiscoveryCrafter,
+  DiscoveryResult,
+} from "./LLM/stages/DiscoveryCrafter";
+import { StrategyCrafter } from "./LLM/stages/StrategyCrafter";
 import { StreamHandler } from "./StreamHandler";
 import { TaskStage } from "./TaskManager/TaskStage";
 

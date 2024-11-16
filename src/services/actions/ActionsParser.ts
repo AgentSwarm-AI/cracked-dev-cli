@@ -1,7 +1,7 @@
 import { autoInjectable } from "tsyringe";
-import { DebugLogger } from "./DebugLogger";
-import { LLMContextCreator } from "./LLM/LLMContextCreator";
-import { TaskManager } from "./TaskManager/TaskManager";
+import { DebugLogger } from "../../DebugLogger";
+import { TaskManager } from "../../TaskManager/TaskManager";
+import { LLMContextCreator } from "../LLMContextCreator";
 
 export interface ActionExecutionResult {
   actions: Array<{ action: string; result: any }>;

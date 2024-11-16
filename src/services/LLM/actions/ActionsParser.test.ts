@@ -1,12 +1,12 @@
 import { container } from "tsyringe";
+import { DebugLogger } from "../../DebugLogger";
+import { TaskManager } from "../../TaskManager/TaskManager";
+import { LLMContextCreator } from "../LLMContextCreator";
 import { ActionsParser } from "./ActionsParser";
-import { DebugLogger } from "./DebugLogger";
-import { LLMContextCreator } from "./LLM/LLMContextCreator";
-import { TaskManager } from "./TaskManager/TaskManager";
 
-jest.mock("./DebugLogger");
-jest.mock("./LLM/LLMContextCreator");
-jest.mock("./TaskManager/TaskManager");
+jest.mock("../../DebugLogger");
+jest.mock("../LLMContextCreator");
+jest.mock("../../TaskManager/TaskManager");
 
 describe("ActionsParser", () => {
   let actionsParser: ActionsParser;

@@ -1,8 +1,8 @@
 import { exec } from "child_process";
 import { autoInjectable } from "tsyringe";
 import { promisify } from "util";
-import { FileOperations } from "../FileManagement/FileOperations";
-import { IFileOperationResult } from "../FileManagement/types/FileManagementTypes";
+import { FileOperations } from "../../FileManagement/FileOperations";
+import { IFileOperationResult } from "../../FileManagement/types/FileManagementTypes";
 
 const execAsync = promisify(exec);
 

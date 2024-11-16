@@ -1,7 +1,7 @@
 import { container } from "tsyringe";
-import { ActionExecutor } from "../ActionExecutor/ActionExecutor";
 import { DirectoryScanner } from "../FileManagement/DirectoryScanner";
 import { TaskStage } from "../TaskManager/TaskStage";
+import { ActionExecutor } from "./actions/ActionExecutor";
 import { LLMContextCreator } from "./LLMContextCreator";
 
 describe("LLMContextCreator", () => {

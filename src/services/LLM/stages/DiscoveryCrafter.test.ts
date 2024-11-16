@@ -1,9 +1,9 @@
 import { container } from "tsyringe";
-import { ActionExecutor } from "../ActionExecutor/ActionExecutor";
-import { TagsExtractor } from "../TagsExtractor/TagsExtractor";
-import { TaskStage } from "../TaskManager/TaskStage";
+import { TagsExtractor } from "../../TagsExtractor/TagsExtractor";
+import { TaskStage } from "../../TaskManager/TaskStage";
+import { ActionExecutor } from "../actions/ActionExecutor";
+import { LLMContextCreator } from "../LLMContextCreator";
 import { DiscoveryCrafter } from "./DiscoveryCrafter";
-import { LLMContextCreator } from "./LLMContextCreator";
 
 describe("DiscoveryCrafter", () => {
   let discoveryCrafter: DiscoveryCrafter;

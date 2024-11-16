@@ -1,8 +1,8 @@
 import { autoInjectable, inject } from "tsyringe";
-import { ActionExecutor } from "../ActionExecutor/ActionExecutor";
-import { TagsExtractor } from "../TagsExtractor/TagsExtractor";
-import { TaskStage } from "../TaskManager/TaskStage";
-import { LLMContextCreator } from "./LLMContextCreator";
+import { TagsExtractor } from "../../TagsExtractor/TagsExtractor";
+import { TaskStage } from "../../TaskManager/TaskStage";
+import { ActionExecutor } from "../actions/ActionExecutor";
+import { LLMContextCreator } from "../LLMContextCreator";
 
 export interface DiscoveryResult {
   requirements: string[];

@@ -1,6 +1,6 @@
 import { container } from "tsyringe";
-import { TagsExtractor } from "../TagsExtractor/TagsExtractor";
-import { STAGE_PROMPTS, TaskStage } from "../TaskManager/TaskStage";
+import { TagsExtractor } from "../../TagsExtractor/TagsExtractor";
+import { STAGE_PROMPTS, TaskStage } from "../../TaskManager/TaskStage";
 import { StrategyCrafter } from "./StrategyCrafter";
 
 describe("StrategyCrafter", () => {
