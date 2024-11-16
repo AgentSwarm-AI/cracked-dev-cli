@@ -5,9 +5,7 @@ import { Colors } from "../constants/colors";
 export class DebugLogger {
   private debug: boolean = false;
 
-  constructor(debug: boolean = false) {
-    this.debug = debug;
-  }
+  constructor() {}
 
   setDebug(debug: boolean) {
     this.debug = debug;

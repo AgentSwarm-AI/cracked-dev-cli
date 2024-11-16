@@ -5,6 +5,7 @@ import { FileReader } from "./FileReader";
 import { ILLMProvider } from "./LLM/ILLMProvider";
 import { LLMContextCreator } from "./LLM/LLMContextCreator";
 import { LLMProvider, LLMProviderType } from "./LLM/LLMProvider";
+import { StreamHandler } from "./StreamHandler";
 
 export interface CrackedAgentOptions {
   root?: string;
@@ -25,13 +26,13 @@ export interface ExecutionResult {
 @autoInjectable()
 export class CrackedAgent {
   private llm!: ILLMProvider;
-  private responseBuffer: string = "";
 
   constructor(
     private fileReader: FileReader,
     private contextCreator: LLMContextCreator,
     private debugLogger: DebugLogger,
     private actionsParser: ActionsParser,
+    private streamHandler: StreamHandler,
   ) {}
 
   private initializeLLM(provider: LLMProviderType) {
@@ -53,7 +54,7 @@ export class CrackedAgent {
 
     this.debugLogger.setDebug(finalOptions.debug);
     this.initializeLLM(finalOptions.provider);
-    this.responseBuffer = "";
+    this.streamHandler.reset();
     this.actionsParser.reset();
 
     let instructionsContent = "";
@@ -97,50 +98,24 @@ export class CrackedAgent {
         finalOptions.model,
         formattedMessage,
         async (chunk: string) => {
-          process.stdout.write(chunk);
-
-          this.actionsParser.appendToBuffer(chunk);
-          this.responseBuffer += chunk;
-
-          if (
-            !this.actionsParser.isComplete &&
-            this.actionsParser.isCompleteMessage(this.actionsParser.buffer)
-          ) {
-            this.actionsParser.isComplete = true;
-            this.debugLogger.log("Status", "Complete message detected", null);
-          }
-
-          if (
-            this.actionsParser.isComplete &&
-            !this.actionsParser.isProcessing
-          ) {
-            this.actionsParser.isProcessing = true;
-            this.debugLogger.log("Action", "Processing actions", null);
-
-            await this.actionsParser.parseAndExecuteActions(
-              this.actionsParser.buffer,
-              finalOptions.model,
-              async (message) => {
-                const response = await this.llm.sendMessage(
-                  finalOptions.model,
-                  message,
-                  finalOptions.options,
-                );
-                process.stdout.write(response);
-                this.responseBuffer += response;
-                return response;
-              },
-            );
-
-            this.actionsParser.clearBuffer();
-            this.actionsParser.isProcessing = false;
-          }
+          await this.streamHandler.handleChunk(
+            chunk,
+            finalOptions.model,
+            async (message) => {
+              return await this.llm.sendMessage(
+                finalOptions.model,
+                message,
+                finalOptions.options,
+              );
+            },
+            finalOptions.options,
+          );
         },
         finalOptions.options,
       );
       process.stdout.write("\n");
 
-      return { response: this.responseBuffer, actions: [] };
+      return { response: this.streamHandler.response, actions: [] };
     } else {
       const response = await this.llm.sendMessage(
         finalOptions.model,
@@ -164,7 +139,7 @@ export class CrackedAgent {
 
       if (actions.length > 0) {
         return {
-          response: this.responseBuffer || response,
+          response: this.streamHandler.response || response,
           actions,
         };
       }
