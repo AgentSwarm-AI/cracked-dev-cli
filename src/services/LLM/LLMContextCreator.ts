@@ -61,6 +61,8 @@ export class LLMContextCreator {
       context.task,
       context.environmentDetails,
       context.stagePrompt,
+      context.stage,
+      true,
     );
   }
 
@@ -72,6 +74,8 @@ export class LLMContextCreator {
     task: string,
     environmentDetails?: string,
     stagePrompt: string = "",
+    stage?: TaskStage,
+    isFirstMessage: boolean = false,
   ): string {
     // Start with task (with 2 spaces indentation)
     let message = `<task>\n  ${task}\n</task>`;
@@ -126,7 +130,21 @@ export class LLMContextCreator {
   <!-- Search Operations -->
   <search_string>string_to_search</search_string>
   <search_file>path/to/file</search_file>
-  
+  ${
+    isFirstMessage && stage === TaskStage.STRATEGY
+      ? `
+  <!-- Strategy Planning -->
+  <strategy>
+    <goal>
+      <description>Goal description</description>
+      <steps>
+        <step>Specific step</step>
+      </steps>
+      <considerations>Important considerations</considerations>
+    </goal>
+  </strategy>`
+      : ""
+  }
  
 </available_tags>`;
 
