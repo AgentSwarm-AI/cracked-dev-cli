@@ -1,4 +1,5 @@
 import { Args, Command, Flags } from "@oclif/core";
+import { container } from "tsyringe";
 import { CrackedAgent } from "../services/CrackedAgent";
 import { LLMProviderType } from "../services/LLM/LLMProvider";
 
@@ -64,7 +65,8 @@ export class Crkd extends Command {
     const { message } = args;
 
     try {
-      const agent = new CrackedAgent({
+      const agent = container.resolve(CrackedAgent);
+      const options = {
         root: flags.root,
         instructionsPath: flags.instructionsPath,
         instructions: flags.instructions,
@@ -72,9 +74,9 @@ export class Crkd extends Command {
         provider: flags.provider as LLMProviderType,
         stream: flags.stream,
         debug: flags.debug,
-      });
+      };
 
-      const response = await agent.execute(message);
+      const response = await agent.execute(message, options);
       if (!flags.stream && response) {
         this.log(response);
       }

@@ -1,4 +1,5 @@
-import fs from "fs/promises";
+import { autoInjectable } from "tsyringe";
+import { FileReader } from "./FileReader";
 import { ILLMProvider } from "./LLM/ILLMProvider";
 import { LLMProvider, LLMProviderType } from "./LLM/LLMProvider";
 
@@ -12,48 +13,50 @@ export interface CrackedAgentOptions {
   debug?: boolean;
 }
 
+@autoInjectable()
 export class CrackedAgent {
   private llm: ILLMProvider;
-  private options: CrackedAgentOptions;
 
-  constructor(options: CrackedAgentOptions) {
-    this.options = {
-      root: process.cwd(),
-      provider: LLMProviderType.OpenRouter,
-      stream: false,
-      debug: false,
-      ...options,
-    };
-    this.llm = LLMProvider.getInstance(
-      this.options.provider as LLMProviderType,
-    );
+  constructor(private fileReader: FileReader) {
+    this.llm = LLMProvider.getInstance(LLMProviderType.OpenRouter);
   }
 
-  async execute(message: string): Promise<string | void> {
+  async execute(
+    message: string,
+    options: CrackedAgentOptions,
+  ): Promise<string | void> {
     try {
+      const finalOptions = {
+        root: process.cwd(),
+        provider: LLMProviderType.OpenRouter,
+        stream: false,
+        debug: false,
+        ...options,
+      };
+
       // Get instructions content
       let instructionsContent = "";
-      if (this.options.instructionsPath) {
-        instructionsContent = await this.readInstructionsFile(
-          this.options.instructionsPath,
+      if (finalOptions.instructionsPath) {
+        instructionsContent = await this.fileReader.readInstructionsFile(
+          finalOptions.instructionsPath,
         );
-      } else if (this.options.instructions) {
-        instructionsContent = this.options.instructions;
+      } else if (finalOptions.instructions) {
+        instructionsContent = finalOptions.instructions;
       }
 
       // Validate model
-      const isValidModel = await this.llm.validateModel(this.options.model);
+      const isValidModel = await this.llm.validateModel(finalOptions.model);
       if (!isValidModel) {
         const availableModels = await this.llm.getAvailableModels();
         throw new Error(
-          `Invalid model: ${this.options.model}. Available models: ${availableModels.join(", ")}`,
+          `Invalid model: ${finalOptions.model}. Available models: ${availableModels.join(", ")}`,
         );
       }
 
       // Get model info for context
-      const modelInfo = await this.llm.getModelInfo(this.options.model);
-      if (this.options.debug) {
-        console.log(`Using model: ${this.options.model}`);
+      const modelInfo = await this.llm.getModelInfo(finalOptions.model);
+      if (finalOptions.debug) {
+        console.log(`Using model: ${finalOptions.model}`);
         console.log(`Model info: ${JSON.stringify(modelInfo, null, 2)}`);
       }
 
@@ -62,9 +65,9 @@ export class CrackedAgent {
         this.llm.addSystemInstructions(instructionsContent);
       }
 
-      if (this.options.stream) {
+      if (finalOptions.stream) {
         await this.llm.streamMessage(
-          this.options.model,
+          finalOptions.model,
           message,
           (chunk: string) => {
             process.stdout.write(chunk);
@@ -75,27 +78,12 @@ export class CrackedAgent {
         return;
       } else {
         const response = await this.llm.sendMessage(
-          this.options.model,
+          finalOptions.model,
           message,
         );
         return response;
       }
     } catch (error) {
-      throw error;
-    }
-  }
-
-  private async readInstructionsFile(path: string): Promise<string> {
-    try {
-      const stats = await fs.stat(path);
-      if (!stats.isFile()) {
-        throw new Error("Instructions path must be a file");
-      }
-      return await fs.readFile(path, "utf-8");
-    } catch (error) {
-      if (error instanceof Error) {
-        throw new Error(`Failed to read instructions file: ${error.message}`);
-      }
       throw error;
     }
   }
