@@ -1,4 +1,5 @@
 import { Args, Command, Flags } from "@oclif/core";
+import * as readline from "readline";
 import { container } from "tsyringe";
 import { CrackedAgent } from "../services/CrackedAgent";
 import { LLMProviderType } from "../services/LLM/LLMProvider";
@@ -10,6 +11,7 @@ export class Crkd extends Command {
     '$ crkd --root ./my-project --instructions-path ./instructions.md --model gpt-4 "Add error handling"',
     '$ crkd -r ./my-project --instructions "Follow clean code" -m gpt-4 "Create component"',
     '$ crkd --instructions "Use TypeScript" -m gpt-4 --options "temperature=0.7,max_tokens=2000,top_p=0.9" "Create new component"',
+    "$ crkd --interactive -m gpt-4 # Start interactive mode",
   ];
 
   static flags = {
@@ -57,12 +59,17 @@ export class Crkd extends Command {
         'LLM options in key=value format (e.g., "temperature=0.7,max_tokens=2000,top_p=0.9")',
       required: false,
     }),
+    interactive: Flags.boolean({
+      char: "i",
+      description: "Enable interactive mode for continuous conversation",
+      default: false,
+    }),
   };
 
   static args = {
     message: Args.string({
       description: "Message describing the operation to perform",
-      required: true,
+      required: false,
     }),
   };
 
@@ -88,9 +95,56 @@ export class Crkd extends Command {
     return options;
   }
 
+  private createReadlineInterface() {
+    return readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+      prompt: "> ",
+    });
+  }
+
+  private async startInteractiveMode(agent: CrackedAgent, options: any) {
+    const rl = this.createReadlineInterface();
+    console.log(
+      'Interactive mode started. Type "exit" or press Ctrl+C to quit.',
+    );
+
+    rl.prompt();
+
+    rl.on("line", async (input) => {
+      if (input.toLowerCase() === "exit") {
+        console.log("Goodbye!");
+        rl.close();
+        return;
+      }
+
+      try {
+        const response = await agent.execute(input, options);
+        if (!options.stream && response) {
+          console.log("\nResponse:", response);
+        }
+      } catch (error) {
+        console.error("Error:", (error as Error).message);
+      }
+
+      rl.prompt();
+    }).on("close", () => {
+      process.exit(0);
+    });
+  }
+
   async run(): Promise<void> {
     const { args, flags } = await this.parse(Crkd);
-    const { message } = args;
+
+    if (flags.interactive && args.message) {
+      this.error("Cannot provide both interactive mode and message argument");
+      return;
+    }
+
+    if (!flags.interactive && !args.message) {
+      this.error("Must provide either interactive mode or message argument");
+      return;
+    }
 
     try {
       const agent = container.resolve(CrackedAgent);
@@ -105,9 +159,13 @@ export class Crkd extends Command {
         options: this.parseOptions(flags.options || ""),
       };
 
-      const response = await agent.execute(message, options);
-      if (!flags.stream && response) {
-        this.log(response);
+      if (flags.interactive) {
+        await this.startInteractiveMode(agent, options);
+      } else {
+        const response = await agent.execute(args.message!, options);
+        if (!flags.stream && response) {
+          this.log(response);
+        }
       }
     } catch (error) {
       this.error((error as Error).message);
