@@ -42,3 +42,23 @@ export interface IOpenRouterMessage {
   role: "user" | "assistant" | "system";
   content: string;
 }
+
+export interface IOpenRouterOptions {
+  temperature?: number;
+  top_p?: number;
+  top_k?: number;
+  frequency_penalty?: number;
+  presence_penalty?: number;
+  repetition_penalty?: number;
+  min_p?: number;
+  top_a?: number;
+  seed?: number;
+  max_tokens?: number;
+  logit_bias?: Record<number, number>;
+  logprobs?: boolean;
+  top_logprobs?: number;
+  response_format?: { type: string };
+  stop?: string[];
+  tools?: unknown[];
+  tool_choice?: unknown;
+}

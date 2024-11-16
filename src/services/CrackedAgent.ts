@@ -12,6 +12,7 @@ export interface CrackedAgentOptions {
   provider?: LLMProviderType;
   stream?: boolean;
   debug?: boolean;
+  options?: Record<string, unknown>;
 }
 
 @autoInjectable()
@@ -32,6 +33,7 @@ export class CrackedAgent {
       provider: LLMProviderType.OpenRouter,
       stream: false,
       debug: false,
+      options: {},
       ...options,
     };
 
@@ -85,6 +87,7 @@ export class CrackedAgent {
         (chunk: string) => {
           process.stdout.write(chunk);
         },
+        finalOptions.options,
       );
       // Add a newline after stream completes
       process.stdout.write("\n");
@@ -93,6 +96,7 @@ export class CrackedAgent {
       const response = await this.llm.sendMessage(
         finalOptions.model,
         formattedMessage,
+        finalOptions.options,
       );
       return response;
     }

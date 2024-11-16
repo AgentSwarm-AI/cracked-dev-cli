@@ -37,13 +37,18 @@ export class OpenRouterAPI implements ILLMProvider {
     }
   }
 
-  async sendMessage(model: string, message: string): Promise<string> {
+  async sendMessage(
+    model: string,
+    message: string,
+    options?: Record<string, unknown>,
+  ): Promise<string> {
     const data = {
       model,
       messages: [
         ...this.conversationContext,
         { role: "user", content: message },
       ],
+      ...options,
     };
 
     try {
@@ -64,11 +69,12 @@ export class OpenRouterAPI implements ILLMProvider {
     model: string,
     message: string,
     systemInstructions?: string,
+    options?: Record<string, unknown>,
   ): Promise<string> {
     if (systemInstructions) {
       this.addSystemInstructions(systemInstructions);
     }
-    return this.sendMessage(model, message);
+    return this.sendMessage(model, message, options);
   }
 
   clearConversationContext(): void {
@@ -128,6 +134,7 @@ export class OpenRouterAPI implements ILLMProvider {
     model: string,
     message: string,
     callback: (chunk: string) => void,
+    options?: Record<string, unknown>,
   ): Promise<void> {
     const data = {
       model,
@@ -136,6 +143,7 @@ export class OpenRouterAPI implements ILLMProvider {
         { role: "user", content: message },
       ],
       stream: true,
+      ...options,
     };
 
     let fullContent = "";

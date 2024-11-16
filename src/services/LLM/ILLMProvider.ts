@@ -10,11 +10,16 @@ export interface IBaseModelInfo {
 
 export interface ILLMProvider {
   // Core message handling
-  sendMessage(model: string, message: string): Promise<string>;
+  sendMessage(
+    model: string,
+    message: string,
+    options?: Record<string, unknown>,
+  ): Promise<string>;
   sendMessageWithContext(
     model: string,
     message: string,
     systemInstructions?: string,
+    options?: Record<string, unknown>,
   ): Promise<string>;
 
   // Conversation management
@@ -32,5 +37,6 @@ export interface ILLMProvider {
     model: string,
     message: string,
     callback: (chunk: string) => void,
+    options?: Record<string, unknown>,
   ): Promise<void>;
 }

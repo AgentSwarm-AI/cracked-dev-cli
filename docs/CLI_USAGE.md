@@ -1,91 +1,63 @@
-# Cracked Dev CLI
+# CLI Usage
 
-AI agent CLI for performing operations on local projects through natural language.
-
-## Core Command
+## Basic Usage
 
 ```bash
-crkd [options] <message>
+crkd [flags] "your message"
 ```
 
-### Required Options
+## Flags
 
-- `--root, -r <path>` - Specify the root path of the codebase to operate on
-- `--instructions, -i <path>` - Path to custom instructions file for the AI agent
-- `--model, -m <model>` - AI model to use (e.g., gpt-4, gpt-3.5-turbo)
-
-### Example Usage
-
-```bash
-# Basic usage
-crkd --root ./my-project --instructions ./instructions.md --model gpt-4 "Add error handling to the user service"
-
-# With shorthand options
-crkd -r ./my-project -i ./instructions.md -m gpt-4 "Create a new React component for user profile"
-
-# Using config file
-crkd "Refactor the authentication flow"
-```
-
-## Configuration
-
-Create a `.crkdrc` file in your project:
-
-```json
-{
-  "root": "./",
-  "instructions": "./dev-instructions.md",
-  "model": "gpt-4"
-}
-```
-
-## Custom Instructions Format
-
-```markdown
-# Project Guidelines
-
-- Use TypeScript for all new files
-- Follow SOLID principles
-- Use styled-components for styling
-
-# Code Style
-
-- Named exports only
-- Interface names prefixed with 'I'
-- Tests required for new components
-
-# Architecture
-
-- Clean Architecture
-- Feature-based folder structure
-- Shared utilities in utils/
-```
+- `-r, --root`: Root path of the codebase to operate on (default: current directory)
+- `--instructions-path`: Path to custom instructions file
+- `--instructions`: Raw custom instructions string
+- `-m, --model`: AI model to use (default: "gpt-4")
+- `-p, --provider`: LLM provider to use
+- `-s, --stream`: Stream the AI response
+- `-d, --debug`: Enable debug mode
+- `-o, --options`: LLM options in key=value format
 
 ## Examples
 
-1. Adding new features:
+PS: `yarn dev:cli` is just to run the CLI in development mode. In production, you can use `crkd` directly.
+
+Example usage:
 
 ```bash
-crkd "Create a new authentication service with JWT support"
+ yarn dev:cli crkd --instructions "Follow clean code" --provider "open-router" --model "openai/gpt-4o-mini" --options "temperature=0.7,max_tokens=2000,top_p=0.9" "Tell me which files from my system you find interesting?" --stream
+
 ```
 
-2. Fixing issues:
+## Available Options
 
-```bash
-crkd "Fix the error handling in UserService.ts"
-```
+You can customize the LLM behavior using the following options in the format `key=value,key2=value2`:
 
-3. Code improvements:
+- `temperature` (0.0 to 2.0): Controls randomness. Lower values make output more focused and deterministic.
+  Example: `temperature=0.7`
 
-```bash
-crkd "Refactor the user profile component to follow SOLID principles"
-```
+- `max_tokens` (1 or above): Maximum number of tokens to generate.
+  Example: `max_tokens=2000`
 
-## Error Handling
+- `top_p` (0.0 to 1.0): Controls diversity via nucleus sampling.
+  Example: `top_p=0.9`
 
-The CLI will:
+- `frequency_penalty` (-2.0 to 2.0): Positive values penalize tokens based on their frequency.
+  Example: `frequency_penalty=0.5`
 
-- Validate the codebase path exists
-- Ensure custom instructions file is readable
-- Verify model availability
-- Provide clear error messages for invalid operations
+- `presence_penalty` (-2.0 to 2.0): Positive values penalize tokens that have appeared.
+  Example: `presence_penalty=0.5`
+
+- `repetition_penalty` (0.0 to 2.0): Higher values reduce token repetition.
+  Example: `repetition_penalty=1.2`
+
+- `top_k` (0 or above): Limits token choices to top K options.
+  Example: `top_k=40`
+
+- `min_p` (0.0 to 1.0): Minimum probability threshold for token selection.
+  Example: `min_p=0.05`
+
+- `top_a` (0.0 to 1.0): Dynamic probability threshold based on highest token.
+  Example: `top_a=0.8`
+
+- `seed` (integer): For deterministic outputs.
+  Example: `seed=42`

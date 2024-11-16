@@ -9,7 +9,7 @@ export class Crkd extends Command {
   static examples = [
     '$ crkd --root ./my-project --instructions-path ./instructions.md --model gpt-4 "Add error handling"',
     '$ crkd -r ./my-project --instructions "Follow clean code" -m gpt-4 "Create component"',
-    '$ crkd --instructions "Use TypeScript" -m gpt-4 "Create new component"',
+    '$ crkd --instructions "Use TypeScript" -m gpt-4 --options "temperature=0.7,max_tokens=2000,top_p=0.9" "Create new component"',
   ];
 
   static flags = {
@@ -51,6 +51,12 @@ export class Crkd extends Command {
       description: "Enable debug mode",
       default: false,
     }),
+    options: Flags.string({
+      char: "o",
+      description:
+        'LLM options in key=value format (e.g., "temperature=0.7,max_tokens=2000,top_p=0.9")',
+      required: false,
+    }),
   };
 
   static args = {
@@ -59,6 +65,28 @@ export class Crkd extends Command {
       required: true,
     }),
   };
+
+  private parseOptions(optionsString: string): Record<string, unknown> {
+    const options: Record<string, unknown> = {};
+
+    if (!optionsString) return options;
+
+    const pairs = optionsString.split(",");
+    for (const pair of pairs) {
+      const [key, value] = pair.trim().split("=");
+      if (!key || !value) continue;
+
+      // Convert value to appropriate type
+      if (value === "true") options[key] = true;
+      else if (value === "false") options[key] = false;
+      else if (!isNaN(Number(value))) {
+        if (value.includes(".")) options[key] = parseFloat(value);
+        else options[key] = parseInt(value, 10);
+      } else options[key] = value;
+    }
+
+    return options;
+  }
 
   async run(): Promise<void> {
     const { args, flags } = await this.parse(Crkd);
@@ -74,6 +102,7 @@ export class Crkd extends Command {
         provider: flags.provider as LLMProviderType,
         stream: flags.stream,
         debug: flags.debug,
+        options: this.parseOptions(flags.options || ""),
       };
 
       const response = await agent.execute(message, options);
