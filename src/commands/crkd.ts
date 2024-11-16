@@ -45,6 +45,11 @@ export class Crkd extends Command {
       description: "Stream the AI response",
       default: false,
     }),
+    debug: Flags.boolean({
+      char: "d",
+      description: "Enable debug mode",
+      default: false,
+    }),
   };
 
   static args = {
@@ -57,8 +62,15 @@ export class Crkd extends Command {
   async run(): Promise<void> {
     const { args, flags } = await this.parse(Crkd);
     const { message } = args;
-    const { root, instructionsPath, instructions, model, provider, stream } =
-      flags;
+    const {
+      root,
+      instructionsPath,
+      instructions,
+      model,
+      provider,
+      stream,
+      debug,
+    } = flags;
 
     try {
       // Get instructions content
@@ -86,8 +98,10 @@ export class Crkd extends Command {
         provider as LLMProviderType,
         model,
       );
-      this.log(`Using model: ${model}`);
-      this.log(`Model info: ${JSON.stringify(modelInfo, null, 2)}`);
+      if (debug) {
+        this.log(`Using model: ${model}`);
+        this.log(`Model info: ${JSON.stringify(modelInfo, null, 2)}`);
+      }
 
       // Add system instructions if provided
       if (instructionsContent) {
