@@ -163,18 +163,10 @@ export class CrackedAgent {
     console.log(`🔍 CrackedAgent: Parsing and executing actions...`);
 
     const { actions, followupResponse } =
-      await this.actionsParser.parseAndExecuteActions(
+      await this.parseAndExecuteWithCallback(
         this.actionsParser.buffer,
         model,
-        async (followupMsg) => {
-          // Format followup message to match task format
-          const formattedFollowup = await this.contextCreator.create(
-            followupMsg,
-            process.cwd(),
-            false,
-          );
-          return this.llm.sendMessage(model, formattedFollowup, options);
-        },
+        options,
       );
 
     console.log(`🔍 CrackedAgent: Actions and followUpResponse: 
@@ -182,7 +174,6 @@ export class CrackedAgent {
         followUpResponse: ${followupResponse}
         `);
 
-    // If we have a followup response from the LLM after executing actions, use that
     return {
       response: followupResponse || response,
       actions,
@@ -202,25 +193,51 @@ export class CrackedAgent {
     });
 
     const { actions, followupResponse } =
-      await this.actionsParser.parseAndExecuteActions(
-        response,
-        model,
-        async (followupMsg) => {
-          // Format followup message to match task format
-          const formattedFollowup = await this.contextCreator.create(
-            followupMsg,
-            process.cwd(),
-            false,
-          );
-          return this.llm.sendMessage(model, formattedFollowup, options);
-        },
-      );
+      await this.parseAndExecuteWithCallback(response, model, options);
 
-    // If we have a followup response from the LLM after executing actions, use that
     return {
       response: followupResponse || response,
       actions,
     };
+  }
+
+  private async parseAndExecuteWithCallback(
+    response: string,
+    model: string,
+    options?: Record<string, unknown>,
+  ): Promise<{
+    actions: Array<{ action: string; result: any }>;
+    followupResponse?: string;
+  }> {
+    const result = await this.actionsParser.parseAndExecuteActions(
+      response,
+      model,
+      async (followupMsg) => {
+        // Format followup message to match task format
+        const formattedFollowup = await this.contextCreator.create(
+          followupMsg,
+          process.cwd(),
+          false,
+        );
+        const followupResponse = await this.llm.sendMessage(
+          model,
+          formattedFollowup,
+          options,
+        );
+
+        // Recursively parse and execute actions from the followup response
+        const followupResult = await this.parseAndExecuteWithCallback(
+          followupResponse,
+          model,
+          options,
+        );
+
+        // Return the final followup response
+        return followupResult.followupResponse || followupResponse;
+      },
+    );
+
+    return result;
   }
 
   getConversationHistory() {
