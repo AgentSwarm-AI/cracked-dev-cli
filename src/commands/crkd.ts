@@ -1,6 +1,6 @@
 import { Args, Command, Flags } from "@oclif/core";
-import fs from "fs/promises";
-import { LLMProvider, LLMProviderType } from "../services/LLM/LLMProvider";
+import { CrackedAgent } from "../services/CrackedAgent";
+import { LLMProviderType } from "../services/LLM/LLMProvider";
 
 export class Crkd extends Command {
   static description = "AI agent for performing operations on local projects";
@@ -62,79 +62,24 @@ export class Crkd extends Command {
   async run(): Promise<void> {
     const { args, flags } = await this.parse(Crkd);
     const { message } = args;
-    const {
-      root,
-      instructionsPath,
-      instructions,
-      model,
-      provider,
-      stream,
-      debug,
-    } = flags;
 
     try {
-      // Get instructions content
-      let instructionsContent = "";
-      if (instructionsPath) {
-        instructionsContent = await this.readInstructionsFile(instructionsPath);
-      } else if (instructions) {
-        instructionsContent = instructions;
-      }
+      const agent = new CrackedAgent({
+        root: flags.root,
+        instructionsPath: flags.instructionsPath,
+        instructions: flags.instructions,
+        model: flags.model,
+        provider: flags.provider as LLMProviderType,
+        stream: flags.stream,
+        debug: flags.debug,
+      });
 
-      // Initialize LLM provider
-      const llm = LLMProvider.getInstance(provider as LLMProviderType);
-
-      // Validate model
-      const isValidModel = await llm.validateModel(model);
-      if (!isValidModel) {
-        const availableModels = await llm.getAvailableModels();
-        throw new Error(
-          `Invalid model: ${model}. Available models: ${availableModels.join(", ")}`,
-        );
-      }
-
-      // Get model info for context
-      const modelInfo = await LLMProvider.getModelInfo(
-        provider as LLMProviderType,
-        model,
-      );
-      if (debug) {
-        this.log(`Using model: ${model}`);
-        this.log(`Model info: ${JSON.stringify(modelInfo, null, 2)}`);
-      }
-
-      // Add system instructions if provided
-      if (instructionsContent) {
-        llm.addSystemInstructions(instructionsContent);
-      }
-
-      if (stream) {
-        await llm.streamMessage(model, message, (chunk) => {
-          process.stdout.write(chunk);
-        });
-        // Add a newline after stream completes
-        process.stdout.write("\n");
-      } else {
-        const response = await llm.sendMessage(model, message);
+      const response = await agent.execute(message);
+      if (!flags.stream && response) {
         this.log(response);
       }
     } catch (error) {
       this.error((error as Error).message);
-    }
-  }
-
-  private async readInstructionsFile(path: string): Promise<string> {
-    try {
-      const stats = await fs.stat(path);
-      if (!stats.isFile()) {
-        throw new Error("Instructions path must be a file");
-      }
-      return await fs.readFile(path, "utf-8");
-    } catch (error) {
-      if (error instanceof Error) {
-        throw new Error(`Failed to read instructions file: ${error.message}`);
-      }
-      throw error;
     }
   }
 }
