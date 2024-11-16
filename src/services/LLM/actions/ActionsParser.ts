@@ -1,3 +1,4 @@
+import path from "path";
 import { autoInjectable } from "tsyringe";
 import { DebugLogger } from "../../DebugLogger";
 import { TaskManager } from "../../TaskManager/TaskManager";
@@ -62,13 +63,17 @@ export class ActionsParser {
 
     const pathMatch = /<path>(.*?)<\/path>/;
     const match = tag.match(pathMatch);
-    return match ? match[1] : null;
+    if (!match) return null;
+
+    // Resolve the path relative to the current working directory
+    return path.resolve(process.cwd(), match[1]);
   }
 
   findCompleteTags(text: string): string[] {
     const completeTags: string[] = [];
+    // Updated regex to properly handle nested tags
     const regex =
-      /<(read_file|write_file|delete_file|move_file|copy_file_slice|execute_command|search_string|search_file)>[\s\S]*?<\/\1>/g;
+      /<(read_file|write_file|delete_file|move_file|copy_file_slice|execute_command|search_string|search_file)>(?:[^<]*|<(?!\/\1>)[^<]*)*<\/\1>/g;
     let match;
 
     while ((match = regex.exec(text)) !== null) {
@@ -181,11 +186,9 @@ export class ActionsParser {
         message: followupMessage,
       });
 
-      console.log("Sending followup message to LLM:", followupMessage);
-
       const followupResponse = await llmCallback(followupMessage);
 
-      console.log("Received followup response from LLM:", followupResponse);
+      console.log("\n🤖:", followupResponse);
 
       this.debugLogger.log(
         "Response",

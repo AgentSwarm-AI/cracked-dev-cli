@@ -1,6 +1,8 @@
 import { exec } from "child_process";
+import path from "path";
 import { autoInjectable } from "tsyringe";
 import { promisify } from "util";
+import { DebugLogger } from "../../DebugLogger";
 import { FileOperations } from "../../FileManagement/FileOperations";
 import { IFileOperationResult } from "../../FileManagement/types/FileManagementTypes";
 
@@ -14,7 +16,10 @@ interface IActionResult {
 
 @autoInjectable()
 export class ActionExecutor {
-  constructor(private fileOperations: FileOperations) {}
+  constructor(
+    private fileOperations: FileOperations,
+    private debugLogger: DebugLogger,
+  ) {}
 
   async executeAction(actionText: string): Promise<IActionResult> {
     try {
@@ -61,9 +66,15 @@ export class ActionExecutor {
     }
   }
 
+  private resolvePath(filePath: string): string {
+    // Always resolve paths relative to the current working directory
+    return path.resolve(process.cwd(), filePath);
+  }
+
   private async handleReadFile(filePath: string): Promise<IActionResult> {
-    console.log(`📁 File path: ${filePath}`);
-    const result = await this.fileOperations.read(filePath);
+    const resolvedPath = this.resolvePath(filePath);
+    console.log(`📁 File path: ${resolvedPath}`);
+    const result = await this.fileOperations.read(resolvedPath);
     return this.convertFileResult(result);
   }
 
@@ -71,28 +82,42 @@ export class ActionExecutor {
     const pathMatch = /<path>(.*?)<\/path>/;
     const contentMatch = /<content>([\s\S]*?)<\/content>/;
 
-    const path = content.match(pathMatch)?.[1];
-    const fileContent = content.match(contentMatch)?.[1];
+    const pathResult = content.match(pathMatch);
+    const contentResult = content.match(contentMatch);
 
-    if (!path || !fileContent) {
-      return { success: false, error: new Error("Invalid write_file format") };
+    if (!pathResult || !contentResult) {
+      return {
+        success: false,
+        error: new Error(
+          "Invalid write_file format. Must include both <path> and <content> tags.",
+        ),
+      };
     }
 
-    console.log(`📁 File path: ${path}`);
-    const result = await this.fileOperations.write(path, fileContent);
+    const filePath = pathResult[1];
+    const fileContent = contentResult[1];
+
+    // Resolve the path relative to the current working directory
+    const resolvedPath = this.resolvePath(filePath);
+
+    console.log(`📁 File path: ${resolvedPath}`);
+    const result = await this.fileOperations.write(resolvedPath, fileContent);
     return this.convertFileResult(result);
   }
 
   private async handleDeleteFile(filePath: string): Promise<IActionResult> {
-    console.log(`📁 File path: ${filePath}`);
-    const result = await this.fileOperations.delete(filePath);
+    const resolvedPath = this.resolvePath(filePath);
+    console.log(`📁 File path: ${resolvedPath}`);
+    const result = await this.fileOperations.delete(resolvedPath);
     return this.convertFileResult(result);
   }
 
   private async handleMoveFile(content: string): Promise<IActionResult> {
     const [source, destination] = content
       .split("\n")
-      .map((line) => line.trim());
+      .map((line) => line.trim())
+      .map((p) => this.resolvePath(p));
+
     if (!source || !destination) {
       return { success: false, error: new Error("Invalid move_file format") };
     }
@@ -106,7 +131,9 @@ export class ActionExecutor {
   private async handleCopyFile(content: string): Promise<IActionResult> {
     const [source, destination] = content
       .split("\n")
-      .map((line) => line.trim());
+      .map((line) => line.trim())
+      .map((p) => this.resolvePath(p));
+
     if (!source || !destination) {
       return { success: false, error: new Error("Invalid copy_file format") };
     }

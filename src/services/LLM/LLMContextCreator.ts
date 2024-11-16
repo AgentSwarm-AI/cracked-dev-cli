@@ -75,21 +75,50 @@ To achieve the desired goal of this task, you must follow the following steps:
   - step 2
   - step 3
 
-<!-- next step should be aimed towards one of the steps above. We can have one or multiple tags on the same reply -->
+<!-- next step should be aimed towards one of the steps above -->
 
-I'll perform <available_tags>file/path/here</available_tags> to achieve the desired goal.
+I'll perform <action_name> to achieve the desired goal.
 
+Available actions:
+- read_file: Read contents of a file
+  <read_file>
+    <pathfile/path/here</path>
+  </read_file>
 
-FURTHER INSTRUCTIONS (do not output this):
+- write_file: Write content to a file
+  <write_file>
+    <pathfile/path/here</path>
+    <content>
+    // Your file content here
+    </content>
+  </write_file>
 
-<available_tags>
-    <read_file>file/path/here</read_file>
-    <write_file>file/path/here</write_file>
-    <delete_file>file/path/here</delete_file>
-    <update_file>file/path/here</update_file>
-    <move_file>file/path/here</move_file>
-    <copy_file_slice>file/path/here</copy_file_slice>
-</available_tags>
+- delete_file: Delete a file
+  <delete_file>
+    <pathfile/path/here</path>
+  </delete_file>
+
+- move_file: Move/rename a file
+  <move_file>
+    source/path/here
+    destination/path/here
+  </move_file>
+
+- copy_file_slice: Copy a file
+  <copy_file_slice>
+    source/path/here
+    destination/path/here
+  </copy_file_slice>
+
+- execute_command: Execute a CLI command
+  <execute_command>
+    npm install package-name
+  </execute_command>
+
+- search_string/search_file: Search in files
+  <search_string>
+    pattern to search
+  </search_string>
 `;
   }
 
@@ -104,7 +133,7 @@ FURTHER INSTRUCTIONS (do not output this):
   ): Promise<Array<{ action: string; result: any }>> {
     const results = [];
     const actionRegex =
-      /<(read_file|write_file|delete_file|update_file|move_file|copy_file_slice|execute_command|search_string|search_file)>([\s\S]*?)<\/\1>/g;
+      /<(read_file|write_file|delete_file|update_file|move_file|copy_file_slice|execute_command|search_string|search_file)>(?:[^<]*|<(?!\/\1>)[^<]*)*<\/\1>/g;
 
     let match;
     while ((match = actionRegex.exec(response)) !== null) {
