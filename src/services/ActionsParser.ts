@@ -41,10 +41,27 @@ export class ActionsParser {
     return true;
   }
 
+  extractFilePath(tag: string): string | null {
+    const fileActions = [
+      "read_file",
+      "write_file",
+      "delete_file",
+      "move_file",
+      "copy_file_slice",
+      "edit_code_file",
+    ];
+    const actionMatch = new RegExp(`<(${fileActions.join("|")})>`).exec(tag);
+    if (!actionMatch) return null;
+
+    const pathMatch = /<path>(.*?)<\/path>/;
+    const match = tag.match(pathMatch);
+    return match ? match[1] : null;
+  }
+
   findCompleteTags(text: string): string[] {
     const completeTags: string[] = [];
     const regex =
-      /<(read_file|write_file|delete_file|update_file|move_file|copy_file_slice|execute_command|search_string|search_file|edit_code_file)>[\s\S]*?<\/\1>/g;
+      /<(read_file|write_file|delete_file|move_file|copy_file_slice|execute_command|search_string|search_file|edit_code_file)>[\s\S]*?<\/\1>/g;
     let match;
 
     while ((match = regex.exec(text)) !== null) {
@@ -96,6 +113,16 @@ export class ActionsParser {
 
     this.debugLogger.log("Tags", "Found complete action tags", {
       tags: completeTags,
+    });
+
+    // Extract and log file paths
+    completeTags.forEach((tag) => {
+      const filePath = this.extractFilePath(tag);
+      if (filePath) {
+        this.debugLogger.log("FilePath", "Found file path in action", {
+          path: filePath,
+        });
+      }
     });
 
     const actions = await this.contextCreator.parseAndExecuteActions(text);

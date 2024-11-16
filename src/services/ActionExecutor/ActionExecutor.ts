@@ -65,6 +65,7 @@ export class ActionExecutor {
   }
 
   private async handleReadFile(filePath: string): Promise<IActionResult> {
+    console.log(`📁 File path: ${filePath}`);
     const result = await this.fileOperations.read(filePath);
     return this.convertFileResult(result);
   }
@@ -80,11 +81,13 @@ export class ActionExecutor {
       return { success: false, error: new Error("Invalid write_file format") };
     }
 
+    console.log(`📁 File path: ${path}`);
     const result = await this.fileOperations.write(path, fileContent);
     return this.convertFileResult(result);
   }
 
   private async handleDeleteFile(filePath: string): Promise<IActionResult> {
+    console.log(`📁 File path: ${filePath}`);
     const result = await this.fileOperations.delete(filePath);
     return this.convertFileResult(result);
   }
@@ -97,6 +100,8 @@ export class ActionExecutor {
       return { success: false, error: new Error("Invalid move_file format") };
     }
 
+    console.log(`📁 Source path: ${source}`);
+    console.log(`📁 Destination path: ${destination}`);
     const result = await this.fileOperations.move(source, destination);
     return this.convertFileResult(result);
   }
@@ -109,6 +114,8 @@ export class ActionExecutor {
       return { success: false, error: new Error("Invalid copy_file format") };
     }
 
+    console.log(`📁 Source path: ${source}`);
+    console.log(`📁 Destination path: ${destination}`);
     const result = await this.fileOperations.copy(source, destination);
     return this.convertFileResult(result);
   }
@@ -161,6 +168,7 @@ export class ActionExecutor {
         continue;
       }
 
+      console.log(`📁 File path: ${filePath}`);
       const [start, end] = range.split("-").map(Number);
       const fileResult = await this.fileOperations.read(filePath);
 

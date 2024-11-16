@@ -72,6 +72,7 @@ export class LLMContextCreator {
   <next_step>
     I will perform a <read_file>path/to/file</read_file> operation.
   </next_step>
+  
 </instructions>
 
 <available_tags>
