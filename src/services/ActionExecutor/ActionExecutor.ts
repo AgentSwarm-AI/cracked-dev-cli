@@ -199,7 +199,7 @@ export class ActionExecutor {
 
   private convertFileResult(result: IFileOperationResult): IActionResult {
     if (result.success) {
-      console.log("✅ Action completed successfully");
+      console.log("✅ Action completed successfully. Please wait...");
     } else {
       console.log("❌ Action failed");
     }

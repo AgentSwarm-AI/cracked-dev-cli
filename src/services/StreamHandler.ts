@@ -25,6 +25,26 @@ export class StreamHandler {
     return this.responseBuffer;
   }
 
+  private checkTaskCompletion(response: string): string | null {
+    const completionMatch = response.match(
+      /<task_objective_completed>\s*([\s\S]*?)\s*<\/task_objective_completed>/,
+    );
+    if (completionMatch) {
+      const completionContent = completionMatch[1].trim();
+      return `
+🎯 Task Objective Completed! 🎉
+
+${completionContent}
+
+✨ Session ended successfully. ✨
+
+-------------------
+🔚 Interaction Complete
+`;
+    }
+    return null;
+  }
+
   async handleChunk(
     chunk: string,
     model: string,
@@ -35,6 +55,14 @@ export class StreamHandler {
 
     this.actionsParser.appendToBuffer(chunk);
     this.responseBuffer += chunk;
+
+    // Check for task completion in the current chunk
+    const completionMessage = this.checkTaskCompletion(chunk);
+    if (completionMessage) {
+      process.stdout.write("\n" + completionMessage + "\n");
+      this.responseBuffer = completionMessage;
+      return [];
+    }
 
     // Check if the message is complete
     if (
@@ -52,13 +80,22 @@ export class StreamHandler {
       this.actionsParser.isProcessing = true;
       this.debugLogger.log("Action", "Processing actions", null);
 
-      const actions = await this.actionsParser.parseAndExecuteActions(
+      const actionResult = await this.actionsParser.parseAndExecuteActions(
         this.actionsParser.buffer,
         model,
         async (message) => {
           const response = await llmCallback(message);
           process.stdout.write("\n" + message + "\n");
           process.stdout.write(response);
+
+          // Check for task completion in the action response
+          const actionCompletionMessage = this.checkTaskCompletion(response);
+          if (actionCompletionMessage) {
+            this.responseBuffer = actionCompletionMessage;
+            process.stdout.write("\n" + actionCompletionMessage + "\n");
+            return response;
+          }
+
           this.responseBuffer += response;
           return response;
         },
@@ -77,7 +114,7 @@ export class StreamHandler {
       process.stdout.cursorTo(0);
       process.stdout.write("> "); // Write prompt character immediately
 
-      return actions;
+      return actionResult.actions;
     }
 
     return [];

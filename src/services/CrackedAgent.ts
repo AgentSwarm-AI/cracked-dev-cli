@@ -41,6 +41,26 @@ export class CrackedAgent {
     this.llm = LLMProvider.getInstance(provider);
   }
 
+  private checkTaskCompletion(response: string): string | null {
+    const completionMatch = response.match(
+      /<task_objective_completed>\s*([\s\S]*?)\s*<\/task_objective_completed>/,
+    );
+    if (completionMatch) {
+      const completionContent = completionMatch[1].trim();
+      return `
+🎯 Task Objective Completed! 🎉
+
+${completionContent}
+
+✨ Session ended successfully. ✨
+
+-------------------
+🔚 Interaction Complete
+`;
+    }
+    return null;
+  }
+
   async execute(
     message: string,
     options: CrackedAgentOptions,
@@ -130,6 +150,12 @@ export class CrackedAgent {
       );
       process.stdout.write("\n");
 
+      // Check if task completion was detected in the stream handler
+      if (this.streamHandler.response.includes("Task Objective Completed!")) {
+        this.clearConversationHistory();
+        return { response: this.streamHandler.response, actions: [] };
+      }
+
       return { response: this.streamHandler.response, actions: [] };
     } else {
       const response = await this.llm.sendMessage(
@@ -143,22 +169,49 @@ export class CrackedAgent {
         conversationHistory: this.llm.getConversationContext(),
       });
 
-      const actions = await this.actionsParser.parseAndExecuteActions(
+      const completionMessage = this.checkTaskCompletion(response);
+      if (completionMessage) {
+        this.clearConversationHistory();
+        return { response: completionMessage, actions: [] };
+      }
+
+      const actionResult = await this.actionsParser.parseAndExecuteActions(
         response,
         finalOptions.model,
         async (message) => {
-          return await this.llm.sendMessage(
+          const actionResponse = await this.llm.sendMessage(
             finalOptions.model,
             message,
             finalOptions.options,
           );
+
+          // Check for task completion in action response
+          const actionCompletionMessage =
+            this.checkTaskCompletion(actionResponse);
+          if (actionCompletionMessage) {
+            this.clearConversationHistory();
+            return actionCompletionMessage;
+          }
+
+          return actionResponse;
         },
       );
 
-      if (actions.length > 0) {
+      if (actionResult.followupResponse) {
+        // Check for task completion in followup response
+        const followupCompletionMessage = this.checkTaskCompletion(
+          actionResult.followupResponse,
+        );
+        if (followupCompletionMessage) {
+          this.clearConversationHistory();
+          return {
+            response: followupCompletionMessage,
+            actions: actionResult.actions,
+          };
+        }
         return {
-          response: this.streamHandler.response || response,
-          actions,
+          response: actionResult.followupResponse,
+          actions: actionResult.actions,
         };
       }
 

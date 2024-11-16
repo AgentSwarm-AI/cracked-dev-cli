@@ -2,6 +2,11 @@ import { autoInjectable } from "tsyringe";
 import { DebugLogger } from "./DebugLogger";
 import { LLMContextCreator } from "./LLM/LLMContextCreator";
 
+export interface ActionExecutionResult {
+  actions: Array<{ action: string; result: any }>;
+  followupResponse?: string;
+}
+
 @autoInjectable()
 export class ActionsParser {
   private processedTags: Set<string> = new Set();
@@ -107,9 +112,9 @@ export class ActionsParser {
     text: string,
     model: string,
     llmCallback: (message: string) => Promise<string>,
-  ) {
+  ): Promise<ActionExecutionResult> {
     const completeTags = this.findCompleteTags(text);
-    if (completeTags.length === 0) return [];
+    if (completeTags.length === 0) return { actions: [] };
 
     this.debugLogger.log("Tags", "Found complete action tags", {
       tags: completeTags,
@@ -126,7 +131,7 @@ export class ActionsParser {
     });
 
     const actions = await this.contextCreator.parseAndExecuteActions(text);
-    if (actions.length === 0) return [];
+    if (actions.length === 0) return { actions: [] };
 
     const actionResults = actions
       .map(
@@ -151,6 +156,6 @@ export class ActionsParser {
       },
     );
 
-    return actions;
+    return { actions, followupResponse };
   }
 }
