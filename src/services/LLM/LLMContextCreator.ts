@@ -2,10 +2,17 @@ import { autoInjectable } from "tsyringe";
 import { ActionExecutor } from "../ActionExecutor/ActionExecutor";
 import { DirectoryScanner } from "../FileManagement/DirectoryScanner";
 
-export interface ILLMContext {
+interface MessageContext {
   task: string;
   environmentDetails: string;
-  isFirstMessage: boolean;
+}
+
+interface FirstTimeMessageContext extends MessageContext {
+  strategySection: string;
+}
+
+interface SequentialMessageContext extends MessageContext {
+  previousContext?: string;
 }
 
 @autoInjectable()
@@ -20,72 +27,80 @@ export class LLMContextCreator {
     root: string,
     isFirstMessage: boolean = true,
   ): Promise<string> {
+    const environmentDetails = await this.getEnvironmentDetails(root);
+
+    const baseContext: MessageContext = {
+      task: message,
+      environmentDetails,
+    };
+
+    if (isFirstMessage) {
+      return this.formatFirstTimeMessage({
+        ...baseContext,
+        strategySection: this.getStrategySection(),
+      });
+    }
+
+    return this.formatSequentialMessage(baseContext);
+  }
+
+  private async getEnvironmentDetails(root: string): Promise<string> {
     const scanResult = await this.directoryScanner.scan(root);
     if (!scanResult.success) {
       throw new Error(`Failed to scan directory: ${scanResult.error}`);
     }
-
-    const context: ILLMContext = {
-      task: message,
-      environmentDetails: `# Current Working Directory (${root}) Files\n${scanResult.data}`,
-      isFirstMessage,
-    };
-
-    return this.format(context);
+    return `# Current Working Directory (${root}) Files\n${scanResult.data}`;
   }
 
-  async parseAndExecuteActions(
-    response: string,
-  ): Promise<Array<{ action: string; result: any }>> {
-    const results = [];
-    const actionRegex =
-      /<(read_file|write_file|delete_file|update_file|move_file|copy_file_slice|execute_command|search_string|search_file|edit_code_file)>([\s\S]*?)<\/\1>/g;
-
-    let match;
-    while ((match = actionRegex.exec(response)) !== null) {
-      const [fullMatch] = match;
-      const result = await this.actionExecutor.executeAction(fullMatch);
-      results.push({
-        action: fullMatch,
-        result,
-      });
-    }
-
-    return results;
-  }
-
-  private format(context: ILLMContext): string {
-    const baseFormat = `<task>
-  ${context.task}
-</task>
-
-<environment>
-  ${context.environmentDetails}
-</environment>
-
-<instructions>
-  Your response must adhere to the following structured format:
-${
-  context.isFirstMessage
-    ? `
+  private getStrategySection(): string {
+    return `
   <strategy>
     <goal>This is the first step</goal>
     <goal>This is the second step</goal>
     <!-- Add more steps as needed -->
-  </strategy>
-`
-    : ""
-}
+  </strategy>`;
+  }
+
+  private formatFirstTimeMessage(context: FirstTimeMessageContext): string {
+    return this.getFormattedMessage(
+      context.task,
+      context.environmentDetails,
+      context.strategySection,
+    );
+  }
+
+  private formatSequentialMessage(context: SequentialMessageContext): string {
+    return this.getFormattedMessage(context.task, context.environmentDetails);
+  }
+
+  private getFormattedMessage(
+    task: string,
+    environmentDetails: string,
+    strategySection: string = "",
+  ): string {
+    return `<task>
+  ${task}
+</task>
+
+<environment>
+  ${environmentDetails}
+</environment>
+
+<instructions>
+  Your response must adhere to the following structured format:
+${strategySection}
   If you don't think the task objective was achieved, decide what to do next:
 
   <!-- Next step to achieve current goal -->
-  <!-- Feel free to use any available tags below to whats appropriate -->
+  <!-- Feel free to use any available tags below to whats appropriate to achieve your goal -->
+  <!-- Remember that most of the time you'll need to read_file first to get the data you need -->
   <next_step>
     To achieve xyz goal, I will perform a <read_file>path/to/file</read_file> operation.
   </next_step>
 
   Else, submit the final response:
 
+   <!-- Before declaring an objective as complete, make sure all objectives were done. You generally need to read_file first to get the data you need to confirm -->
     <task_objective_completed>
       Some final response here summarizing what was done briefly and why did it achieved the task objective.
     </task_objective_completed>
@@ -124,9 +139,26 @@ ${
       console.log("Goodbye, world!");
     </replace_with>
   </edit_code_file>
-</available_tags>
-`;
+</available_tags>`;
+  }
 
-    return baseFormat;
+  async parseAndExecuteActions(
+    response: string,
+  ): Promise<Array<{ action: string; result: any }>> {
+    const results = [];
+    const actionRegex =
+      /<(read_file|write_file|delete_file|update_file|move_file|copy_file_slice|execute_command|search_string|search_file|edit_code_file)>([\s\S]*?)<\/\1>/g;
+
+    let match;
+    while ((match = actionRegex.exec(response)) !== null) {
+      const [fullMatch] = match;
+      const result = await this.actionExecutor.executeAction(fullMatch);
+      results.push({
+        action: fullMatch,
+        result,
+      });
+    }
+
+    return results;
   }
 }

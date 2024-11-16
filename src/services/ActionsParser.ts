@@ -1,6 +1,7 @@
 import { autoInjectable } from "tsyringe";
 import { DebugLogger } from "./DebugLogger";
 import { LLMContextCreator } from "./LLM/LLMContextCreator";
+import { TaskManager } from "./TaskManager/TaskManager";
 
 export interface ActionExecutionResult {
   actions: Array<{ action: string; result: any }>;
@@ -17,6 +18,7 @@ export class ActionsParser {
   constructor(
     private debugLogger: DebugLogger,
     private contextCreator: LLMContextCreator,
+    private taskManager: TaskManager,
   ) {}
 
   reset() {
@@ -24,6 +26,7 @@ export class ActionsParser {
     this.currentMessageBuffer = "";
     this.isProcessingAction = false;
     this.messageComplete = false;
+    this.taskManager.reset();
   }
 
   isCompleteMessage(text: string): boolean {
@@ -113,6 +116,13 @@ export class ActionsParser {
     model: string,
     llmCallback: (message: string) => Promise<string>,
   ): Promise<ActionExecutionResult> {
+    // Parse strategy if present in initial message
+    if (text.includes("<strategy>")) {
+      this.taskManager.parseStrategy(text);
+      const goals = this.taskManager.getAllGoals();
+      this.debugLogger.log("Strategy", "Parsed strategy and goals", { goals });
+    }
+
     const completeTags = this.findCompleteTags(text);
     if (completeTags.length === 0) return { actions: [] };
 
@@ -140,7 +150,13 @@ export class ActionsParser {
       )
       .join("\n");
 
-    const followupMessage = `Previous actions have been executed with the following results:\n${actionResults}\nPlease continue with the task.`;
+    // Include current goal in followup message if available
+    const currentGoal = this.taskManager.getCurrentGoal();
+    const goalStatus = currentGoal
+      ? `\nCurrent Goal: ${currentGoal.description}`
+      : "";
+
+    const followupMessage = `Previous actions have been executed with the following results:\n${actionResults}${goalStatus}\nPlease continue with the task.`;
 
     this.debugLogger.log("Action Results", "Sending action results to LLM", {
       message: followupMessage,
