@@ -1,4 +1,6 @@
 import { autoInjectable } from "tsyringe";
+import { ActionsParser } from "./ActionsParser";
+import { DebugLogger } from "./DebugLogger";
 import { FileReader } from "./FileReader";
 import { ILLMProvider } from "./LLM/ILLMProvider";
 import { LLMContextCreator } from "./LLM/LLMContextCreator";
@@ -24,95 +26,16 @@ export interface ExecutionResult {
 export class CrackedAgent {
   private llm!: ILLMProvider;
   private responseBuffer: string = "";
-  private currentMessageBuffer: string = "";
-  private processedTags: Set<string> = new Set();
-  private isProcessingAction: boolean = false;
-  private debug: boolean = false;
-  private messageComplete: boolean = false;
 
   constructor(
     private fileReader: FileReader,
     private contextCreator: LLMContextCreator,
+    private debugLogger: DebugLogger,
+    private actionsParser: ActionsParser,
   ) {}
 
   private initializeLLM(provider: LLMProviderType) {
     this.llm = LLMProvider.getInstance(provider);
-  }
-
-  private isCompleteMessage(text: string): boolean {
-    const sections = [
-      "<strategy>",
-      "</strategy>",
-      "<next_step>",
-      "</next_step>",
-    ];
-
-    let lastIndex = -1;
-    for (const section of sections) {
-      const index = text.indexOf(section);
-      if (index === -1 || index < lastIndex) {
-        return false;
-      }
-      lastIndex = index;
-    }
-
-    return true;
-  }
-
-  private findCompleteTags(text: string): string[] {
-    const completeTags: string[] = [];
-    const regex =
-      /<(read_file|write_file|delete_file|update_file|move_file|copy_file_slice|execute_command|search_string|search_file|edit_code_file)>[\s\S]*?<\/\1>/g;
-    let match;
-
-    while ((match = regex.exec(text)) !== null) {
-      const fullTag = match[0];
-      if (!this.processedTags.has(fullTag)) {
-        completeTags.push(fullTag);
-        this.processedTags.add(fullTag);
-      }
-    }
-
-    return completeTags;
-  }
-
-  private debugLog(type: string, message: string, data?: any) {
-    if (!this.debug) return;
-
-    const timestamp = new Date().toISOString();
-    const divider = "\n" + "═".repeat(100);
-    const subDivider = "─".repeat(80);
-
-    // Color codes
-    const colors = {
-      reset: "\x1b[0m",
-      cyan: "\x1b[36m",
-      yellow: "\x1b[33m",
-      green: "\x1b[32m",
-      magenta: "\x1b[35m",
-      blue: "\x1b[34m",
-    };
-
-    console.log(divider);
-    console.log(`${colors.cyan}DEBUG${colors.reset} [${timestamp}]`);
-    console.log(`${colors.yellow}${type}${colors.reset}: ${message}`);
-
-    if (data) {
-      console.log(`\n${colors.magenta}Data:${colors.reset}`);
-      if (typeof data === "object") {
-        // Convert escaped newlines to actual newlines and format JSON
-        const jsonString = JSON.stringify(data, null, 2)
-          .replace(/\\n/g, "\n")
-          .split("\n")
-          .map((line) => `  ${line}`)
-          .join("\n");
-        console.log(`${colors.blue}${jsonString}${colors.reset}`);
-      } else {
-        const formattedData = String(data).replace(/\\n/g, "\n");
-        console.log(`${colors.blue}  ${formattedData}${colors.reset}`);
-      }
-      console.log(subDivider);
-    }
   }
 
   async execute(
@@ -128,13 +51,10 @@ export class CrackedAgent {
       ...options,
     };
 
-    this.debug = finalOptions.debug;
+    this.debugLogger.setDebug(finalOptions.debug);
     this.initializeLLM(finalOptions.provider);
     this.responseBuffer = "";
-    this.currentMessageBuffer = "";
-    this.processedTags.clear();
-    this.isProcessingAction = false;
-    this.messageComplete = false;
+    this.actionsParser.reset();
 
     let instructionsContent = "";
     if (finalOptions.instructionsPath) {
@@ -154,10 +74,10 @@ export class CrackedAgent {
     }
 
     const modelInfo = await this.llm.getModelInfo(finalOptions.model);
-    this.debugLog("Model Info", "Using model configuration", modelInfo);
+    this.debugLogger.log("Model Info", "Using model configuration", modelInfo);
 
     if (instructionsContent) {
-      this.debugLog("Instructions", "Adding system instructions", {
+      this.debugLogger.log("Instructions", "Adding system instructions", {
         instructions: instructionsContent,
       });
       this.llm.addSystemInstructions(instructionsContent);
@@ -168,7 +88,7 @@ export class CrackedAgent {
       finalOptions.root,
     );
 
-    this.debugLog("Message", "Sending formatted message to LLM", {
+    this.debugLogger.log("Message", "Sending formatted message to LLM", {
       message: formattedMessage,
     });
 
@@ -179,72 +99,41 @@ export class CrackedAgent {
         async (chunk: string) => {
           process.stdout.write(chunk);
 
-          this.currentMessageBuffer += chunk;
+          this.actionsParser.appendToBuffer(chunk);
           this.responseBuffer += chunk;
 
           if (
-            !this.messageComplete &&
-            this.isCompleteMessage(this.currentMessageBuffer)
+            !this.actionsParser.isComplete &&
+            this.actionsParser.isCompleteMessage(this.actionsParser.buffer)
           ) {
-            this.messageComplete = true;
-            this.debugLog("Status", "Complete message detected", null);
+            this.actionsParser.isComplete = true;
+            this.debugLogger.log("Status", "Complete message detected", null);
           }
 
-          if (this.messageComplete && !this.isProcessingAction) {
-            this.isProcessingAction = true;
-            this.debugLog("Action", "Processing actions", null);
+          if (
+            this.actionsParser.isComplete &&
+            !this.actionsParser.isProcessing
+          ) {
+            this.actionsParser.isProcessing = true;
+            this.debugLogger.log("Action", "Processing actions", null);
 
-            const completeTags = this.findCompleteTags(
-              this.currentMessageBuffer,
+            await this.actionsParser.parseAndExecuteActions(
+              this.actionsParser.buffer,
+              finalOptions.model,
+              async (message) => {
+                const response = await this.llm.sendMessage(
+                  finalOptions.model,
+                  message,
+                  finalOptions.options,
+                );
+                process.stdout.write(response);
+                this.responseBuffer += response;
+                return response;
+              },
             );
-            if (completeTags.length > 0) {
-              this.debugLog("Tags", "Found complete action tags", {
-                tags: completeTags,
-              });
 
-              for (const tag of completeTags) {
-                const actions =
-                  await this.contextCreator.parseAndExecuteActions(tag);
-                if (actions.length > 0) {
-                  const actionResults = actions
-                    .map(
-                      ({ action, result }) =>
-                        `[Action Result] ${action}: ${JSON.stringify(result)}`,
-                    )
-                    .join("\n");
-
-                  if (actionResults) {
-                    const followupMessage = `Previous actions have been executed with the following results:\n${actionResults}\nPlease continue with the task.`;
-                    this.debugLog(
-                      "Action Results",
-                      "Sending action results to LLM",
-                      {
-                        message: followupMessage,
-                      },
-                    );
-
-                    const followupResponse = await this.llm.sendMessage(
-                      finalOptions.model,
-                      followupMessage,
-                      finalOptions.options,
-                    );
-
-                    this.debugLog(
-                      "Response",
-                      "Received LLM response for action results",
-                      {
-                        response: followupResponse,
-                      },
-                    );
-                    process.stdout.write(followupResponse);
-                    this.responseBuffer += followupResponse;
-                  }
-                }
-              }
-            }
-
-            this.currentMessageBuffer = "";
-            this.isProcessingAction = false;
+            this.actionsParser.clearBuffer();
+            this.actionsParser.isProcessing = false;
           }
         },
         finalOptions.options,
@@ -259,41 +148,28 @@ export class CrackedAgent {
         finalOptions.options,
       );
 
-      this.debugLog("Response", "Received LLM response", { response });
+      this.debugLogger.log("Response", "Received LLM response", { response });
 
-      const actions =
-        await this.contextCreator.parseAndExecuteActions(response);
+      const actions = await this.actionsParser.parseAndExecuteActions(
+        response,
+        finalOptions.model,
+        async (message) => {
+          return await this.llm.sendMessage(
+            finalOptions.model,
+            message,
+            finalOptions.options,
+          );
+        },
+      );
 
       if (actions.length > 0) {
-        const actionResults = actions
-          .map(
-            ({ action, result }) =>
-              `[Action Result] ${action}: ${JSON.stringify(result)}`,
-          )
-          .join("\n");
-
-        const followupMessage = `Previous actions have been executed with the following results:\n${actionResults}\nPlease continue with the task.`;
-        this.debugLog("Action Results", "Sending action results to LLM", {
-          message: followupMessage,
-        });
-
-        const followupResponse = await this.llm.sendMessage(
-          finalOptions.model,
-          followupMessage,
-          finalOptions.options,
-        );
-
-        this.debugLog("Response", "Received LLM response for action results", {
-          response: followupResponse,
-        });
-
         return {
-          response: response + followupResponse,
+          response: this.responseBuffer || response,
           actions,
         };
       }
 
-      return { response, actions };
+      return { response, actions: [] };
     }
   }
 }
