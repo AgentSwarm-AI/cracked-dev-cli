@@ -28,7 +28,7 @@
     "lint": "eslint 'src/**/*.{ts,tsx}'",
     "format": "prettier --write . --loglevel silent",
     "prepack": "yarn build",
-    "crkd": "node bin/run.js"
+    "dev:cli": "node bin/run.js"
   },
   "oclif": {
     "bin": "crkd",

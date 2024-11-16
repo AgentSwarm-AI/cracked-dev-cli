@@ -90,12 +90,11 @@ export class OpenRouterAPI implements ILLMProvider {
 
   async getAvailableModels(): Promise<string[]> {
     try {
-      const response =
-        await this.get<IOpenRouterModelsResponse>("/api/v1/models");
+      const response = await this.get<IOpenRouterModelsResponse>("/models");
       this.availableModels = response.data;
       return response.data.map((model) => model.id);
     } catch (error) {
-      console.error("Error fetching models:", error);
+      console.error("Error fetching models:", error.data);
       throw new Error("Failed to fetch available models");
     }
   }
