@@ -56,7 +56,6 @@ export class ActionsParser {
       "delete_file",
       "move_file",
       "copy_file_slice",
-      "edit_code_file",
     ];
     const actionMatch = new RegExp(`<(${fileActions.join("|")})>`).exec(tag);
     if (!actionMatch) return null;
@@ -69,7 +68,7 @@ export class ActionsParser {
   findCompleteTags(text: string): string[] {
     const completeTags: string[] = [];
     const regex =
-      /<(read_file|write_file|delete_file|move_file|copy_file_slice|execute_command|search_string|search_file|edit_code_file)>[\s\S]*?<\/\1>/g;
+      /<(read_file|write_file|delete_file|move_file|copy_file_slice|execute_command|search_string|search_file)>[\s\S]*?<\/\1>/g;
     let match;
 
     while ((match = regex.exec(text)) !== null) {

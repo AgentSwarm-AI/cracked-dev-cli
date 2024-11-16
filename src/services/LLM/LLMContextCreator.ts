@@ -123,22 +123,7 @@ ${strategySection}
   <search_string>string_to_search</search_string>
   <search_file>path/to/file</search_file>
   
-  <!-- Code Editing -->
-  <edit_code_file>
-    <file_path>src/LLMContextCreator.ts</file_path>
-    <range>10-15</range>
-    <replace_with>
-      // New code here
-      console.log("Hello, world!");
-    </replace_with>
-    ###
-    <file_path>src/LLMContextCreator.ts</file_path>
-    <range>20-25</range>
-    <replace_with>
-      // Another new code here
-      console.log("Goodbye, world!");
-    </replace_with>
-  </edit_code_file>
+ 
 </available_tags>`;
   }
 
@@ -147,7 +132,7 @@ ${strategySection}
   ): Promise<Array<{ action: string; result: any }>> {
     const results = [];
     const actionRegex =
-      /<(read_file|write_file|delete_file|update_file|move_file|copy_file_slice|execute_command|search_string|search_file|edit_code_file)>([\s\S]*?)<\/\1>/g;
+      /<(read_file|write_file|delete_file|update_file|move_file|copy_file_slice|execute_command|search_string|search_file)>([\s\S]*?)<\/\1>/g;
 
     let match;
     while ((match = actionRegex.exec(response)) !== null) {

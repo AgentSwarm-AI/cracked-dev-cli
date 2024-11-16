@@ -50,9 +50,6 @@ export class ActionExecutor {
         case "search_file":
           console.log("🔍 Searching...");
           return await this.handleSearch(actionType, content.trim());
-        case "edit_code_file":
-          console.log("✏️  Editing code...");
-          return await this.handleEditCode(content);
         default:
           return {
             success: false,
@@ -141,59 +138,6 @@ export class ActionExecutor {
     return {
       success: false,
       error: new Error("Search functionality not implemented yet"),
-    };
-  }
-
-  private async handleEditCode(content: string): Promise<IActionResult> {
-    const edits = content
-      .split("###")
-      .map((edit) => edit.trim())
-      .filter(Boolean);
-    const results: IActionResult[] = [];
-
-    for (const edit of edits) {
-      const filePathMatch = /<file_path>(.*?)<\/file_path>/;
-      const rangeMatch = /<range>(.*?)<\/range>/;
-      const replaceWithMatch = /<replace_with>([\s\S]*?)<\/replace_with>/;
-
-      const filePath = edit.match(filePathMatch)?.[1];
-      const range = edit.match(rangeMatch)?.[1];
-      const replaceWith = edit.match(replaceWithMatch)?.[1];
-
-      if (!filePath || !range || !replaceWith) {
-        results.push({
-          success: false,
-          error: new Error("Invalid edit_code_file format"),
-        });
-        continue;
-      }
-
-      console.log(`📁 File path: ${filePath}`);
-      const [start, end] = range.split("-").map(Number);
-      const fileResult = await this.fileOperations.read(filePath);
-
-      if (!fileResult.success || typeof fileResult.data !== "string") {
-        results.push({
-          success: false,
-          error: new Error(`Failed to read file: ${filePath}`),
-        });
-        continue;
-      }
-
-      const lines = fileResult.data.split("\n");
-      lines.splice(start - 1, end - start + 1, replaceWith);
-
-      const writeResult = await this.fileOperations.write(
-        filePath,
-        lines.join("\n"),
-      );
-      results.push(this.convertFileResult(writeResult));
-    }
-
-    return {
-      success: results.every((r) => r.success),
-      data: results,
-      error: results.find((r) => !r.success)?.error,
     };
   }
 
