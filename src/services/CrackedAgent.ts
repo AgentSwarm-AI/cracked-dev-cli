@@ -5,13 +5,7 @@ import { ActionsParser } from "./LLM/actions/ActionsParser";
 import { ILLMProvider } from "./LLM/ILLMProvider";
 import { LLMContextCreator } from "./LLM/LLMContextCreator";
 import { LLMProvider, LLMProviderType } from "./LLM/LLMProvider";
-import {
-  DiscoveryCrafter,
-  DiscoveryResult,
-} from "./LLM/stages/DiscoveryCrafter";
-import { StrategyCrafter } from "./LLM/stages/StrategyCrafter";
 import { StreamHandler } from "./StreamHandler";
-import { TaskStage } from "./TaskManager/TaskStage";
 
 export interface CrackedAgentOptions {
   root?: string;
@@ -40,8 +34,6 @@ interface StrategyGoal {
 export class CrackedAgent {
   private llm!: ILLMProvider;
   private isFirstInteraction: boolean = true;
-  private discoveryResult: DiscoveryResult | null = null;
-  private strategyGoals: StrategyGoal[] = [];
 
   constructor(
     private fileReader: FileReader,
@@ -49,8 +41,6 @@ export class CrackedAgent {
     private debugLogger: DebugLogger,
     private actionsParser: ActionsParser,
     private streamHandler: StreamHandler,
-    private strategyCrafter: StrategyCrafter,
-    private discoveryCrafter: DiscoveryCrafter,
   ) {}
 
   private async setupExecution(options: CrackedAgentOptions) {
@@ -105,116 +95,13 @@ export class CrackedAgent {
       });
       this.llm.addSystemInstructions(instructions);
     }
-  }
 
-  private async handleDiscoveryStage(
-    message: string,
-    root: string,
-    model: string,
-    options?: Record<string, unknown>,
-  ): Promise<void> {
-    this.debugLogger.log("Discovery", "Starting discovery stage", {
-      message,
-      root,
-    });
-
-    // Initialize discovery phase
-    const initialContext = await this.discoveryCrafter.initiateDiscovery(
-      message,
-      root,
-    );
-    this.debugLogger.log("Discovery", "Initial context created", {
-      initialContext,
-    });
-
-    // Get LLM response for discovery
-    let response = await this.llm.sendMessage(model, initialContext, options);
-    this.debugLogger.log("Discovery", "Initial LLM response received", {
-      response,
-    });
-
-    // Execute any discovery actions (file reading, etc)
-    const actionResults =
-      await this.discoveryCrafter.executeDiscoveryActions(response);
-    this.debugLogger.log("Discovery", "Action results received", {
-      actionResults,
-    });
-
-    // If we have file content from actions, send it back to LLM for analysis
-    if (actionResults && actionResults.length > 0) {
-      const fileContents = actionResults
-        .filter((result) => result.success && result.data)
-        .map((result) => result.data)
-        .join("\n\n");
-
-      if (fileContents) {
-        this.debugLogger.log("Discovery", "Sending file contents to LLM", {
-          fileContents,
-        });
-
-        const contextWithFileContent = `Here's the content of the requested files:\n\n${fileContents}\n\nPlease analyze this content and provide a response with <task_objective_completed> tag and include the relevant information from the files.`;
-        response = await this.llm.sendMessage(
-          model,
-          contextWithFileContent,
-          options,
-        );
-
-        this.debugLogger.log(
-          "Discovery",
-          "Received LLM response with file analysis",
-          {
-            response,
-          },
-        );
-      }
+    // Add default conversation instructions if none provided
+    if (!instructions) {
+      const defaultInstructions =
+        "You are a helpful AI assistant engaging in conversation with the user. Maintain context of the conversation and provide relevant responses.";
+      this.llm.addSystemInstructions(defaultInstructions);
     }
-
-    // Parse discovery results
-    this.discoveryResult =
-      this.discoveryCrafter.parseDiscoveryResponse(response);
-
-    this.debugLogger.log("Discovery", "Completed discovery stage", {
-      discoveryResult: this.discoveryResult,
-      isComplete: this.discoveryCrafter.isDiscoveryComplete(response),
-      finalResponse: response,
-    });
-
-    // Only proceed if discovery is complete
-    if (!this.discoveryCrafter.isDiscoveryComplete(response)) {
-      throw new Error("Discovery phase incomplete");
-    }
-  }
-
-  private async handleStrategyStage(
-    message: string,
-    root: string,
-    model: string,
-    options?: Record<string, unknown>,
-  ): Promise<void> {
-    const stagePrompt = this.strategyCrafter.getPromptForStage(
-      TaskStage.STRATEGY,
-      message,
-      "",
-    );
-    // Don't include environment details in strategy stage
-    const formattedMessage = await this.contextCreator.create(
-      message,
-      root,
-      false,
-      TaskStage.STRATEGY,
-      stagePrompt,
-    );
-
-    const response = await this.llm.sendMessage(
-      model,
-      formattedMessage,
-      options,
-    );
-    this.strategyGoals = this.strategyCrafter.parseStrategyResponse(response);
-
-    this.debugLogger.log("Strategy", "Completed strategy stage", {
-      strategyGoals: this.strategyGoals,
-    });
   }
 
   async execute(
@@ -223,34 +110,12 @@ export class CrackedAgent {
   ): Promise<ExecutionResult | void> {
     const finalOptions = await this.setupExecution(options);
 
-    if (this.isFirstInteraction) {
-      await this.handleDiscoveryStage(
-        message,
-        finalOptions.root,
-        finalOptions.model,
-        finalOptions.options,
-      );
-      await this.handleStrategyStage(
-        message,
-        finalOptions.root,
-        finalOptions.model,
-        finalOptions.options,
-      );
-      this.isFirstInteraction = false;
-    }
+    // Pass the message directly without task formatting
+    const formattedMessage = message;
 
-    const formattedMessage = await this.contextCreator.create(
-      message,
-      finalOptions.root,
-      false,
-    );
-
-    this.debugLogger.log("Message", "Sending formatted message to LLM", {
+    this.debugLogger.log("Message", "Sending message to LLM", {
       message: formattedMessage,
       conversationHistory: this.llm.getConversationContext(),
-      currentStage: this.strategyCrafter.getCurrentStage(),
-      discoveryResult: this.discoveryResult,
-      strategyGoals: this.strategyGoals,
     });
 
     if (finalOptions.stream) {
@@ -273,25 +138,20 @@ export class CrackedAgent {
     model: string,
     options?: Record<string, unknown>,
   ): Promise<ExecutionResult> {
+    let response = "";
     await this.llm.streamMessage(
       model,
       message,
       async (chunk: string) => {
-        await this.streamHandler.handleChunk(
-          chunk,
-          model,
-          async (msg) => await this.llm.sendMessage(model, msg, options),
-          async (msg, callback) =>
-            await this.llm.streamMessage(model, msg, callback, options),
-          options,
-        );
+        response += chunk;
+        process.stdout.write(chunk);
       },
       options,
     );
     process.stdout.write("\n");
 
     return {
-      response: this.streamHandler.response,
+      response,
       actions: [],
     };
   }
@@ -308,19 +168,6 @@ export class CrackedAgent {
       conversationHistory: this.llm.getConversationContext(),
     });
 
-    const actionResult = await this.actionsParser.parseAndExecuteActions(
-      response,
-      model,
-      async (msg) => await this.llm.sendMessage(model, msg, options),
-    );
-
-    if (actionResult.followupResponse) {
-      return {
-        response: actionResult.followupResponse,
-        actions: actionResult.actions,
-      };
-    }
-
     return { response, actions: [] };
   }
 
@@ -331,8 +178,5 @@ export class CrackedAgent {
   clearConversationHistory() {
     this.llm.clearConversationContext();
     this.isFirstInteraction = true;
-    this.discoveryResult = null;
-    this.strategyGoals = [];
-    this.strategyCrafter.resetStage();
   }
 }

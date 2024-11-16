@@ -25,26 +25,6 @@ export class StreamHandler {
     return this.responseBuffer;
   }
 
-  private checkTaskCompletion(response: string): string | null {
-    const completionMatch = response.match(
-      /<task_objective_completed>\s*([\s\S]*?)\s*<\/task_objective_completed>/,
-    );
-    if (completionMatch) {
-      const completionContent = completionMatch[1].trim();
-      return `
-🎯 Task Objective Completed! 🎉
-
-${completionContent}
-
-✨ Session ended successfully. ✨
-
--------------------
-🔚 Interaction Complete
-`;
-    }
-    return null;
-  }
-
   async handleChunk(
     chunk: string,
     model: string,
@@ -59,14 +39,6 @@ ${completionContent}
 
     this.actionsParser.appendToBuffer(chunk);
     this.responseBuffer += chunk;
-
-    // Check for task completion in the current chunk
-    const completionMessage = this.checkTaskCompletion(chunk);
-    if (completionMessage) {
-      process.stdout.write("\n" + completionMessage + "\n");
-      this.responseBuffer = completionMessage;
-      return [];
-    }
 
     // Check if the message is complete
     if (
@@ -93,15 +65,6 @@ ${completionContent}
             process.stdout.write(chunk);
             actionResponse += chunk;
           });
-
-          // Check for task completion in the action response
-          const actionCompletionMessage =
-            this.checkTaskCompletion(actionResponse);
-          if (actionCompletionMessage) {
-            this.responseBuffer = actionCompletionMessage;
-            process.stdout.write("\n" + actionCompletionMessage + "\n");
-            return actionResponse;
-          }
 
           this.responseBuffer += actionResponse;
           return actionResponse;
