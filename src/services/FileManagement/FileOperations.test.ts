@@ -171,17 +171,20 @@ describe("FileOperations", () => {
     it("should return file stats successfully", async () => {
       const mockFilePath = "/path/to/file";
       const mockFileStats = {
-        size: 1024,
-        createdAt: new Date(),
-        modifiedAt: new Date(),
-        isDirectory: false,
-        path: mockFilePath,
+        data: {
+          size: 1024,
+          createdAt: new Date(),
+          modifiedAt: new Date(),
+          isDirectory: false,
+          path: mockFilePath,
+        },
+        success: true,
       };
       (fs.stat as unknown as jest.Mock).mockResolvedValue({
-        size: mockFileStats.size,
-        birthtime: mockFileStats.createdAt,
-        mtime: mockFileStats.modifiedAt,
-        isDirectory: () => mockFileStats.isDirectory,
+        size: mockFileStats.data.size,
+        birthtime: mockFileStats.data.createdAt,
+        mtime: mockFileStats.data.modifiedAt,
+        isDirectory: () => mockFileStats.data.isDirectory,
       });
 
       const result = await fileOperations.stats(mockFilePath);

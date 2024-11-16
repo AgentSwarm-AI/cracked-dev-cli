@@ -70,14 +70,19 @@ export class FileOperations implements IFileOperations {
     return fs.pathExists(filePath);
   }
 
-  async stats(filePath: string): Promise<IFileStats> {
-    const stats = await fs.stat(filePath);
-    return {
-      size: stats.size,
-      createdAt: stats.birthtime,
-      modifiedAt: stats.mtime,
-      isDirectory: stats.isDirectory(),
-      path: filePath,
-    };
+  async stats(filePath: string): Promise<IFileOperationResult> {
+    try {
+      const stats = await fs.stat(filePath);
+      const fileStats: IFileStats = {
+        size: stats.size,
+        createdAt: stats.birthtime,
+        modifiedAt: stats.mtime,
+        isDirectory: stats.isDirectory(),
+        path: filePath,
+      };
+      return { success: true, data: fileStats };
+    } catch (error) {
+      return { success: false, error: error as Error };
+    }
   }
 }

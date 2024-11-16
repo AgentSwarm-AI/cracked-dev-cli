@@ -9,7 +9,7 @@ export interface IFileStats {
 export interface IFileOperationResult {
   success: boolean;
   error?: Error;
-  data?: string | void;
+  data?: IFileStats | string | void;
 }
 
 export interface IFileSearchResult {
@@ -27,7 +27,7 @@ export interface IFileOperations {
   copy(source: string, destination: string): Promise<IFileOperationResult>;
   move(source: string, destination: string): Promise<IFileOperationResult>;
   exists(path: string): Promise<boolean>;
-  stats(path: string): Promise<IFileStats>;
+  stats(path: string): Promise<IFileOperationResult>;
 }
 
 export interface IFileSearch {
