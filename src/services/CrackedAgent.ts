@@ -59,7 +59,7 @@ export class CrackedAgent {
         formattedMessage,
         finalOptions.model,
         finalOptions.options,
-        finalOptions.stream, // Pass stream option
+        finalOptions.stream,
       );
     }
 
@@ -67,7 +67,7 @@ export class CrackedAgent {
       formattedMessage,
       finalOptions.model,
       finalOptions.options,
-      finalOptions.stream, // Pass stream option
+      finalOptions.stream,
     );
 
     if (this.isFirstInteraction) {
@@ -162,7 +162,7 @@ export class CrackedAgent {
         this.actionsParser.buffer,
         model,
         options,
-        stream, // Pass stream option
+        stream,
       );
 
     return {
@@ -202,6 +202,7 @@ export class CrackedAgent {
     actions: Array<{ action: string; result: any }>;
     followupResponse?: string;
   }> {
+    this.actionsParser.reset();
     const result = await this.actionsParser.parseAndExecuteActions(
       response,
       model,

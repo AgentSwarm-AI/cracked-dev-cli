@@ -10,10 +10,10 @@ export interface ActionExecutionResult {
 
 @autoInjectable()
 export class ActionsParser {
-  private processedTags: Set<string> = new Set();
   private currentMessageBuffer: string = "";
   private isProcessingAction: boolean = false;
   private messageComplete: boolean = false;
+  private processedTags: string[] = [];
 
   constructor(
     private debugLogger: DebugLogger,
@@ -21,10 +21,10 @@ export class ActionsParser {
   ) {}
 
   reset() {
-    this.processedTags.clear();
     this.currentMessageBuffer = "";
     this.isProcessingAction = false;
     this.messageComplete = false;
+    this.processedTags = [];
   }
 
   isCompleteMessage(text: string): boolean {
@@ -52,16 +52,16 @@ export class ActionsParser {
 
   findCompleteTags(text: string): string[] {
     const completeTags: string[] = [];
-    // Updated regex to properly handle nested tags
+    const combinedText = this.currentMessageBuffer + text;
     const regex =
       /<(read_file|write_file|delete_file|move_file|copy_file_slice|execute_command|search_string|search_file)>(?:[^<]*|<(?!\/\1>)[^<]*)*<\/\1>/g;
     let match;
 
-    while ((match = regex.exec(text)) !== null) {
+    while ((match = regex.exec(combinedText)) !== null) {
       const fullTag = match[0];
-      if (!this.processedTags.has(fullTag)) {
+      if (!this.processedTags.includes(fullTag)) {
         completeTags.push(fullTag);
-        this.processedTags.add(fullTag);
+        this.processedTags.push(fullTag);
       }
     }
 
@@ -74,7 +74,7 @@ export class ActionsParser {
 
   clearBuffer() {
     this.currentMessageBuffer = "";
-    this.processedTags.clear(); // Clear processed tags when clearing buffer
+    this.processedTags = [];
   }
 
   get buffer() {
@@ -107,7 +107,7 @@ export class ActionsParser {
       return `Here's the content of the requested file:\n\n${result.data}\n\nPlease analyze this content and continue with the task.`;
     }
 
-    return `[Action Result] ${actionType}: ${result.success ? "Success" : `Failed - ${result.error}`}`;
+    return `[Action Result] ${actionType}: ${result.success ? "Success" : "Failed - " + result.error}`;
   }
 
   async parseAndExecuteActions(
@@ -136,7 +136,9 @@ export class ActionsParser {
         }
       });
 
-      const actions = await this.contextCreator.parseAndExecuteActions(text);
+      const actions = await this.contextCreator.parseAndExecuteActions(
+        completeTags.join("\n")
+      );
 
       if (!actions || actions.length === 0) {
         this.debugLogger.log("Actions", "No actions executed");

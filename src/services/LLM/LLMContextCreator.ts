@@ -62,6 +62,15 @@ To achieve this XYZ goal, I need to perform the following steps:
 
 I'll perform <action_name> to achieve the desired goal.
 
+
+FURTHER INSTRUCTIONS
+
+## Verification tips
+
+- Once you've finished the task, make sure to run a test command (check on package.json if you're not sure).
+
+## Available Actions
+
 Available action_names are:
 - read_file: Read contents of a file
   <read_file>
