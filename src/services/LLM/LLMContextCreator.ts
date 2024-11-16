@@ -51,21 +51,6 @@ ${context.message}
 ${context.environmentDetails}
 </environment>
 
-<<<<<<< Updated upstream
-You MUST answer following this pattern:
-
-To achieve this XYZ goal, I need to perform the following steps:
-  - your first step here
-  - second step here
-  - etc.
-
-<!-- next step should be aimed towards one of the steps above -->
-
-I'll perform <action_name> to achieve the desired goal.
-
-
-=======
->>>>>>> Stashed changes
 Available actions:
 - read_file: Read contents of a file
   <read_file>
