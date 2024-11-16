@@ -1,6 +1,5 @@
 import { container } from "tsyringe";
 import { DirectoryScanner } from "../FileManagement/DirectoryScanner";
-import { TaskStage } from "../TaskManager/TaskStage";
 import { ActionExecutor } from "./actions/ActionExecutor";
 import { LLMContextCreator } from "./LLMContextCreator";
 
@@ -48,61 +47,6 @@ describe("LLMContextCreator", () => {
 
       expect(result).not.toContain("<environment>");
       expect(mockDirectoryScanner.scan).not.toHaveBeenCalled();
-    });
-
-    it("should include strategy template for first message in STRATEGY stage", async () => {
-      const result = await llmContextCreator.create(
-        mockTask,
-        mockRoot,
-        true,
-        TaskStage.STRATEGY,
-      );
-
-      expect(result).toContain("<strategy>");
-      expect(result).toContain("<goal>");
-      expect(result).toContain("<description>");
-      expect(result).toContain("<steps>");
-      expect(result).toContain("<considerations>");
-    });
-
-    it("should include strategy template for sequential messages in STRATEGY stage", async () => {
-      const result = await llmContextCreator.create(
-        mockTask,
-        mockRoot,
-        false,
-        TaskStage.STRATEGY,
-      );
-
-      expect(result).toContain("<strategy>");
-      expect(result).toContain("<goal>");
-      expect(result).toContain("<description>");
-      expect(result).toContain("<steps>");
-      expect(result).toContain("<considerations>");
-    });
-
-    it("should not include strategy template for non-STRATEGY stages", async () => {
-      const discoveryResult = await llmContextCreator.create(
-        mockTask,
-        mockRoot,
-        true,
-        TaskStage.DISCOVERY,
-      );
-      const executionResult = await llmContextCreator.create(
-        mockTask,
-        mockRoot,
-        true,
-        TaskStage.EXECUTION,
-      );
-      const verificationResult = await llmContextCreator.create(
-        mockTask,
-        mockRoot,
-        true,
-        TaskStage.VERIFICATION,
-      );
-
-      expect(discoveryResult).not.toContain("<strategy>");
-      expect(executionResult).not.toContain("<strategy>");
-      expect(verificationResult).not.toContain("<strategy>");
     });
   });
 

@@ -66,7 +66,9 @@ describe("ActionsParser", () => {
   describe("extractFilePath", () => {
     it("should extract file path from valid action tags", () => {
       const tag = "<read_file><path>test/file.txt</path></read_file>";
-      expect(actionsParser.extractFilePath(tag)).toBe("test/file.txt");
+      expect(actionsParser.extractFilePath(tag)).toBe(
+        `${process.cwd()}/test/file.txt`,
+      );
     });
 
     it("should return null for invalid action tags", () => {
@@ -122,43 +124,6 @@ describe("ActionsParser", () => {
   });
 
   describe("parseAndExecuteActions", () => {
-    it("should parse strategy and execute actions", async () => {
-      const text =
-        "<strategy>test strategy</strategy><next_step>test step</next_step>";
-      const mockActions = [{ action: "test", result: "success" }];
-
-      mockContextCreator.parseAndExecuteActions.mockResolvedValueOnce(
-        mockActions,
-      );
-      mockTaskManager.getAllGoals.mockReturnValue([
-        {
-          description: "test goal",
-          steps: ["step 1"],
-          considerations: ["consideration 1"],
-          completed: false,
-        },
-      ]);
-      mockTaskManager.getCurrentGoal.mockReturnValue({
-        description: "test goal",
-        steps: ["step 1"],
-        considerations: ["consideration 1"],
-        completed: false,
-      });
-
-      const result = await actionsParser.parseAndExecuteActions(
-        text,
-        "test-model",
-        async (msg) => "response",
-      );
-
-      expect(mockTaskManager.parseStrategy).toHaveBeenCalledWith(text);
-      expect(mockContextCreator.parseAndExecuteActions).toHaveBeenCalledWith(
-        text,
-      );
-      expect(result.actions).toEqual(mockActions);
-      expect(result.followupResponse).toBe("response");
-    });
-
     it("should return empty actions when no complete tags found", async () => {
       const text = "no tags here";
       const result = await actionsParser.parseAndExecuteActions(

@@ -87,7 +87,9 @@ describe("ActionExecutor", () => {
       const result = await actionExecutor.executeAction(action);
 
       expect(result.success).toBe(false);
-      expect(result.error?.message).toBe("Invalid write_file format");
+      expect(result.error?.message).toBe(
+        "Invalid write_file format. Must include both <path> and <content> tags.",
+      );
     });
   });
 

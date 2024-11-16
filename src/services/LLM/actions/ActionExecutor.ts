@@ -1,8 +1,6 @@
 import { exec } from "child_process";
-import path from "path";
 import { autoInjectable } from "tsyringe";
 import { promisify } from "util";
-import { DebugLogger } from "../../DebugLogger";
 import { FileOperations } from "../../FileManagement/FileOperations";
 import { IFileOperationResult } from "../../FileManagement/types/FileManagementTypes";
 
@@ -16,10 +14,7 @@ interface IActionResult {
 
 @autoInjectable()
 export class ActionExecutor {
-  constructor(
-    private fileOperations: FileOperations,
-    private debugLogger: DebugLogger,
-  ) {}
+  constructor(private fileOperations: FileOperations) {}
 
   async executeAction(actionText: string): Promise<IActionResult> {
     try {
@@ -66,15 +61,9 @@ export class ActionExecutor {
     }
   }
 
-  private resolvePath(filePath: string): string {
-    // Always resolve paths relative to the current working directory
-    return path.resolve(process.cwd(), filePath);
-  }
-
   private async handleReadFile(filePath: string): Promise<IActionResult> {
-    const resolvedPath = this.resolvePath(filePath);
-    console.log(`📁 File path: ${resolvedPath}`);
-    const result = await this.fileOperations.read(resolvedPath);
+    console.log(`📁 File path: ${filePath}`);
+    const result = await this.fileOperations.read(filePath);
     return this.convertFileResult(result);
   }
 
@@ -97,26 +86,21 @@ export class ActionExecutor {
     const filePath = pathResult[1];
     const fileContent = contentResult[1];
 
-    // Resolve the path relative to the current working directory
-    const resolvedPath = this.resolvePath(filePath);
-
-    console.log(`📁 File path: ${resolvedPath}`);
-    const result = await this.fileOperations.write(resolvedPath, fileContent);
+    console.log(`📁 File path: ${filePath}`);
+    const result = await this.fileOperations.write(filePath, fileContent);
     return this.convertFileResult(result);
   }
 
   private async handleDeleteFile(filePath: string): Promise<IActionResult> {
-    const resolvedPath = this.resolvePath(filePath);
-    console.log(`📁 File path: ${resolvedPath}`);
-    const result = await this.fileOperations.delete(resolvedPath);
+    console.log(`📁 File path: ${filePath}`);
+    const result = await this.fileOperations.delete(filePath);
     return this.convertFileResult(result);
   }
 
   private async handleMoveFile(content: string): Promise<IActionResult> {
     const [source, destination] = content
       .split("\n")
-      .map((line) => line.trim())
-      .map((p) => this.resolvePath(p));
+      .map((line) => line.trim());
 
     if (!source || !destination) {
       return { success: false, error: new Error("Invalid move_file format") };
@@ -131,8 +115,7 @@ export class ActionExecutor {
   private async handleCopyFile(content: string): Promise<IActionResult> {
     const [source, destination] = content
       .split("\n")
-      .map((line) => line.trim())
-      .map((p) => this.resolvePath(p));
+      .map((line) => line.trim());
 
     if (!source || !destination) {
       return { success: false, error: new Error("Invalid copy_file format") };
