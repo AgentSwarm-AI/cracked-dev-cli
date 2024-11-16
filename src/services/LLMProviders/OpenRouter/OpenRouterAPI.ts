@@ -1,5 +1,6 @@
-import { autoInjectable } from "tsyringe";
+import { autoInjectable, inject } from "tsyringe";
 import { openRouterClient } from "../../../constants/openRouterClient";
+import { ConversationManager } from "../../LLM/ConversationManager";
 import { ILLMProvider, IMessage } from "../../LLM/ILLMProvider";
 import {
   IOpenRouterModelInfo,
@@ -9,11 +10,12 @@ import {
 @autoInjectable()
 export class OpenRouterAPI implements ILLMProvider {
   private readonly httpClient: typeof openRouterClient;
-  private conversationContext: IMessage[] = [];
-  private systemInstructions?: string;
   private availableModels: IOpenRouterModelInfo[] = [];
 
-  constructor() {
+  constructor(
+    @inject(ConversationManager)
+    private conversationManager: ConversationManager,
+  ) {
     this.httpClient = openRouterClient;
   }
 
@@ -42,22 +44,19 @@ export class OpenRouterAPI implements ILLMProvider {
     message: string,
     options?: Record<string, unknown>,
   ): Promise<string> {
+    this.conversationManager.addMessage("user", message);
+    const messages = this.conversationManager.getConversationHistory();
+
     const data = {
       model,
-      messages: [
-        ...this.conversationContext,
-        { role: "user", content: message },
-      ],
+      messages,
       ...options,
     };
 
     try {
       const response = await this.httpClient.post("/chat/completions", data);
       const assistantMessage = response.data.choices[0].message.content;
-      this.conversationContext.push({
-        role: "assistant",
-        content: assistantMessage,
-      });
+      this.conversationManager.addMessage("assistant", assistantMessage);
       return assistantMessage;
     } catch (error) {
       console.error("Error sending message:", error);
@@ -78,20 +77,15 @@ export class OpenRouterAPI implements ILLMProvider {
   }
 
   clearConversationContext(): void {
-    this.conversationContext = [];
-    this.systemInstructions = undefined;
+    this.conversationManager.clearHistory();
   }
 
   getConversationContext(): IMessage[] {
-    return this.conversationContext;
+    return this.conversationManager.getConversationHistory();
   }
 
   addSystemInstructions(instructions: string): void {
-    this.systemInstructions = instructions;
-    this.conversationContext = [
-      { role: "system", content: instructions },
-      ...this.conversationContext.filter((msg) => msg.role !== "system"),
-    ];
+    this.conversationManager.setSystemInstructions(instructions);
   }
 
   async getAvailableModels(): Promise<string[]> {
@@ -120,7 +114,6 @@ export class OpenRouterAPI implements ILLMProvider {
     if (!modelInfo) {
       return {};
     }
-    // Convert IOpenRouterModelInfo to Record<string, unknown>
     return Object.entries(modelInfo).reduce(
       (acc, [key, value]) => {
         acc[key] = value;
@@ -136,12 +129,12 @@ export class OpenRouterAPI implements ILLMProvider {
     callback: (chunk: string) => void,
     options?: Record<string, unknown>,
   ): Promise<void> {
+    this.conversationManager.addMessage("user", message);
+    const messages = this.conversationManager.getConversationHistory();
+
     const data = {
       model,
-      messages: [
-        ...this.conversationContext,
-        { role: "user", content: message },
-      ],
+      messages,
       stream: true,
       ...options,
     };
@@ -221,10 +214,7 @@ export class OpenRouterAPI implements ILLMProvider {
             }
           }
 
-          this.conversationContext.push({
-            role: "assistant",
-            content: fullContent,
-          });
+          this.conversationManager.addMessage("assistant", fullContent);
 
           cleanup();
           resolve();

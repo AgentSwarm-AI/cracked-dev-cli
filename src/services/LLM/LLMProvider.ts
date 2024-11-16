@@ -1,3 +1,4 @@
+import { container } from "tsyringe";
 import { OpenRouterAPI } from "../LLMProviders/OpenRouter/OpenRouterAPI";
 import { ILLMProvider } from "./ILLMProvider";
 
@@ -22,9 +23,12 @@ export class LLMProvider {
     let provider: ILLMProvider;
 
     switch (type) {
-      case LLMProviderType.OpenRouter:
-        provider = new OpenRouterAPI();
+      case LLMProviderType.OpenRouter: {
+        const openRouterAPI = container.resolve(OpenRouterAPI);
+
+        provider = openRouterAPI;
         break;
+      }
       default:
         throw new Error(`Unsupported provider type: ${type}`);
     }

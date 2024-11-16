@@ -16,6 +16,7 @@ export interface CrackedAgentOptions {
   stream?: boolean;
   debug?: boolean;
   options?: Record<string, unknown>;
+  clearContext?: boolean;
 }
 
 export interface ExecutionResult {
@@ -26,6 +27,7 @@ export interface ExecutionResult {
 @autoInjectable()
 export class CrackedAgent {
   private llm!: ILLMProvider;
+  private isFirstInteraction: boolean = true;
 
   constructor(
     private fileReader: FileReader,
@@ -49,6 +51,7 @@ export class CrackedAgent {
       stream: false,
       debug: false,
       options: {},
+      clearContext: false,
       ...options,
     };
 
@@ -56,6 +59,11 @@ export class CrackedAgent {
     this.initializeLLM(finalOptions.provider);
     this.streamHandler.reset();
     this.actionsParser.reset();
+
+    if (finalOptions.clearContext) {
+      this.llm.clearConversationContext();
+      this.isFirstInteraction = true;
+    }
 
     let instructionsContent = "";
     if (finalOptions.instructionsPath) {
@@ -77,20 +85,27 @@ export class CrackedAgent {
     const modelInfo = await this.llm.getModelInfo(finalOptions.model);
     this.debugLogger.log("Model Info", "Using model configuration", modelInfo);
 
-    if (instructionsContent) {
+    if (instructionsContent && this.isFirstInteraction) {
       this.debugLogger.log("Instructions", "Adding system instructions", {
         instructions: instructionsContent,
       });
       this.llm.addSystemInstructions(instructionsContent);
     }
 
-    const formattedMessage = await this.contextCreator.create(
-      message,
-      finalOptions.root,
-    );
+    let formattedMessage: string;
+    if (this.isFirstInteraction) {
+      formattedMessage = await this.contextCreator.create(
+        message,
+        finalOptions.root,
+      );
+      this.isFirstInteraction = false;
+    } else {
+      formattedMessage = message;
+    }
 
     this.debugLogger.log("Message", "Sending formatted message to LLM", {
       message: formattedMessage,
+      conversationHistory: this.llm.getConversationContext(),
     });
 
     if (finalOptions.stream) {
@@ -123,7 +138,10 @@ export class CrackedAgent {
         finalOptions.options,
       );
 
-      this.debugLogger.log("Response", "Received LLM response", { response });
+      this.debugLogger.log("Response", "Received LLM response", {
+        response,
+        conversationHistory: this.llm.getConversationContext(),
+      });
 
       const actions = await this.actionsParser.parseAndExecuteActions(
         response,
@@ -146,5 +164,14 @@ export class CrackedAgent {
 
       return { response, actions: [] };
     }
+  }
+
+  getConversationHistory() {
+    return this.llm.getConversationContext();
+  }
+
+  clearConversationHistory() {
+    this.llm.clearConversationContext();
+    this.isFirstInteraction = true;
   }
 }
