@@ -160,8 +160,6 @@ export class CrackedAgent {
     );
     process.stdout.write("\n");
 
-    console.log(`🔍 CrackedAgent: Parsing and executing actions...`);
-
     const { actions, followupResponse } =
       await this.parseAndExecuteWithCallback(
         this.actionsParser.buffer,
