@@ -119,9 +119,16 @@ export class Crkd extends Command {
       }
 
       try {
-        const response = await agent.execute(input, options);
-        if (!options.stream && response) {
-          console.log("\nResponse:", response);
+        const result = await agent.execute(input, options);
+        if (!options.stream && result) {
+          console.log("\nResponse:", result.response);
+          if (result.actions?.length) {
+            console.log("\nExecuted Actions:");
+            result.actions.forEach(({ action, result }) => {
+              console.log(`\nAction: ${action}`);
+              console.log(`Result: ${JSON.stringify(result, null, 2)}`);
+            });
+          }
         }
       } catch (error) {
         console.error("Error:", (error as Error).message);
@@ -162,9 +169,16 @@ export class Crkd extends Command {
       if (flags.interactive) {
         await this.startInteractiveMode(agent, options);
       } else {
-        const response = await agent.execute(args.message!, options);
-        if (!flags.stream && response) {
-          this.log(response);
+        const result = await agent.execute(args.message!, options);
+        if (!flags.stream && result) {
+          this.log(result.response);
+          if (result.actions?.length) {
+            this.log("\nExecuted Actions:");
+            result.actions.forEach(({ action, result }) => {
+              this.log(`\nAction: ${action}`);
+              this.log(`Result: ${JSON.stringify(result, null, 2)}`);
+            });
+          }
         }
       }
     } catch (error) {
