@@ -24,12 +24,6 @@ export interface ExecutionResult {
   actions?: Array<{ action: string; result: any }>;
 }
 
-interface StrategyGoal {
-  description: string;
-  steps: string[];
-  considerations: string[];
-}
-
 @autoInjectable()
 export class CrackedAgent {
   private llm!: ILLMProvider;
@@ -65,6 +59,7 @@ export class CrackedAgent {
         formattedMessage,
         finalOptions.model,
         finalOptions.options,
+        finalOptions.stream, // Pass stream option
       );
     }
 
@@ -72,6 +67,7 @@ export class CrackedAgent {
       formattedMessage,
       finalOptions.model,
       finalOptions.options,
+      finalOptions.stream, // Pass stream option
     );
 
     if (this.isFirstInteraction) {
@@ -146,6 +142,7 @@ export class CrackedAgent {
     message: string,
     model: string,
     options?: Record<string, unknown>,
+    stream?: boolean,
   ): Promise<ExecutionResult> {
     let response = "";
     await this.llm.streamMessage(
@@ -165,6 +162,7 @@ export class CrackedAgent {
         this.actionsParser.buffer,
         model,
         options,
+        stream, // Pass stream option
       );
 
     return {
@@ -177,6 +175,7 @@ export class CrackedAgent {
     message: string,
     model: string,
     options?: Record<string, unknown>,
+    stream?: boolean,
   ): Promise<ExecutionResult> {
     const response = await this.llm.sendMessage(model, message, options);
 
@@ -186,7 +185,7 @@ export class CrackedAgent {
     });
 
     const { actions, followupResponse } =
-      await this.parseAndExecuteWithCallback(response, model, options);
+      await this.parseAndExecuteWithCallback(response, model, options, stream);
 
     return {
       response: followupResponse || response,
@@ -198,6 +197,7 @@ export class CrackedAgent {
     response: string,
     model: string,
     options?: Record<string, unknown>,
+    stream?: boolean,
   ): Promise<{
     actions: Array<{ action: string; result: any }>;
     followupResponse?: string;
@@ -212,21 +212,48 @@ export class CrackedAgent {
           process.cwd(),
           false,
         );
-        const followupResponse = await this.llm.sendMessage(
-          model,
-          formattedFollowup,
-          options,
-        );
 
-        // Recursively parse and execute actions from the followup response
-        const followupResult = await this.parseAndExecuteWithCallback(
-          followupResponse,
-          model,
-          options,
-        );
+        if (stream) {
+          let followupResponse = "";
+          await this.llm.streamMessage(
+            model,
+            formattedFollowup,
+            async (chunk: string) => {
+              followupResponse += chunk;
+              process.stdout.write(chunk);
+            },
+            options,
+          );
+          process.stdout.write("\n");
 
-        // Return the final followup response
-        return followupResult.followupResponse || followupResponse;
+          // Recursively parse and execute actions from the followup response
+          const followupResult = await this.parseAndExecuteWithCallback(
+            followupResponse,
+            model,
+            options,
+            stream,
+          );
+
+          // Return the final followup response
+          return followupResult.followupResponse || followupResponse;
+        } else {
+          const followupResponse = await this.llm.sendMessage(
+            model,
+            formattedFollowup,
+            options,
+          );
+
+          // Recursively parse and execute actions from the followup response
+          const followupResult = await this.parseAndExecuteWithCallback(
+            followupResponse,
+            model,
+            options,
+            stream,
+          );
+
+          // Return the final followup response
+          return followupResult.followupResponse || followupResponse;
+        }
       },
     );
 

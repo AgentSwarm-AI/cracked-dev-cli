@@ -20,6 +20,8 @@ export class OpenRouterAPI implements ILLMProvider {
     message: string,
     options?: Record<string, unknown>,
   ): Promise<string> {
+    console.log("sendMessage", model, message, options);
+
     const messages = this.getConversationContext();
     messages.push({ role: "user", content: message });
 
@@ -31,6 +33,9 @@ export class OpenRouterAPI implements ILLMProvider {
       });
 
       const assistantMessage = response.data.choices[0].message.content;
+
+      console.log(assistantMessage);
+
       this.conversationContext.addMessage("user", message);
       this.conversationContext.addMessage("assistant", assistantMessage);
 
