@@ -70,10 +70,10 @@ ${context.environmentDetails}
 
 You MUST answer following this pattern:
 
-To achieve the desired goal of this task, you must follow the following steps:
-  - step 1
-  - step 2
-  - step 3
+To achieve this XYZ goal, I need to perform the following steps:
+  - your first step here
+  - second step here
+  - etc.
 
 <!-- next step should be aimed towards one of the steps above -->
 
