@@ -4,6 +4,7 @@ import { promisify } from "util";
 import { FileOperations } from "../../FileManagement/FileOperations";
 import { FileSearch } from "../../FileManagement/FileSearch";
 import { IFileOperationResult } from "../../FileManagement/types/FileManagementTypes";
+import { HtmlEntityDecoder } from "../../text/HTMLEntityDecoder";
 import { ActionTagsExtractor } from "./ActionTagsExtractor";
 import { IActionResult } from "./types/ActionTypes";
 
@@ -15,6 +16,7 @@ export class ActionExecutor {
     private fileOperations: FileOperations,
     private fileSearch: FileSearch,
     private actionTagsExtractor: ActionTagsExtractor,
+    private htmlEntityDecoder: HtmlEntityDecoder,
   ) {}
 
   async executeAction(actionText: string): Promise<IActionResult> {
@@ -52,7 +54,9 @@ export class ActionExecutor {
         return await this.handleReadFile(content);
       case "write_file":
         console.log("📝 Writing to file...");
-        return await this.handleWriteFile(content);
+        return await this.handleWriteFile(
+          this.htmlEntityDecoder.decode(content),
+        );
       case "delete_file":
         console.log("🗑️  Deleting file...");
         return await this.handleDeleteFile(content);

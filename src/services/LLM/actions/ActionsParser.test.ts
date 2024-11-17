@@ -38,17 +38,17 @@ describe("ActionsParser", () => {
       const tag = "<read_file><path>test.txt</path></read_file>";
 
       // First processing
-      let tags = actionsParser.findCompleteTags(tag);
-      expect(tags).toHaveLength(1);
+      let result = actionsParser.findCompleteTags(tag);
+      expect(result.groups[0].actions).toHaveLength(1);
 
       // Should not find tags second time
-      tags = actionsParser.findCompleteTags(tag);
-      expect(tags).toHaveLength(0);
+      result = actionsParser.findCompleteTags(tag);
+      expect(result.groups).toHaveLength(0);
 
       // After reset, should find tags again
       actionsParser.reset();
-      tags = actionsParser.findCompleteTags(tag);
-      expect(tags).toHaveLength(1);
+      result = actionsParser.findCompleteTags(tag);
+      expect(result.groups[0].actions).toHaveLength(1);
     });
   });
 
@@ -83,16 +83,17 @@ describe("ActionsParser", () => {
         <read_file><path>test1.txt</path></read_file>
         <write_file><path>test2.txt</path></write_file>
       `;
-      const tags = actionsParser.findCompleteTags(text);
-      expect(tags).toHaveLength(2);
-      expect(tags[0]).toContain("read_file");
-      expect(tags[1]).toContain("write_file");
+      const result = actionsParser.findCompleteTags(text);
+      const allActions = result.groups.flatMap((group) => group.actions);
+      expect(allActions).toHaveLength(2);
+      expect(allActions[0].content).toContain("read_file");
+      expect(allActions[1].content).toContain("write_file");
     });
 
     it("should not find incomplete tags", () => {
       const text = "<read_file><path>test.txt</path>";
-      const tags = actionsParser.findCompleteTags(text);
-      expect(tags).toHaveLength(0);
+      const result = actionsParser.findCompleteTags(text);
+      expect(result.groups).toHaveLength(0);
     });
 
     it("should not return previously processed tags until buffer is cleared", () => {
@@ -100,16 +101,16 @@ describe("ActionsParser", () => {
 
       // First run should find the tag
       const firstRun = actionsParser.findCompleteTags(text);
-      expect(firstRun).toHaveLength(1);
+      expect(firstRun.groups[0].actions).toHaveLength(1);
 
       // Second run should not find the tag
       const secondRun = actionsParser.findCompleteTags(text);
-      expect(secondRun).toHaveLength(0);
+      expect(secondRun.groups).toHaveLength(0);
 
       // After clearing buffer, should find the tag again
       actionsParser.clearBuffer();
       const thirdRun = actionsParser.findCompleteTags(text);
-      expect(thirdRun).toHaveLength(1);
+      expect(thirdRun.groups[0].actions).toHaveLength(1);
     });
 
     it("should handle nested tags properly", () => {
@@ -121,9 +122,9 @@ describe("ActionsParser", () => {
           </content>
         </write_file>
       `;
-      const tags = actionsParser.findCompleteTags(text);
-      expect(tags).toHaveLength(1);
-      expect(tags[0]).toContain("write_file");
+      const result = actionsParser.findCompleteTags(text);
+      expect(result.groups[0].actions).toHaveLength(1);
+      expect(result.groups[0].actions[0].content).toContain("write_file");
     });
   });
 
@@ -139,14 +140,14 @@ describe("ActionsParser", () => {
       actionsParser.appendToBuffer(tag);
 
       // First find should work
-      let tags = actionsParser.findCompleteTags(tag);
-      expect(tags).toHaveLength(1);
+      let result = actionsParser.findCompleteTags(tag);
+      expect(result.groups[0].actions).toHaveLength(1);
 
       // Clear and should find again
       actionsParser.clearBuffer();
       expect(actionsParser.buffer).toBe("");
-      tags = actionsParser.findCompleteTags(tag);
-      expect(tags).toHaveLength(1);
+      result = actionsParser.findCompleteTags(tag);
+      expect(result.groups[0].actions).toHaveLength(1);
     });
   });
 
@@ -163,10 +164,8 @@ describe("ActionsParser", () => {
 
     it("should execute actions and return results", async () => {
       const text = "<read_file><path>test.txt</path></read_file>";
-      const mockActions = [
-        { action: text, result: { success: true, data: "content" } },
-      ];
-      mockContextCreator.parseAndExecuteActions.mockResolvedValue(mockActions);
+      const mockResult = { success: true, data: "content" };
+      mockContextCreator.executeAction.mockResolvedValue(mockResult);
 
       const result = await actionsParser.parseAndExecuteActions(
         text,
@@ -174,18 +173,13 @@ describe("ActionsParser", () => {
         async (msg) => "response",
       );
 
-      expect(result.actions).toEqual(mockActions);
+      expect(result.actions).toEqual([{ action: text, result: mockResult }]);
     });
 
     it("should format read_file results differently", async () => {
       const text = "<read_file><path>test.txt</path></read_file>";
-      const mockActions = [
-        {
-          action: text,
-          result: { success: true, data: "file content" },
-        },
-      ];
-      mockContextCreator.parseAndExecuteActions.mockResolvedValue(mockActions);
+      const mockResult = { success: true, data: "file content" };
+      mockContextCreator.executeAction.mockResolvedValue(mockResult);
 
       const result = await actionsParser.parseAndExecuteActions(
         text,
@@ -197,12 +191,12 @@ describe("ActionsParser", () => {
         },
       );
 
-      expect(result.actions).toEqual(mockActions);
+      expect(result.actions).toEqual([{ action: text, result: mockResult }]);
     });
 
     it("should handle errors in action execution", async () => {
       const text = "<read_file><path>test.txt</path></read_file>";
-      mockContextCreator.parseAndExecuteActions.mockRejectedValue(
+      mockContextCreator.executeAction.mockRejectedValue(
         new Error("Test error"),
       );
 

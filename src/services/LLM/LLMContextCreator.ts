@@ -92,16 +92,16 @@ To achieve the this goal, I'll follow these steps:
        
          <code_writing_instructions>
           - Follow an iterative process, don't try to do all at once.
+          - Code should be plain text without using any HTML entities or encodings. Ensure that all characters, especially quotes and special symbols, are correctly represented.
+          - After finishing a code change, run test specific to that file. If change is risky, run tests for the whole related folder. At the end, run all tests. Also run type check if available.
           - Follow DRY, SRP (modular design), KISS, YAGNI, LoD, Immutability principles.
           - Composition over inheritane (if possible).    
           - High cohesion and low coupling.
           - Use meaningful names for variables, functions, classes, etc.
           - Use comments to explain why, not what.
           - Always have CLEAN CODE principles in mind.
-          - After changing code, execute command of running tests to make sure everything is working.
           - Avoid too many changes at once, to avoid bugs.
           - When in doubt about how something works, look for docs first or end_task and ask for user input.
-          - When providing regex or code, output raw text without encoding special characters like < or >. Treat the content as plain text or raw code.
           - Avoid adding extra project dependencies. Reuse what is already available.
           - If an external dependency is needed and not avaiable on the project, ask user for confirmation before proceeding.
          </code_writing_instructions>
