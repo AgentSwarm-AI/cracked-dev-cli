@@ -144,7 +144,7 @@ yarn test
 Run type checking:
 
 ```bash
-yarn typecheck
+yarn tsc
 ```
 
 Run linting:
