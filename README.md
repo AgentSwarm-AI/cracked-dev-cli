@@ -10,7 +10,14 @@ An AI agent CLI tool for performing operations on local projects through natural
 - Automated code modifications following best practices
 - Built with TypeScript for type safety
 
-## Installation
+## Getting Started
+
+### Prerequisites
+
+- Node.js >= 16
+- Yarn
+
+### Installation
 
 ```bash
 # Clone the repository
@@ -20,6 +27,18 @@ git clone https://github.com/yourusername/cracked-dev-cli.git
 cd cracked-dev-cli
 yarn install
 ```
+
+### Setting Up Your Environment
+
+This project requires a `.env` file for environment-specific configurations. Use the provided `.env.example` as a template. You need to copy it to `.env` and replace the placeholder values with your actual configuration.
+
+```bash
+cp .env.example .env
+```
+
+Edit the `.env` file with your preferred text editor:
+
+**Ensure that you replace the placeholder values with your actual API key, application URL, and application name.**
 
 ## Development Workflow
 
