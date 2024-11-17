@@ -72,11 +72,12 @@ ${context.message}
 </task>
 
 
-<instructions detail="describe_briefly">
+<instructions detail="describe_briefly/follow_pattern_only">
 To achieve the this goal, I'll follow these steps:
-  - Step 1
-  - Step 2
-  - Step 3
+  - Step 1: Brief explanation here.
+  - Step 2: Brief explanation here.
+  - Step 3: Brief explanation here.
+  - etc.
 </instructions>
 
 <important_notes detail="hidden_on_output">
@@ -90,6 +91,7 @@ To achieve the this goal, I'll follow these steps:
       - Ensure outputs align with the task requirements and are formatted for direct use.
        
          <code_writing_instructions>
+          - Follow an iterative process, don't try to do all at once.
           - Follow DRY, SRP (modular design), KISS, YAGNI, LoD, Immutability principles.
           - Composition over inheritane (if possible).    
           - High cohesion and low coupling.
@@ -99,10 +101,16 @@ To achieve the this goal, I'll follow these steps:
           - After changing code, execute command of running tests to make sure everything is working.
           - Avoid too many changes at once, to avoid bugs.
           - When in doubt about how something works, look for docs first or end_task and ask for user input.
+          - When providing regex or code, output raw text without encoding special characters like < or >. Treat the content as plain text or raw code.
+          - Avoid adding extra project dependencies. Reuse what is already available.
+          - If an external dependency is needed and not avaiable on the project, ask user for confirmation before proceeding.
          </code_writing_instructions>
-      
-      
+       
       </critical_instructions>
+        <commands_writing_instructions>
+          Always use the package manager available in the project.
+          Combine commands whenever possible, to maximize efficiency.
+         </commands_writing_instructions>
       
       <other_instructions>
       - Summarize only the high-level task progress or completion using <end_task>, excluding details about action execution.
@@ -187,11 +195,14 @@ ${context.projectInfo}
     return context.message;
   }
 
+  async executeAction(actionContent: string): Promise<IActionResult> {
+    return this.actionExecutor.executeAction(actionContent);
+  }
+
   async parseAndExecuteActions(
     response: string,
   ): Promise<Array<{ action: string; result: IActionResult }>> {
     console.log("-".repeat(50));
-
     console.log("\n\n🔍 LLMContextCreator: Parsing and executing actions...\n");
 
     const results = [];

@@ -1,7 +1,14 @@
 import path from "path";
 import { autoInjectable } from "tsyringe";
+import { v4 as uuidv4 } from "uuid";
 import { DebugLogger } from "../../logging/DebugLogger";
 import { LLMContextCreator } from "../LLMContextCreator";
+import {
+  ActionType,
+  IActionDependency,
+  IActionExecutionPlan,
+  IActionGroup,
+} from "./types/ActionTypes";
 
 export interface ActionExecutionResult {
   actions: Array<{ action: string; result: any }>;
@@ -46,26 +53,135 @@ export class ActionsParser {
     const match = tag.match(pathMatch);
     if (!match) return null;
 
-    // Resolve the path relative to the current working directory
     return path.resolve(process.cwd(), match[1]);
   }
 
-  findCompleteTags(text: string): string[] {
-    const completeTags: string[] = [];
-    const combinedText = this.currentMessageBuffer + text;
-    const regex =
-      /<(read_file|write_file|delete_file|move_file|copy_file_slice|execute_command|search_string|search_file|end_task)>(?:[^<]*|<(?!\/\1>)[^<]*)*<\/\1>/g;
-    let match;
+  private detectActionDependencies(
+    actions: IActionDependency[],
+  ): IActionDependency[] {
+    return actions.map((action) => {
+      const dependsOn: string[] = [];
 
-    while ((match = regex.exec(combinedText)) !== null) {
-      const fullTag = match[0];
-      if (!this.processedTags.includes(fullTag)) {
-        completeTags.push(fullTag);
-        this.processedTags.push(fullTag);
+      // Check for file dependencies
+      if (action.type === "write_file") {
+        // Find read_file actions that this write might depend on
+        const readActions = actions.filter(
+          (a) =>
+            a.type === "read_file" &&
+            action.content.includes(this.extractContentFromAction(a.content)),
+        );
+        dependsOn.push(...readActions.map((a) => a.actionId));
+      }
+
+      // Check for file operation dependencies
+      if (
+        ["move_file", "delete_file", "copy_file_slice"].includes(action.type)
+      ) {
+        // These operations should wait for any write operations to complete
+        const writeActions = actions.filter(
+          (a) =>
+            a.type === "write_file" &&
+            this.extractFilePath(a.content) ===
+              this.extractFilePath(action.content),
+        );
+        dependsOn.push(...writeActions.map((a) => a.actionId));
+      }
+
+      return { ...action, dependsOn };
+    });
+  }
+
+  private extractContentFromAction(actionContent: string): string {
+    // Helper to extract content from read_file actions
+    const match = actionContent.match(/<content>([\s\S]*?)<\/content>/);
+    return match ? match[1] : "";
+  }
+
+  private createExecutionPlan(
+    actions: IActionDependency[],
+  ): IActionExecutionPlan {
+    const groups: IActionGroup[] = [];
+    const unprocessedActions = [...actions];
+
+    while (unprocessedActions.length > 0) {
+      const currentGroup: IActionDependency[] = [];
+      const remainingActions: IActionDependency[] = [];
+
+      // Find actions that can be executed (all dependencies satisfied)
+      unprocessedActions.forEach((action) => {
+        const canExecute =
+          !action.dependsOn?.length ||
+          action.dependsOn.every(
+            (depId) =>
+              actions.find((a) => a.actionId === depId)?.type === "end_task" ||
+              !unprocessedActions.find((ua) => ua.actionId === depId),
+          );
+
+        if (canExecute) {
+          currentGroup.push(action);
+        } else {
+          remainingActions.push(action);
+        }
+      });
+
+      // Determine if actions can be executed in parallel
+      const canExecuteInParallel = currentGroup.every(
+        (action) =>
+          !["write_file", "delete_file", "move_file"].includes(action.type) ||
+          currentGroup.length === 1,
+      );
+
+      groups.push({
+        actions: currentGroup,
+        parallel: canExecuteInParallel,
+      });
+
+      unprocessedActions.length = 0;
+      unprocessedActions.push(...remainingActions);
+    }
+
+    return { groups };
+  }
+
+  findCompleteTags(text: string): IActionExecutionPlan {
+    const combinedText = this.currentMessageBuffer + text;
+    const actionTags = [
+      "read_file",
+      "write_file",
+      "delete_file",
+      "move_file",
+      "copy_file_slice",
+      "execute_command",
+      "search_string",
+      "search_file",
+      "end_task",
+    ] as ActionType[];
+
+    const actions: IActionDependency[] = [];
+
+    // Extract all action tags
+    for (const tag of actionTags) {
+      const tagRegex = new RegExp(`<${tag}>[\\s\\S]*?<\\/${tag}>`, "g");
+      const matches = combinedText.matchAll(tagRegex);
+
+      for (const match of matches) {
+        const content = match[0];
+        if (!this.processedTags.includes(content)) {
+          actions.push({
+            actionId: uuidv4(),
+            type: tag,
+            content,
+          });
+          this.processedTags.push(content);
+        }
       }
     }
 
-    return completeTags;
+    // Detect dependencies between actions
+    const actionsWithDependencies = this.detectActionDependencies(actions);
+
+    // Create execution plan
+    return this.createExecutionPlan(actionsWithDependencies);
   }
 
   appendToBuffer(chunk: string) {
@@ -120,37 +236,48 @@ export class ActionsParser {
     llmCallback: (message: string) => Promise<string>,
   ): Promise<ActionExecutionResult> {
     try {
-      const completeTags = this.findCompleteTags(text);
-      this.debugLogger.log("Tags", "Found complete action tags", {
-        tags: completeTags,
+      const executionPlan = this.findCompleteTags(text);
+      this.debugLogger.log("ExecutionPlan", "Created action execution plan", {
+        plan: executionPlan,
       });
 
-      if (completeTags.length === 0) {
+      if (!executionPlan.groups.length) {
         this.debugLogger.log("Actions", "No action tags found in text");
         return { actions: [] };
       }
 
-      // Extract and log file paths
-      completeTags.forEach((tag) => {
-        const filePath = this.extractFilePath(tag);
-        if (filePath) {
-          this.debugLogger.log("FilePath", "Found file path in action", {
-            path: filePath,
-          });
+      const results: Array<{ action: string; result: any }> = [];
+
+      // Execute action groups according to plan
+      for (const group of executionPlan.groups) {
+        if (group.parallel) {
+          // Execute actions in parallel
+          const actionPromises = group.actions.map((action) =>
+            this.contextCreator
+              .executeAction(action.content)
+              .then((result) => ({
+                action: action.content,
+                result,
+              })),
+          );
+          const groupResults = await Promise.all(actionPromises);
+          results.push(...groupResults);
+        } else {
+          // Execute actions sequentially
+          for (const action of group.actions) {
+            const result = await this.contextCreator.executeAction(
+              action.content,
+            );
+            results.push({ action: action.content, result });
+
+            // Stop if action failed
+            if (!result.success) break;
+          }
         }
-      });
-
-      const actions = await this.contextCreator.parseAndExecuteActions(
-        completeTags.join("\n"),
-      );
-
-      if (!actions || actions.length === 0) {
-        this.debugLogger.log("Actions", "No actions executed");
-        return { actions: [] };
       }
 
       // Check if end_task was executed successfully
-      const endTaskAction = actions.find(
+      const endTaskAction = results.find(
         ({ action, result }) => action.includes("<end_task>") && result.success,
       );
 
@@ -158,10 +285,10 @@ export class ActionsParser {
         this.debugLogger.log("EndTask", "Task completed", {
           message: endTaskAction.result.data,
         });
-        return { actions };
+        return { actions: results };
       }
 
-      const actionResults = actions
+      const actionResults = results
         .map(({ action, result }) => this.formatActionResult(action, result))
         .join("\n\n");
 
@@ -175,7 +302,7 @@ export class ActionsParser {
         },
       );
 
-      return { actions, followupResponse };
+      return { actions: results, followupResponse };
     } catch (error) {
       console.error("Error in parseAndExecuteActions:", error);
       this.debugLogger.log("Error", "Failed to parse and execute actions", {
