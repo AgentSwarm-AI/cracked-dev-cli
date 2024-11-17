@@ -48,11 +48,11 @@ Edit the `.env` file with your preferred text editor:
 yarn dev
 ```
 
-2. Check on [CLI USAGE](./docs/CLI_USAGE.md) for available options and examples of how to run the CLI
+1. Check on [CLI USAGE](./docs/CLI_USAGE.md) for available options and examples of how to run the CLI
 
 ## Project Structure
 
-```
+```typescript
 cracked-dev-cli/
 ├── bin/                    # CLI entry point
 ├── src/
@@ -119,14 +119,7 @@ Create a markdown file with your project guidelines:
 - Tests required for new components
 ```
 
-## Development
-
-### Prerequisites
-
-- Node.js >= 16
-- Yarn
-
-### Setup Development Environment
+## Development Setup
 
 1. Clone the repository
 2. Install dependencies: `yarn install`
