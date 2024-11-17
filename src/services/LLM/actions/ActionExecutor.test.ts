@@ -1,12 +1,14 @@
 import { container } from "tsyringe";
 import { FileOperations } from "../../FileManagement/FileOperations";
 import { FileSearch } from "../../FileManagement/FileSearch";
+import { HtmlEntityDecoder } from "../../text/HTMLEntityDecoder";
 import { ActionExecutor } from "./ActionExecutor";
 import { ActionTagsExtractor } from "./ActionTagsExtractor";
 
 jest.mock("../../FileManagement/FileOperations");
 jest.mock("../../FileManagement/FileSearch");
 jest.mock("./ActionTagsExtractor");
+jest.mock("../../text/HTMLEntityDecoder");
 jest.mock("child_process");
 
 describe("ActionExecutor", () => {
@@ -14,6 +16,7 @@ describe("ActionExecutor", () => {
   let mockFileOperations: jest.Mocked<FileOperations>;
   let mockFileSearch: jest.Mocked<FileSearch>;
   let mockTagsExtractor: jest.Mocked<ActionTagsExtractor>;
+  let mockHtmlEntityDecoder: jest.Mocked<HtmlEntityDecoder>;
 
   beforeEach(() => {
     mockFileOperations = container.resolve(
@@ -23,10 +26,15 @@ describe("ActionExecutor", () => {
     mockTagsExtractor = container.resolve(
       ActionTagsExtractor,
     ) as jest.Mocked<ActionTagsExtractor>;
+    mockHtmlEntityDecoder = container.resolve(
+      HtmlEntityDecoder,
+    ) as jest.Mocked<HtmlEntityDecoder>;
+
     actionExecutor = new ActionExecutor(
       mockFileOperations,
       mockFileSearch,
       mockTagsExtractor,
+      mockHtmlEntityDecoder,
     );
   });
 
@@ -46,20 +54,20 @@ describe("ActionExecutor", () => {
     });
 
     it("should handle empty action content", async () => {
-      mockTagsExtractor.extractTag.mockReturnValue("");
+      mockTagsExtractor.extractTags.mockReturnValue([]);
       const result = await actionExecutor.executeAction(
         "<read_file></read_file>",
       );
       expect(result.success).toBe(false);
       expect(result.error?.message).toBe(
-        "Invalid read_file format. Must include <path> tag.",
+        "Invalid read_file format. Must include at least one <path> tag.",
       );
     });
   });
 
   describe("read_file action", () => {
-    it("should handle read_file action successfully", async () => {
-      mockTagsExtractor.extractTag.mockReturnValue("test.txt");
+    it("should handle single file read successfully", async () => {
+      mockTagsExtractor.extractTags.mockReturnValue(["test.txt"]);
       mockFileOperations.read.mockResolvedValue({
         success: true,
         data: "file content",
@@ -74,8 +82,50 @@ describe("ActionExecutor", () => {
       expect(mockFileOperations.read).toHaveBeenCalledWith("test.txt");
     });
 
-    it("should handle read_file failure", async () => {
-      mockTagsExtractor.extractTag.mockReturnValue("test.txt");
+    it("should handle multiple file read successfully", async () => {
+      mockTagsExtractor.extractTags.mockReturnValue(["file1.txt", "file2.txt"]);
+      mockFileOperations.readMultiple.mockResolvedValue({
+        success: true,
+        data: {
+          "file1.txt": "content 1",
+          "file2.txt": "content 2",
+        },
+      });
+
+      const result = await actionExecutor.executeAction(
+        "<read_file><path>file1.txt</path><path>file2.txt</path></read_file>",
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data).toEqual({
+        "file1.txt": "content 1",
+        "file2.txt": "content 2",
+      });
+      expect(mockFileOperations.readMultiple).toHaveBeenCalledWith([
+        "file1.txt",
+        "file2.txt",
+      ]);
+    });
+
+    it("should handle multiple file read failure", async () => {
+      mockTagsExtractor.extractTags.mockReturnValue(["file1.txt", "file2.txt"]);
+      mockFileOperations.readMultiple.mockResolvedValue({
+        success: false,
+        error: new Error("Failed to read files: file2.txt: File not found"),
+      });
+
+      const result = await actionExecutor.executeAction(
+        "<read_file><path>file1.txt</path><path>file2.txt</path></read_file>",
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error?.message).toBe(
+        "Failed to read files: file2.txt: File not found",
+      );
+    });
+
+    it("should handle single file read failure", async () => {
+      mockTagsExtractor.extractTags.mockReturnValue(["test.txt"]);
       mockFileOperations.read.mockResolvedValue({
         success: false,
         error: new Error("File not found"),
@@ -90,7 +140,9 @@ describe("ActionExecutor", () => {
     });
 
     it("should handle read_file with path containing spaces", async () => {
-      mockTagsExtractor.extractTag.mockReturnValue("path with spaces/test.txt");
+      mockTagsExtractor.extractTags.mockReturnValue([
+        "path with spaces/test.txt",
+      ]);
       mockFileOperations.read.mockResolvedValue({
         success: true,
         data: "file content",
@@ -112,6 +164,9 @@ describe("ActionExecutor", () => {
       mockTagsExtractor.extractTag
         .mockReturnValueOnce("test.txt")
         .mockReturnValueOnce("Hello World");
+      mockHtmlEntityDecoder.decode.mockReturnValue(
+        "<path>test.txt</path><content>Hello World</content>",
+      );
       mockFileOperations.write.mockResolvedValue({ success: true });
 
       const result = await actionExecutor.executeAction(`

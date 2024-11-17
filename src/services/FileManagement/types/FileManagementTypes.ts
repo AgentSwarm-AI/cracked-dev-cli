@@ -9,7 +9,7 @@ export interface IFileStats {
 export interface IFileOperationResult {
   success: boolean;
   error?: Error;
-  data?: IFileStats | string | void;
+  data?: IFileStats | string | void | Record<string, string>;
 }
 
 export interface IFileSearchResult {
@@ -22,6 +22,7 @@ export interface IFileSearchResult {
 
 export interface IFileOperations {
   read(path: string): Promise<IFileOperationResult>;
+  readMultiple(paths: string[]): Promise<IFileOperationResult>;
   write(path: string, content: string | Buffer): Promise<IFileOperationResult>;
   delete(path: string): Promise<IFileOperationResult>;
   copy(source: string, destination: string): Promise<IFileOperationResult>;

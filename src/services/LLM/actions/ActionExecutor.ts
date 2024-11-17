@@ -31,7 +31,7 @@ export class ActionExecutor {
       // Execute all actions sequentially
       let lastResult: IActionResult = { success: true };
       for (const match of matches) {
-        const [_, actionType, content] = match;
+        const [fullMatch, actionType, content] = match;
         lastResult = await this.executeActionByType(actionType, content.trim());
 
         // Stop execution if an action fails
@@ -85,16 +85,26 @@ export class ActionExecutor {
   }
 
   private async handleReadFile(content: string): Promise<IActionResult> {
-    const filePath = this.actionTagsExtractor.extractTag(content, "path");
-    if (!filePath) {
+    const filePaths = this.actionTagsExtractor.extractTags(content, "path");
+    if (filePaths.length === 0) {
       return {
         success: false,
-        error: new Error("Invalid read_file format. Must include <path> tag."),
+        error: new Error(
+          "Invalid read_file format. Must include at least one <path> tag.",
+        ),
       };
     }
 
-    console.log(`📁 File path: ${filePath}`);
-    const result = await this.fileOperations.read(filePath);
+    console.log(`📁 File paths: ${filePaths.join(", ")}`);
+
+    // If only one path, use single file read for backward compatibility
+    if (filePaths.length === 1) {
+      const result = await this.fileOperations.read(filePaths[0]);
+      return this.convertFileResult(result);
+    }
+
+    // Multiple paths, use readMultiple
+    const result = await this.fileOperations.readMultiple(filePaths);
     return this.convertFileResult(result);
   }
 

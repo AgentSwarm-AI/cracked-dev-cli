@@ -19,6 +19,53 @@ export class FileOperations implements IFileOperations {
     }
   }
 
+  async readMultiple(filePaths: string[]): Promise<IFileOperationResult> {
+    try {
+      console.log("trying to read multiple files", filePaths);
+      const results = await Promise.all(
+        filePaths.map(async (filePath) => {
+          try {
+            const content = await fs.readFile(filePath, "utf-8");
+            return { path: filePath, content, success: true } as const;
+          } catch (error) {
+            return {
+              path: filePath,
+              error: error as Error,
+              success: false,
+            } as const;
+          }
+        }),
+      );
+
+      // Check if any reads failed
+      const failures = results.filter((r) => !r.success);
+      if (failures.length > 0) {
+        const errors = failures
+          .map((f) => `${f.path}: ${f.error.message}`)
+          .join(", ");
+        return {
+          success: false,
+          error: new Error(`Failed to read files: ${errors}`),
+        };
+      }
+
+      // Return combined successful results
+      const fileContents = results.reduce(
+        (acc, r) => {
+          if (r.success) {
+            acc[r.path] = r.content;
+          }
+          return acc;
+        },
+        {} as Record<string, string>,
+      );
+
+      return { success: true, data: fileContents };
+    } catch (error) {
+      return { success: false, error: error as Error };
+    }
+  }
+
   async write(
     filePath: string,
     content: string | Buffer,
