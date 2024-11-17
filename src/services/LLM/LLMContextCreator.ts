@@ -2,6 +2,7 @@ import { autoInjectable } from "tsyringe";
 import { DirectoryScanner } from "../FileManagement/DirectoryScanner";
 import { ProjectInfo } from "../ProjectInfo/ProjectInfo";
 import { ActionExecutor } from "./actions/ActionExecutor";
+import { IActionResult } from "./actions/types/ActionTypes";
 
 interface MessageContext {
   message: string;
@@ -160,7 +161,7 @@ Available action_names are:
 
   async parseAndExecuteActions(
     response: string,
-  ): Promise<Array<{ action: string; result: any }>> {
+  ): Promise<Array<{ action: string; result: IActionResult }>> {
     console.log("-".repeat(50));
 
     console.log("\n\n🔍 LLMContextCreator: Parsing and executing actions...\n");

@@ -5,14 +5,9 @@ import { FileOperations } from "../../FileManagement/FileOperations";
 import { FileSearch } from "../../FileManagement/FileSearch";
 import { IFileOperationResult } from "../../FileManagement/types/FileManagementTypes";
 import { ActionTagsExtractor } from "./ActionTagsExtractor";
+import { IActionResult } from "./types/ActionTypes";
 
 const execAsync = promisify(exec);
-
-interface IActionResult {
-  success: boolean;
-  data?: any;
-  error?: Error;
-}
 
 @autoInjectable()
 export class ActionExecutor {
@@ -77,7 +72,7 @@ export class ActionExecutor {
       default:
         return {
           success: false,
-          error: new Error(\`Unknown action type: $\{actionType}\`),
+          error: new Error(`Unknown action type: ${actionType}`),
         };
     }
   }
@@ -91,7 +86,7 @@ export class ActionExecutor {
       };
     }
 
-    console.log(\`📁 File path: $\{filePath}\`);
+    console.log(`📁 File path: ${filePath}`);
     const result = await this.fileOperations.read(filePath);
     return this.convertFileResult(result);
   }
@@ -109,7 +104,7 @@ export class ActionExecutor {
       };
     }
 
-    console.log(\`📁 File path: $\{filePath}\`);
+    console.log(`📁 File path: ${filePath}`);
     const result = await this.fileOperations.write(filePath, fileContent);
     return this.convertFileResult(result);
   }
@@ -125,7 +120,7 @@ export class ActionExecutor {
       };
     }
 
-    console.log(\`📁 File path: $\{filePath}\`);
+    console.log(`📁 File path: ${filePath}`);
     const result = await this.fileOperations.delete(filePath);
     return this.convertFileResult(result);
   }
@@ -149,8 +144,8 @@ export class ActionExecutor {
       };
     }
 
-    console.log(\`📁 Source path: $\{sourcePath}\`);
-    console.log(\`📁 Destination path: $\{destinationPath}\`);
+    console.log(`📁 Source path: ${sourcePath}`);
+    console.log(`📁 Destination path: ${destinationPath}`);
     const result = await this.fileOperations.move(sourcePath, destinationPath);
     return this.convertFileResult(result);
   }
@@ -174,8 +169,8 @@ export class ActionExecutor {
       };
     }
 
-    console.log(\`📁 Source path: $\{sourcePath}\`);
-    console.log(\`📁 Destination path: $\{destinationPath}\`);
+    console.log(`📁 Source path: ${sourcePath}`);
+    console.log(`📁 Destination path: ${destinationPath}`);
     const result = await this.fileOperations.copy(sourcePath, destinationPath);
     return this.convertFileResult(result);
   }
