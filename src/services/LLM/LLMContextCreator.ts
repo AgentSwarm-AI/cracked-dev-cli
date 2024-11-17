@@ -68,90 +68,71 @@ ${Object.entries(info.scripts)
 
   private formatFirstTimeMessage(context: MessageContext): string {
     return `<task>
-${context.message}
+  ${context.message}
 </task>
 
 <environment>
-${context.environmentDetails}
-
-${context.projectInfo}
+  ${context.environmentDetails}
+  
+  ${context.projectInfo}
 </environment>
 
-You MUST answer following this pattern:
+<instructions detail="do not output any of this, except tags">
+  为了实现这个XYZ目标，我需要执行以下步骤：
+    - 首先的步骤
+    - 第二步
+    - 等等
 
-To achieve this XYZ goal, I need to perform the following steps:
-  - your first step here
-  - second step here
-  - etc.
+  <!-- 下一步应针对上述步骤之一 -->
 
-<!-- next step should be aimed towards one of the steps above -->
+  我将执行<action_name>来实现期望的目标。
 
-I'll perform <action_name> to achieve the desired goal.
+  <important_notes>
+    不要浪费令牌。避免与<write_file>或<execute_command>操作无关的无用输出。例如，“这里是我如何修复它的”。这不必要。只使用令牌来执行任务。
+  </important_notes>
 
+  <verification_tips>
+    - 一旦完成编码任务，确保运行测试命令（如果不确定，请检查package.json）。如果不是编码任务，则结束它。
+  </verification_tips>
 
-FURTHER INSTRUCTIONS
+  <error_handling>
+    尝试不同的方法，检查其他文件。如果仍然卡住，请向用户寻求帮助或停止。
+  </error_handling>
 
-
-## Important notes
-
-DO NOT WASTE TOKENS. Avoid unnecessary code outputs that are not related with <write_file> or <execute_command> actions. For example, "here's how I'd fix it". This is not necessary. Just use tokens to actually perform the task.
-
-## Verification tips
-
-- Once you've finished a CODING task, make sure to run a test command (check on package.json if you're not sure). If its not a coding task, just end it.
-
-## If you get stuck in a loop of errors
-
-Try different approaches, take a step back, inspect other files. If you're still stuck, ask for help from the user or stop.
-
-## Available Actions
-
-Available action_names are:
-- read_file: Read contents of a file
-  <read_file>
-    <path>/path/here</path>
-  </read_file>
-
-- write_file: Write content to a file
-  <write_file>
-    <path>/path/here</path>
-    <content>
-    // Your file content here
-    </content>
-  </write_file>
-
-- delete_file: Delete a file
-  <delete_file>
-    <path>/path/here</path>
-  </delete_file>
-
-- move_file: Move/rename a file
-  <move_file>
-    <source_path>source/path/here</source_path>
-    <destination_path>destination/path/here</destination_path>
-  </move_file>
-
-- copy_file_slice: Copy a file
-  <copy_file_slice>
-    <source_path>source/path/here</source_path>
-    <destination_path>destination/path/here</destination_path>
-  </copy_file_slice>
-
-- execute_command: Execute a CLI command
-  <execute_command>
-    npm install package-name
-  </execute_command>
-
-- search_string/search_file: Search in files
-  <search_string>
-    <directory>/path/to/search</directory>
-    <term>pattern to search</term>
-  </search_string>
-
-  <search_file>
-    <directory>/path/to/search</directory>
-    <term>filename pattern</term>
-  </search_file>
+  <available_actions>
+    <read_file>
+      <path>/path/here</path>
+    </read_file>
+    <write_file>
+      <path>/path/here</path>
+      <content>
+        // Your file content here
+      </content>
+    </write_file>
+    <delete_file>
+      <path>/path/here</path>
+    </delete_file>
+    <move_file>
+      <source_path>source/path/here</source_path>
+      <destination_path>destination/path/here</destination_path>
+    </move_file>
+    <copy_file_slice>
+      <source_path>source/path/here</source_path>
+      <destination_path>destination/path/here</destination_path>
+    </copy_file_slice>
+    <execute_command>
+      npm install package-name
+    </execute_command>
+    <search_string>
+      <directory>/path/to/search</directory>
+      <term>pattern to search</term>
+    </search_string>
+    <search_file>
+      <directory>/path/to/search</directory>
+      <term>filename pattern</term>
+    </search_file>
+  </available_actions>
+</instructions>
 `;
   }
 
