@@ -1,11 +1,5 @@
 # CLI Usage
 
-## Basic Usage
-
-```bash
-crkd [flags] "your message"
-```
-
 ## Flags
 
 - `-r, --root`: Root path of the codebase to operate on (default: current directory)
@@ -21,11 +15,16 @@ crkd [flags] "your message"
 
 PS: `yarn dev:cli` is just to run the CLI in development mode. In production, you can use `crkd` directly.
 
+Basic usage:
+
+```bash
+yarn dev:cli crkd --provider "open-router" --model "qwen/qwen-2.5-coder-32b-instruct" --stream --interactive --debug
+```
+
 Example usage:
 
 ```bash
  yarn dev:cli crkd --instructions "Follow clean code" --provider "open-router" --model "openai/gpt-4o-mini" --options "temperature=0.7,max_tokens=2000,top_p=0.9" "Tell me which files from my system you find interesting?" --stream
-
 ```
 
 ## Available Options

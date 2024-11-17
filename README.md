@@ -23,19 +23,13 @@ yarn install
 
 ## Development Workflow
 
-1. Start the TypeScript compiler in watch mode:
+1. Start the TypeScript compiler in watch mode. This is ONLY the auto compilation of TypeScript files. You still have to run the command below.
 
 ```bash
 yarn dev
 ```
 
-2. In another terminal, test your CLI commands:
-
-```bash
-yarn crkd [options] <message>
-```
-
-The `yarn dev` command will automatically recompile your TypeScript files as you make changes, so you can immediately test your changes with `yarn crkd`.
+2. Check on [CLI USAGE](./docs/CLI_USAGE.md) for available options and examples of how to run the CLI
 
 ## Project Structure
 
