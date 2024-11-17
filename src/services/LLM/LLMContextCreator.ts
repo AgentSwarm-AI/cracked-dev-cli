@@ -98,7 +98,7 @@ To achieve the this goal, I'll follow these steps:
          <code_writing_instructions>
             <before_starting>
                 - Read related files (classes, types, interfaces), to give you as much context as possible.
-                - When reading files, feel free to add multiple read_file actions on the same input.
+                - When reading files, feel free to add a read_file action with multiple path on the same input.
                 - ALWAYS FOLLOW PROJECT PATTERNS.
                 - If an external dependency is needed and not avaiable on the project, ask user for confirmation before proceeding.
                  - Avoid adding extra project dependencies. Reuse what is already available.
@@ -159,7 +159,7 @@ read_file: Read contents of a file
   <read_file>
     <path>/path/here</path>
     // Allowed to read multiple files on the same input
-    // only one path per read_file
+    // Multiple <path> tags are allowed
 </read_file>
   </read_file>
 
