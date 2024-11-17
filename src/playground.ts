@@ -1,20 +1,13 @@
 import "reflect-metadata";
 
 import { container } from "tsyringe";
-import { DirectoryScanner } from "./services/FileManagement/DirectoryScanner";
+import { ProjectInfo } from "./services/ProjectInfo/ProjectInfo";
 
-const directoryScanner = container.resolve(DirectoryScanner);
+const projectInfo = container.resolve(ProjectInfo);
 
 const main = async () => {
-  const output = await directoryScanner.scan(".", {
-    maxDepth: 3,
-    directoryFirst: true,
-    ignore: [".husky", "dist"],
-  });
-
-  if (output.success && output.data) {
-    console.log(output.data);
-  }
+  const info = await projectInfo.gatherProjectInfo(".");
+  console.log(info);
 };
 
 void main();

@@ -235,7 +235,7 @@ export class ActionExecutor {
 
   private convertFileResult(result: IFileOperationResult): IActionResult {
     if (result.success) {
-      console.log("✅ Action completed successfully. Please wait...");
+      console.log("✅ Action completed successfully. Please wait...\n\n");
     } else {
       console.log("❌ Action failed");
     }

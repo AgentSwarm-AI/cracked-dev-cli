@@ -1,10 +1,12 @@
 import { autoInjectable } from "tsyringe";
 import { DirectoryScanner } from "../FileManagement/DirectoryScanner";
+import { ProjectInfo } from "../ProjectInfo/ProjectInfo";
 import { ActionExecutor } from "./actions/ActionExecutor";
 
 interface MessageContext {
   message: string;
   environmentDetails?: string;
+  projectInfo?: string;
 }
 
 @autoInjectable()
@@ -12,6 +14,7 @@ export class LLMContextCreator {
   constructor(
     private directoryScanner: DirectoryScanner,
     private actionExecutor: ActionExecutor,
+    private projectInfo: ProjectInfo,
   ) {}
 
   async create(
@@ -24,10 +27,15 @@ export class LLMContextCreator {
     };
 
     if (isFirstMessage) {
-      const environmentDetails = await this.getEnvironmentDetails(root);
+      const [environmentDetails, projectInfo] = await Promise.all([
+        this.getEnvironmentDetails(root),
+        this.getProjectInfo(root),
+      ]);
+
       return this.formatFirstTimeMessage({
         ...baseContext,
         environmentDetails,
+        projectInfo,
       });
     }
 
@@ -42,6 +50,21 @@ export class LLMContextCreator {
     return `# Current Working Directory (${root}) Files\n${scanResult.data}`;
   }
 
+  private async getProjectInfo(root: string): Promise<string> {
+    const info = await this.projectInfo.gatherProjectInfo(root);
+    if (!info.dependencyFile) {
+      return "";
+    }
+
+    return `# Project Dependencies (from ${info.dependencyFile})
+Main Dependencies: ${info.mainDependencies.join(", ")}
+
+# Available Scripts
+${Object.entries(info.scripts)
+  .map(([name, command]) => `${name}: ${command}`)
+  .join("\n")}`;
+  }
+
   private formatFirstTimeMessage(context: MessageContext): string {
     return `<task>
 ${context.message}
@@ -49,6 +72,8 @@ ${context.message}
 
 <environment>
 ${context.environmentDetails}
+
+${context.projectInfo}
 </environment>
 
 You MUST answer following this pattern:
@@ -64,6 +89,11 @@ I'll perform <action_name> to achieve the desired goal.
 
 
 FURTHER INSTRUCTIONS
+
+
+## Important notes
+
+DO NOT WASTE TOKENS. Avoid unnecessary code outputs that are not related with <write_file> or <execute_command> actions. For example, "here's how I'd fix it". This is not necessary. Just use tokens to actually perform the task.
 
 ## Verification tips
 
@@ -132,7 +162,9 @@ Available action_names are:
   async parseAndExecuteActions(
     response: string,
   ): Promise<Array<{ action: string; result: any }>> {
-    console.log("🔍 LLMContextCreator: Parsing and executing actions...");
+    console.log(
+      "\n\n🔍 LLMContextCreator: Parsing and executing actions...\n\n",
+    );
 
     const results = [];
     const actionRegex =
