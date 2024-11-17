@@ -105,7 +105,21 @@ export class ActionExecutor {
 
     // Multiple paths, use readMultiple
     const result = await this.fileOperations.readMultiple(filePaths);
-    return this.convertFileResult(result);
+    if (!result.success) {
+      return this.convertFileResult(result);
+    }
+
+    // Format multiple file contents for better readability
+    const formattedContent = Object.entries(
+      result.data as Record<string, string>,
+    )
+      .map(([path, content]) => `# File: ${path}\n\`\`\`\n${content}\n\`\`\`\n`)
+      .join("\n");
+
+    return {
+      success: true,
+      data: formattedContent,
+    };
   }
 
   private async handleWriteFile(content: string): Promise<IActionResult> {

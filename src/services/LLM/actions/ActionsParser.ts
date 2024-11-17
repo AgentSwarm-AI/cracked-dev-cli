@@ -220,6 +220,10 @@ export class ActionsParser {
     const [_, actionType] = actionMatch;
 
     if (actionType === "read_file" && result.success) {
+      // If the result data is already formatted (contains # File:), return it as is
+      if (typeof result.data === "string" && result.data.includes("# File:")) {
+        return result.data;
+      }
       return `Here's the content of the requested file:\n\n${result.data}\n\nPlease analyze this content and continue with the task.`;
     }
 
