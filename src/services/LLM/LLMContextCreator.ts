@@ -97,8 +97,7 @@ DO NOT WASTE TOKENS. Avoid unnecessary code outputs that are not related with <w
 
 ## Verification tips
 
-- Once you've finished the task, make sure to run a test command (check on package.json if you're not sure).
-
+- Once you've finished a CODING task, make sure to run a test command (check on package.json if you're not sure). If its not a coding task, just end it.
 
 ## If you get stuck in a loop of errors
 
