@@ -239,6 +239,9 @@ export class ActionExecutor {
     } else {
       console.log("❌ Action failed");
     }
+
+    console.log("-".repeat(50));
+
     return {
       success: result.success,
       data: result.data,

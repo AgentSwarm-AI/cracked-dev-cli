@@ -162,9 +162,9 @@ Available action_names are:
   async parseAndExecuteActions(
     response: string,
   ): Promise<Array<{ action: string; result: any }>> {
-    console.log(
-      "\n\n🔍 LLMContextCreator: Parsing and executing actions...\n\n",
-    );
+    console.log("-".repeat(50));
+
+    console.log("\n\n🔍 LLMContextCreator: Parsing and executing actions...\n");
 
     const results = [];
     const actionRegex =
