@@ -72,33 +72,56 @@ ${context.message}
 </task>
 
 
-<instructions>
-To achieve the XYZ goal, follow these steps:
+<instructions detail="describe_briefly">
+To achieve the this goal, I'll follow these steps:
   - Step 1
   - Step 2
   - Step 3
 </instructions>
 
 <important_notes detail="hidden_on_output">
-    <critical_instructions>
-      ALWAYS output code or markdown changes directly using <write_file> tag. 
-      Avoid wasting tokens with redundancy.
-      Ensure actions align with the next step. If done, use <end_task>.
-      Test coding tasks ONLY;
+       <critical_instructions>
+      - First brief message should always be the a quick intro and the step by step pattern above. Then more to your action tags.
+      - **NEVER output markdown or code on the first message or outside of action tags.**
+      - Right after reading a file, no need to tell what you saw. Just proceed to the next action tag.
+      - When performing actions using action tags like <write_file>, directly include the content within the action tag **without repeating or previewing the code outside of the tag**.
+      - Do not describe the action being performed (e.g., avoid phrases like "I will write the file" or "Writing this content to a file"). ACTIONS MUST ALWAYS BE IN THE ACTION TAGS.
+      - Avoid redundancy in the output or unnecessary explanations. Provide concise and actionable responses.
+      - Ensure outputs align with the task requirements and are formatted for direct use.
+       
+         <code_writing_instructions>
+          - Follow DRY, SRP (modular design), KISS, YAGNI, LoD, Immutability principles.
+          - Composition over inheritane (if possible).    
+          - High cohesion and low coupling.
+          - Use meaningful names for variables, functions, classes, etc.
+          - Use comments to explain why, not what.
+          - Always have CLEAN CODE principles in mind.
+          - After changing code, execute command of running tests to make sure everything is working.
+          - Avoid too many changes at once, to avoid bugs.
+          - When in doubt about how something works, look for docs first or end_task and ask for user input.
+         </code_writing_instructions>
+      
+      
       </critical_instructions>
+      
+      <other_instructions>
+      - Summarize only the high-level task progress or completion using <end_task>, excluding details about action execution.
+      - If unsure about specific file paths or formats, provide placeholders and request clarification.
+      - If stuck, attempt alternative approaches or ask for clarification but avoid irrelevant or verbose outputs.
+      </other_instructions>
 
-    <other_instructions>
-    Try alternatives if stuck, inspect other files, ask for help, or stop with <end_task>.
-    Avoid excessive changes at once to prevent bugs. 
-    </other_instructions>
+ 
+
+    <docs_writing_instructions>
+      - Careful with valid markdown syntax. Dont add extra tabs on output.
+      - On documentation: Whenever applicable, try using mermaid diagrams together with clear explanations.
+      - Remember you can't use "(" or ")" in mermaid diagrams. Use "[" and "]" instead.
+    </docs_writing_instructions>
 
 
 </important_notes>
 
 <available_actions detail="allowed_on_output">
-## Available Actions
-
-Available action_tags are:
 
 read_file: Read contents of a file
 
@@ -172,17 +195,48 @@ ${context.projectInfo}
     console.log("\n\n🔍 LLMContextCreator: Parsing and executing actions...\n");
 
     const results = [];
-    const actionRegex =
-      /<(read_file|write_file|delete_file|update_file|move_file|copy_file_slice|execute_command|search_string|search_file)>(?:[^<]*|<(?!\/\1>)[^<]*)*<\/\1>/g;
+    const actionTags = [
+      "read_file",
+      "write_file",
+      "delete_file",
+      "update_file",
+      "move_file",
+      "copy_file_slice",
+      "execute_command",
+      "search_string",
+      "search_file",
+      "end_task",
+    ];
 
-    let match;
-    while ((match = actionRegex.exec(response)) !== null) {
-      const [fullMatch] = match;
-      const result = await this.actionExecutor.executeAction(fullMatch);
+    // Extract all action tags from the response
+    const allActions: { tag: string; content: string }[] = [];
+    for (const tag of actionTags) {
+      const tagRegex = new RegExp(`<${tag}>[\\s\\S]*?<\\/${tag}>`, "g");
+      const matches = response.match(tagRegex);
+      if (matches) {
+        matches.forEach((match) => {
+          allActions.push({ tag, content: match });
+        });
+      }
+    }
+
+    // Sort actions based on their position in the response
+    allActions.sort(
+      (a, b) => response.indexOf(a.content) - response.indexOf(b.content),
+    );
+
+    // Execute actions in order
+    for (const { content } of allActions) {
+      const result = await this.actionExecutor.executeAction(content);
       results.push({
-        action: fullMatch,
+        action: content,
         result,
       });
+
+      // If this was an end_task action and it succeeded, break the loop
+      if (content.includes("<end_task>") && result.success) {
+        break;
+      }
     }
 
     return results;

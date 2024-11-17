@@ -69,6 +69,9 @@ export class ActionExecutor {
       case "search_file":
         console.log("🔍 Searching...");
         return await this.handleSearch(actionType, content);
+      case "end_task":
+        console.log("🏁 Ending task...");
+        return await this.handleEndTask(content);
       default:
         return {
           success: false,
@@ -226,6 +229,24 @@ export class ActionExecutor {
         error: error as Error,
       };
     }
+  }
+
+  private async handleEndTask(content: string): Promise<IActionResult> {
+    const message = this.actionTagsExtractor.extractTag(content, "message");
+    if (!message) {
+      return {
+        success: false,
+        error: new Error(
+          "Invalid end_task format. Must include <message> tag.",
+        ),
+      };
+    }
+
+    console.log(`📝 End task message: ${message}`);
+    return {
+      success: true,
+      data: message,
+    };
   }
 
   private convertFileResult(result: IFileOperationResult): IActionResult {

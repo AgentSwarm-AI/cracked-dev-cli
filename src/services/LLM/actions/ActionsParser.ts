@@ -54,7 +54,7 @@ export class ActionsParser {
     const completeTags: string[] = [];
     const combinedText = this.currentMessageBuffer + text;
     const regex =
-      /<(read_file|write_file|delete_file|move_file|copy_file_slice|execute_command|search_string|search_file)>(?:[^<]*|<(?!\/\1>)[^<]*)*<\/\1>/g;
+      /<(read_file|write_file|delete_file|move_file|copy_file_slice|execute_command|search_string|search_file|end_task)>(?:[^<]*|<(?!\/\1>)[^<]*)*<\/\1>/g;
     let match;
 
     while ((match = regex.exec(combinedText)) !== null) {
@@ -107,6 +107,10 @@ export class ActionsParser {
       return `Here's the content of the requested file:\n\n${result.data}\n\nPlease analyze this content and continue with the task.`;
     }
 
+    if (actionType === "end_task" && result.success) {
+      return `Task completed: ${result.data}`;
+    }
+
     return `[Action Result] ${actionType}: ${result.success ? "Success" : "Failed - " + result.error}`;
   }
 
@@ -143,6 +147,18 @@ export class ActionsParser {
       if (!actions || actions.length === 0) {
         this.debugLogger.log("Actions", "No actions executed");
         return { actions: [] };
+      }
+
+      // Check if end_task was executed successfully
+      const endTaskAction = actions.find(
+        ({ action, result }) => action.includes("<end_task>") && result.success,
+      );
+
+      if (endTaskAction) {
+        this.debugLogger.log("EndTask", "Task completed", {
+          message: endTaskAction.result.data,
+        });
+        return { actions };
       }
 
       const actionResults = actions
