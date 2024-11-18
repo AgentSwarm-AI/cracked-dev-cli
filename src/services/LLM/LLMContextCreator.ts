@@ -105,6 +105,8 @@ To achieve the this goal, I'll follow these steps:
                </before_starting>
 
             <during_coding>
+              - Always output full code. Do not output partial code.
+              - DO NOT REMOVE A LOT OF CODE. Focus on achieving the goal, not doing too much at once.
               - Follow an iterative process, don't try to do all at once.
               - Code should be plain text without using any HTML entities or encodings. Ensure that all characters, especially quotes and special symbols, are correctly represented.
               - Follow DRY, SRP (modular design), KISS, YAGNI, LoD, Immutability principles.

@@ -109,16 +109,9 @@ export class ActionExecutor {
       return this.convertFileResult(result);
     }
 
-    // Format multiple file contents for better readability
-    const formattedContent = Object.entries(
-      result.data as Record<string, string>,
-    )
-      .map(([path, content]) => `# File: ${path}\n\`\`\`\n${content}\n\`\`\`\n`)
-      .join("\n");
-
     return {
       success: true,
-      data: formattedContent,
+      data: result.data as Record<string, string>,
     };
   }
 
