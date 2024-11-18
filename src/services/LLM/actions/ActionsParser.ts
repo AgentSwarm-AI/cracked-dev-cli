@@ -246,7 +246,7 @@ export class ActionsParser {
       return `Task completed: ${result.data}`;
     }
 
-    return `[Action Result] ${actionType}: ${result.success ? "Success" : "Failed - " + result.error}`;
+    return `[Action Result] ${actionType}: ${result.success ? "Success" : "Failed - " + result.error} - ${JSON.stringify(result.data)}`;
   }
 
   async parseAndExecuteActions(
@@ -290,7 +290,13 @@ export class ActionsParser {
             results.push({ action: action.content, result });
 
             // Stop if action failed
-            if (!result.success) break;
+            if (!result.success) {
+              this.debugLogger.log("Action", "Action failed", {
+                action: action.content,
+                result,
+              });
+              break;
+            }
           }
         }
       }
@@ -310,6 +316,10 @@ export class ActionsParser {
       const actionResults = results
         .map(({ action, result }) => this.formatActionResult(action, result))
         .join("\n\n");
+
+      this.debugLogger.log("ActionResults", "Formatted action results", {
+        results: actionResults,
+      });
 
       const followupResponse = await llmCallback(actionResults);
 
