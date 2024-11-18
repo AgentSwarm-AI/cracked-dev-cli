@@ -14,7 +14,7 @@ export class CommandAction {
     return match ? match[1].trim() : command.trim();
   }
 
-  execute(
+  async execute(
     command: string,
     options?: SpawnOptionsWithoutStdio & { timeout?: number },
   ): Promise<IActionResult> {
