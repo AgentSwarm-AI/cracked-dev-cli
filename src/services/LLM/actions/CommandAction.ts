@@ -1,4 +1,4 @@
-import chalk from "chalk"; // Ensure chalk is installed and imported correctly
+import chalk from "chalk";
 import { spawn, SpawnOptionsWithoutStdio } from "child_process";
 import { autoInjectable } from "tsyringe";
 import { DebugLogger } from "../../logging/DebugLogger";
@@ -20,6 +20,15 @@ export class CommandAction {
   ): Promise<IActionResult> {
     return new Promise((resolve) => {
       const cleanedCommand = this.extractCommand(command);
+
+      if (!cleanedCommand) {
+        return resolve({
+          success: false,
+          error: new Error("No valid command to execute."),
+          data: "",
+        });
+      }
+
       const [cmd, ...args] = cleanedCommand.split(" ");
       const child = spawn(cmd, args, { ...options, shell: true });
 
@@ -52,13 +61,19 @@ export class CommandAction {
             exitCode,
             output: combinedOutput,
           });
-          resolve({
-            success: exitCode === 0,
-            data: {
-              output: combinedOutput,
-              exitCode,
-            },
-          });
+
+          if (exitCode === 0) {
+            resolve({
+              success: true,
+              data: combinedOutput,
+            });
+          } else {
+            resolve({
+              success: false,
+              error: new Error(`Command failed with exit code ${exitCode}`),
+              data: combinedOutput,
+            });
+          }
         }
       };
 
@@ -71,7 +86,11 @@ export class CommandAction {
           command: cleanedCommand,
           error: error.message,
         });
-        finalizeAndResolve(null);
+        resolve({
+          success: false,
+          error,
+          data: error.message,
+        });
       });
 
       if (options?.timeout) {
@@ -85,7 +104,11 @@ export class CommandAction {
                 command: cleanedCommand,
               },
             );
-            finalizeAndResolve(null);
+            resolve({
+              success: false,
+              error: new Error("Command execution timed out"),
+              data: "Timeout exceeded",
+            });
           }
         }, options.timeout);
       }
