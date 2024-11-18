@@ -106,6 +106,7 @@ To achieve the this goal, I'll follow these steps:
                </before_starting>
 
             <during_coding>
+              - NEVER output encoded characters. Raw text only!
               - Always output full code. Do not output partial code.
               - DO NOT REMOVE A LOT OF CODE. Focus on achieving the goal, not doing too much at once.
               - Follow an iterative process, don't try to do all at once.
@@ -166,10 +167,11 @@ Dont output // comments
 read_file: Read contents of a file
 
   <read_file>
-    <path>/path/here</path>
+    <path>path/here</path>
     // Allowed to read multiple files on the same input
     // Never more than 4 at once.
     // Multiple <path> tags are allowed
+    // Never use / at the beggining of the path. Use relative paths (to the root).
 </read_file>
   </read_file>
 
@@ -177,6 +179,7 @@ write_file: Write content to a file
   <write_file>
     <path>/path/here</path>
     <content>
+      // NEVER output encoded characters. Raw text only!
     </content>
   </write_file>
 
