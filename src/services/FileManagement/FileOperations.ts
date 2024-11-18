@@ -60,6 +60,14 @@ export class FileOperations implements IFileOperations {
         {} as Record<string, string>,
       );
 
+      // Log the contents in a readable format
+      console.log("Successfully read files:");
+      Object.entries(fileContents).forEach(([path, content]) => {
+        console.log(
+          `\n[${path}]:\n${content.slice(0, 100)}${content.length > 100 ? "..." : ""}`,
+        );
+      });
+
       return { success: true, data: fileContents };
     } catch (error) {
       return { success: false, error: error as Error };

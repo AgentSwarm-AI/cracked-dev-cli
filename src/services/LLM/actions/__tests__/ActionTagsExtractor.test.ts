@@ -1,5 +1,5 @@
 import { container } from "tsyringe";
-import { ActionTagsExtractor } from "./ActionTagsExtractor";
+import { ActionTagsExtractor } from "../ActionTagsExtractor";
 describe("TagsExtractor", () => {
   let actionTagsExtractor: ActionTagsExtractor;
 

@@ -126,6 +126,7 @@ To achieve the this goal, I'll follow these steps:
                 - Run a type check
                 - run test specific to that file. If change is risky, run tests for the whole related folder. 
                 - At the end, run all tests.
+                - After all final tests pass and you have finished the task, you, use a <end_task> to finalize.
             </after_starting>
          </code_writing_instructions>
        
