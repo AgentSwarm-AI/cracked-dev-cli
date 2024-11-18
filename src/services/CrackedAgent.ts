@@ -1,4 +1,4 @@
-import { autoInjectable } from "tsyringe";
+import { autoInjectable, singleton } from "tsyringe";
 import { FileReader } from "./FileManagement/FileReader";
 import { ActionsParser } from "./LLM/actions/ActionsParser";
 import { ILLMProvider } from "./LLM/ILLMProvider";
@@ -25,6 +25,7 @@ export interface ExecutionResult {
 }
 
 @autoInjectable()
+@singleton()
 export class CrackedAgent {
   private llm!: ILLMProvider;
   private isFirstInteraction: boolean = true;

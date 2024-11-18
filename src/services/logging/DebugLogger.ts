@@ -1,6 +1,7 @@
-import { autoInjectable } from "tsyringe";
+import { autoInjectable, singleton } from "tsyringe";
 import { Colors } from "../../constants/colors";
 
+@singleton()
 @autoInjectable()
 export class DebugLogger {
   private debug: boolean = false;
