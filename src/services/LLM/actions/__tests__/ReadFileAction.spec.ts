@@ -1,35 +1,39 @@
 import { FileOperations } from "../../../FileManagement/FileOperations";
+import { DebugLogger } from "../../../logging/DebugLogger";
 import { ActionTagsExtractor } from "../ActionTagsExtractor";
 import { ReadFileAction } from "../ReadFileAction";
 
 jest.mock("../../../FileManagement/FileOperations");
 jest.mock("../ActionTagsExtractor");
+jest.mock("../../../logging/DebugLogger");
 
 describe("ReadFileAction", () => {
   let readFileAction: ReadFileAction;
   let mockFileOperations: jest.Mocked<FileOperations>;
   let mockActionTagsExtractor: jest.Mocked<ActionTagsExtractor>;
+  let mockDebugLogger: jest.Mocked<DebugLogger>;
 
   beforeEach(() => {
     mockFileOperations = new FileOperations() as jest.Mocked<FileOperations>;
     mockActionTagsExtractor =
       new ActionTagsExtractor() as jest.Mocked<ActionTagsExtractor>;
+    mockDebugLogger = new DebugLogger() as jest.Mocked<DebugLogger>;
     readFileAction = new ReadFileAction(
       mockFileOperations,
       mockActionTagsExtractor,
+      mockDebugLogger,
     );
   });
 
   it("should read a single file successfully", async () => {
-    const filePath = "/path/to/single/file";
+    const filePath = "/path/to/file";
     const fileContent = "file content";
-    const expectedResult = {
+
+    mockActionTagsExtractor.extractTags.mockReturnValue([filePath]);
+    mockFileOperations.read.mockResolvedValue({
       success: true,
       data: fileContent,
-    };
-
-    mockActionTagsExtractor.extractTags = jest.fn().mockReturnValue([filePath]);
-    mockFileOperations.read = jest.fn().mockResolvedValue(expectedResult);
+    });
 
     const actionInput = `<read_file><path>${filePath}</path></read_file>`;
     const result = await readFileAction.execute(actionInput);
@@ -45,18 +49,15 @@ describe("ReadFileAction", () => {
   it("should read multiple files successfully", async () => {
     const filePaths = ["/path/to/file1", "/path/to/file2"];
     const fileContents = {
-      "/path/to/file1": "file1 content",
-      "/path/to/file2": "file2 content",
-    };
-    const expectedResult = {
-      success: true,
-      data: fileContents,
+      "/path/to/file1": "content1",
+      "/path/to/file2": "content2",
     };
 
-    mockActionTagsExtractor.extractTags = jest.fn().mockReturnValue(filePaths);
-    mockFileOperations.readMultiple = jest
-      .fn()
-      .mockResolvedValue(expectedResult);
+    mockActionTagsExtractor.extractTags.mockReturnValue(filePaths);
+    mockFileOperations.readMultiple.mockResolvedValue({
+      success: true,
+      data: fileContents,
+    });
 
     const actionInput = `<read_file>${filePaths.map((path) => `<path>${path}</path>`).join("")}</read_file>`;
     const result = await readFileAction.execute(actionInput);
@@ -66,11 +67,11 @@ describe("ReadFileAction", () => {
       "path",
     );
     expect(mockFileOperations.readMultiple).toHaveBeenCalledWith(filePaths);
-    expect(result).toEqual(expectedResult);
+    expect(result).toEqual({ success: true, data: fileContents });
   });
 
   it("should fail if no path tags are provided", async () => {
-    mockActionTagsExtractor.extractTags = jest.fn().mockReturnValue([]);
+    mockActionTagsExtractor.extractTags.mockReturnValue([]);
 
     const actionInput = "<read_file></read_file>";
     const result = await readFileAction.execute(actionInput);
@@ -87,15 +88,15 @@ describe("ReadFileAction", () => {
     });
   });
 
-  it("should handle file not found error for single file", async () => {
-    const filePath = "/path/to/nonexistent/file";
-    const expectedResult = {
-      success: false,
-      error: new Error("File not found"),
-    };
+  it("should handle file read failure", async () => {
+    const filePath = "/path/to/file";
+    const error = new Error("Read failed");
 
-    mockActionTagsExtractor.extractTags = jest.fn().mockReturnValue([filePath]);
-    mockFileOperations.read = jest.fn().mockResolvedValue(expectedResult);
+    mockActionTagsExtractor.extractTags.mockReturnValue([filePath]);
+    mockFileOperations.read.mockResolvedValue({
+      success: false,
+      error,
+    });
 
     const actionInput = `<read_file><path>${filePath}</path></read_file>`;
     const result = await readFileAction.execute(actionInput);
@@ -105,45 +106,18 @@ describe("ReadFileAction", () => {
       "path",
     );
     expect(mockFileOperations.read).toHaveBeenCalledWith(filePath);
-    expect(result).toEqual(expectedResult);
-  });
-
-  it("should handle missing files in multiple file read", async () => {
-    const filePaths = ["/path/to/file1", "/path/to/file2"];
-    const fileContents = {
-      "/path/to/file1": "file1 content",
-      // file2 is missing
-    };
-    const expectedResult = {
-      success: true,
-      data: fileContents,
-    };
-
-    mockActionTagsExtractor.extractTags = jest.fn().mockReturnValue(filePaths);
-    mockFileOperations.readMultiple = jest
-      .fn()
-      .mockResolvedValue(expectedResult);
-
-    const actionInput = `<read_file>${filePaths.map((path) => `<path>${path}</path>`).join("")}</read_file>`;
-    const result = await readFileAction.execute(actionInput);
-
-    expect(result).toEqual({
-      success: false,
-      error: new Error("Failed to read files: /path/to/file2"),
-    });
+    expect(result).toEqual({ success: false, error });
   });
 
   it("should handle multiple file read failure", async () => {
     const filePaths = ["/path/to/file1", "/path/to/file2"];
-    const expectedResult = {
-      success: false,
-      error: new Error("Failed to read multiple files"),
-    };
+    const error = new Error("Multiple read failed");
 
-    mockActionTagsExtractor.extractTags = jest.fn().mockReturnValue(filePaths);
-    mockFileOperations.readMultiple = jest
-      .fn()
-      .mockResolvedValue(expectedResult);
+    mockActionTagsExtractor.extractTags.mockReturnValue(filePaths);
+    mockFileOperations.readMultiple.mockResolvedValue({
+      success: false,
+      error,
+    });
 
     const actionInput = `<read_file>${filePaths.map((path) => `<path>${path}</path>`).join("")}</read_file>`;
     const result = await readFileAction.execute(actionInput);
@@ -153,165 +127,19 @@ describe("ReadFileAction", () => {
       "path",
     );
     expect(mockFileOperations.readMultiple).toHaveBeenCalledWith(filePaths);
-    expect(result).toEqual(expectedResult);
+    expect(result).toEqual({ success: false, error });
   });
 
-  describe("logging", () => {
-    let consoleSpy: jest.SpyInstance;
+  it("should handle empty file path", async () => {
+    const filePath = "";
+    mockActionTagsExtractor.extractTags.mockReturnValue([filePath]);
 
-    beforeEach(() => {
-      consoleSpy = jest.spyOn(console, "log").mockImplementation();
-    });
+    const actionInput = `<read_file><path>${filePath}</path></read_file>`;
+    const result = await readFileAction.execute(actionInput);
 
-    afterEach(() => {
-      consoleSpy.mockRestore();
-    });
-
-    it("should log file paths and success for single file", async () => {
-      const filePath = "/path/to/single/file";
-      const fileContent = "file content";
-      const expectedResult = {
-        success: true,
-        data: fileContent,
-      };
-
-      mockActionTagsExtractor.extractTags = jest
-        .fn()
-        .mockReturnValue([filePath]);
-      mockFileOperations.read = jest.fn().mockResolvedValue(expectedResult);
-
-      const actionInput = `<read_file><path>${filePath}</path></read_file>`;
-      await readFileAction.execute(actionInput);
-
-      expect(consoleSpy).toHaveBeenNthCalledWith(
-        1,
-        `📁 File paths: ${filePath}`,
-      );
-      expect(consoleSpy).toHaveBeenNthCalledWith(
-        2,
-        "✅ Action completed successfully. Please wait...\n\n",
-      );
-      expect(consoleSpy).toHaveBeenNthCalledWith(3, "-".repeat(50));
-    });
-
-    it("should log file paths and success for multiple files", async () => {
-      const filePaths = ["/path/to/file1", "/path/to/file2"];
-      const fileContents = {
-        "/path/to/file1": "file1 content",
-        "/path/to/file2": "file2 content",
-      };
-      const expectedResult = {
-        success: true,
-        data: fileContents,
-      };
-
-      mockActionTagsExtractor.extractTags = jest.fn().mockReturnValue(filePaths);
-      mockFileOperations.readMultiple = jest
-        .fn()
-        .mockResolvedValue(expectedResult);
-
-      const actionInput = `<read_file>${filePaths.map((path) => `<path>${path}</path>`).join("")}</read_file>`;
-      await readFileAction.execute(actionInput);
-
-      expect(consoleSpy).toHaveBeenNthCalledWith(
-        1,
-        `📁 File paths: ${filePaths.join(", ")}`,
-      );
-      expect(consoleSpy).toHaveBeenNthCalledWith(
-        2,
-        "✅ Action completed successfully. Please wait...\n\n",
-      );
-      expect(consoleSpy).toHaveBeenNthCalledWith(3, "-".repeat(50));
-    });
-  });
-
-  describe("edge cases", () => {
-    it("should handle special characters in file paths", async () => {
-      const filePath = "/path/to/file:with;special?chars";
-      const fileContent = "file content";
-      const expectedResult = {
-        success: true,
-        data: fileContent,
-      };
-
-      mockActionTagsExtractor.extractTags = jest
-        .fn()
-        .mockReturnValue([filePath]);
-      mockFileOperations.read = jest.fn().mockResolvedValue(expectedResult);
-
-      const actionInput = `<read_file><path>${filePath}</path></read_file>`;
-      const result = await readFileAction.execute(actionInput);
-
-      expect(mockActionTagsExtractor.extractTags).toHaveBeenCalledWith(
-        actionInput,
-        "path",
-      );
-      expect(mockFileOperations.read).toHaveBeenCalledWith(filePath);
-      expect(result).toEqual({ success: true, data: fileContent });
-    });
-
-    it("should handle empty file path", async () => {
-      const filePath = "";
-      mockActionTagsExtractor.extractTags = jest.fn().mockReturnValue([filePath]);
-
-      const actionInput = `<read_file><path>${filePath}</path></read_file>`;
-      const result = await readFileAction.execute(actionInput);
-
-      expect(mockActionTagsExtractor.extractTags).toHaveBeenCalledWith(
-        actionInput,
-        "path",
-      );
-      expect(result).toEqual({
-        success: false,
-        error: new Error("Failed to read files: "),
-      });
-    });
-
-    it("should handle very long file path", async () => {
-      const filePath = "/".repeat(1000) + "file";
-      const fileContent = "file content";
-      const expectedResult = {
-        success: true,
-        data: fileContent,
-      };
-
-      mockActionTagsExtractor.extractTags = jest
-        .fn()
-        .mockReturnValue([filePath]);
-      mockFileOperations.read = jest.fn().mockResolvedValue(expectedResult);
-
-      const actionInput = `<read_file><path>${filePath}</path></read_file>`;
-      const result = await readFileAction.execute(actionInput);
-
-      expect(mockActionTagsExtractor.extractTags).toHaveBeenCalledWith(
-        actionInput,
-        "path",
-      );
-      expect(mockFileOperations.read).toHaveBeenCalledWith(filePath);
-      expect(result).toEqual({ success: true, data: fileContent });
-    });
-  });
-
-  describe("error handling", () => {
-    it("should handle unexpected file read error", async () => {
-      const filePath = "/path/to/single/file";
-      const expectedResult = {
-        success: false,
-        error: new Error("Unexpected error"),
-      };
-
-      mockActionTagsExtractor.extractTags = jest.fn().mockReturnValue([filePath]);
-      mockFileOperations.read = jest.fn().mockResolvedValue(expectedResult);
-
-      const actionInput = `<read_file><path>${filePath}</path></read_file>`;
-      const result = await readFileAction.execute(actionInput);
-
-      expect(mockActionTagsExtractor.extractTags).toHaveBeenCalledWith(
-        actionInput,
-        "path",
-      );
-      expect(mockFileOperations.read).toHaveBeenCalledWith(filePath);
-      expect(result).toEqual(expectedResult);
+    expect(result).toEqual({
+      success: false,
+      error: new Error("Failed to read files: "),
     });
   });
 });

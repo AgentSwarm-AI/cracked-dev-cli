@@ -1,6 +1,7 @@
 import { autoInjectable } from "tsyringe";
 import { FileOperations } from "../../FileManagement/FileOperations";
 import { IFileOperationResult } from "../../FileManagement/types/FileManagementTypes";
+import { DebugLogger } from "../../logging/DebugLogger";
 import { ActionTagsExtractor } from "./ActionTagsExtractor";
 import { IActionResult } from "./types/ActionTypes";
 
@@ -9,6 +10,7 @@ export class ReadFileAction {
   constructor(
     private fileOperations: FileOperations,
     private actionTagsExtractor: ActionTagsExtractor,
+    private debugLogger: DebugLogger,
   ) {}
 
   async execute(content: string): Promise<IActionResult> {
@@ -41,6 +43,9 @@ export class ReadFileAction {
 
     // Multiple paths, use readMultiple
     const result = await this.fileOperations.readMultiple(filePaths);
+
+    this.debugLogger.log("ReadFileAction", "execute", result);
+
     if (!result.success || !result.data) {
       return {
         success: false,

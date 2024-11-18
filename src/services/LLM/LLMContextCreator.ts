@@ -98,7 +98,7 @@ To achieve the this goal, I'll follow these steps:
          <code_writing_instructions>
             <before_starting>
                 - Read related files (classes, types, interfaces), to give you as much context as possible.
-                - Read files to check for existing project patterns (for ex, when creating unit tests, read an existing unit test and follow the overall structure).
+                - Read files to check for existing project patterns (for ex, when creating unit tests, read MAXIMUM 2 existing test and follow the overall structure).
                 - When reading files, feel free to add a read_file action with multiple path on the same input.
                 - ALWAYS FOLLOW PROJECT PATTERNS.
                 - If an external dependency is needed and not avaiable on the project, ask user for confirmation before proceeding.

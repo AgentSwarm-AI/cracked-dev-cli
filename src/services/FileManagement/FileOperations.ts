@@ -20,11 +20,22 @@ export class FileOperations implements IFileOperations {
 
   async readMultiple(filePaths: string[]): Promise<IFileOperationResult> {
     try {
-      console.log("trying to read multiple files", filePaths);
+      if (!filePaths?.length) {
+        return { success: false, error: new Error("No files provided") };
+      }
+
+      console.log("Attempting to read files:", filePaths);
       const results = await Promise.all(
         filePaths.map(async (filePath) => {
           try {
             const content = await fs.readFile(filePath, "utf-8");
+            if (!content) {
+              return {
+                path: filePath,
+                content: "",
+                success: false,
+              } as const;
+            }
             return { path: filePath, content, success: true } as const;
           } catch (error) {
             return {
@@ -40,7 +51,7 @@ export class FileOperations implements IFileOperations {
       const failures = results.filter((r) => !r.success);
       if (failures.length > 0) {
         const errors = failures
-          .map((f) => `${f.path}: ${f.error.message}`)
+          .map((f) => `${f.path}: ${f.error?.message}`)
           .join(", ");
         return {
           success: false,
@@ -48,10 +59,10 @@ export class FileOperations implements IFileOperations {
         };
       }
 
-      // Return combined successful results
+      // Return combined successful results with verification
       const fileContents = results.reduce(
         (acc, r) => {
-          if (r.success) {
+          if (r.success && r.content) {
             acc[r.path] = r.content;
           }
           return acc;
@@ -59,16 +70,27 @@ export class FileOperations implements IFileOperations {
         {} as Record<string, string>,
       );
 
-      // Log the contents in a readable format
+      // Verify we have content for all files
+      if (Object.keys(fileContents).length !== filePaths.length) {
+        return {
+          success: false,
+          error: new Error("Some files were not read successfully"),
+        };
+      }
+
+      // Debug logging
       console.log("Successfully read files:");
       Object.entries(fileContents).forEach(([path, content]) => {
         console.log(
-          `\n[${path}]:\n${content.slice(0, 100)}${content.length > 100 ? "..." : ""}`,
+          `\n[${path}]:\n${content.slice(0, 100)}${
+            content.length > 100 ? "..." : ""
+          }`,
         );
       });
 
       return { success: true, data: fileContents };
     } catch (error) {
+      console.error("Error reading files:", error);
       return { success: false, error: error as Error };
     }
   }

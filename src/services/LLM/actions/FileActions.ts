@@ -16,7 +16,8 @@ export class FileActions {
     if (result.success) {
       console.log("✅ Action completed successfully. Please wait...\n\n");
     } else {
-      console.log("❌ Action failed");
+      console.error("❌ Action failed");
+      console.error(result?.error ? result.error.message : "Unknown error");
     }
 
     console.log("-".repeat(50));
@@ -41,20 +42,22 @@ export class FileActions {
 
     console.log(`📁 File paths: ${filePaths.join(", ")}`);
 
+    // Handle empty file path
+    const invalidPaths = filePaths.filter((path) => !path);
+    if (invalidPaths.length > 0) {
+      return {
+        success: false,
+        error: new Error(`Failed to read files: ${invalidPaths.join(", ")}`),
+      };
+    }
+
     if (filePaths.length === 1) {
       const result = await this.fileOperations.read(filePaths[0]);
       return this.convertFileResult(result);
     }
 
     const result = await this.fileOperations.readMultiple(filePaths);
-    if (!result.success) {
-      return this.convertFileResult(result);
-    }
-
-    return {
-      success: true,
-      data: result.data as Record<string, string>,
-    };
+    return this.convertFileResult(result);
   }
 
   async handleWriteFile(content: string): Promise<IActionResult> {
