@@ -24,6 +24,15 @@ export class ReadFileAction {
 
     console.log(`📁 File paths: ${filePaths.join(", ")}`);
 
+    // Handle empty file path
+    const invalidPaths = filePaths.filter((path) => !path);
+    if (invalidPaths.length > 0) {
+      return {
+        success: false,
+        error: new Error(`Failed to read files: ${invalidPaths.join(", ")}`),
+      };
+    }
+
     // If only one path, use single file read for backward compatibility
     if (filePaths.length === 1) {
       const result = await this.fileOperations.read(filePaths[0]);
@@ -51,33 +60,31 @@ export class ReadFileAction {
       };
     }
 
-    // Format multiple file contents for LLM consumption
-    const formattedContent = Object.entries(fileContents)
-      .map(
-        ([path, content]) =>
-          `[file_content path="${path}"]\n${content}\n[end_file_content]`,
-      )
-      .join("\n\n");
+    console.log("✅ Action completed successfully. Please wait...\n\n");
+    console.log("-".repeat(50));
 
     return {
       success: true,
-      data: formattedContent,
+      data: fileContents,
     };
   }
 
   private convertFileResult(result: IFileOperationResult): IActionResult {
-    if (result.success) {
+    if (result && result.success) {
       console.log("✅ Action completed successfully. Please wait...\n\n");
     } else {
-      console.log("❌ Action failed");
+      console.error("❌ Action failed");
+      console.error(
+        result && result.error ? result.error.message : "Unknown error",
+      );
     }
 
     console.log("-".repeat(50));
 
     return {
-      success: result.success,
-      data: result.data,
-      error: result.error,
+      success: !!result?.success,
+      data: result?.data,
+      error: result?.error,
     };
   }
 }

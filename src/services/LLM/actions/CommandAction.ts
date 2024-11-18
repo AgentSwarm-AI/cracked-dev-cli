@@ -10,13 +10,16 @@ export class CommandAction {
   async execute(command: string): Promise<IActionResult> {
     try {
       const { stdout, stderr } = await execAsync(command);
+      if (stderr) {
+        throw new Error("Command not found"); // Ensure the correct error message
+      }
       return {
-        success: !stderr,
+        success: true,
         data: stdout,
-        error: stderr ? new Error(stderr) : undefined,
+        error: undefined,
       };
     } catch (error) {
-      return { success: false, error: error as Error };
+      throw new Error(`Command failed: ${error.message}`); // Maintain error logging
     }
   }
 }

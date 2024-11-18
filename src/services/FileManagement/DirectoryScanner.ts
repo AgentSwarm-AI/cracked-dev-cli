@@ -20,7 +20,7 @@ export class DirectoryScanner implements IDirectoryScanner {
   private readonly DEFAULT_OPTIONS: TreeOptions = {
     ignore: this.DEFAULT_IGNORE,
     allFiles: true,
-    maxDepth: 4,
+    maxDepth: 8,
     noreport: true,
     base: ".",
     directoryFirst: true,

@@ -11,7 +11,6 @@ import {
 export class FileOperations implements IFileOperations {
   async read(filePath: string): Promise<IFileOperationResult> {
     try {
-      console.log("trying to read file", filePath);
       const content = await fs.readFile(filePath, "utf-8");
       return { success: true, data: content };
     } catch (error) {

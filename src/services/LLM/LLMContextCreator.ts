@@ -98,6 +98,7 @@ To achieve the this goal, I'll follow these steps:
          <code_writing_instructions>
             <before_starting>
                 - Read related files (classes, types, interfaces), to give you as much context as possible.
+                - Read files to check for existing project patterns (for ex, when creating unit tests, read an existing unit test and follow the overall structure).
                 - When reading files, feel free to add a read_file action with multiple path on the same input.
                 - ALWAYS FOLLOW PROJECT PATTERNS.
                 - If an external dependency is needed and not avaiable on the project, ask user for confirmation before proceeding.
@@ -119,6 +120,7 @@ To achieve the this goal, I'll follow these steps:
               - When in doubt about how something works, look for docs first or end_task and ask for user input.
               - Careful with path imports. Make sure they are correct.
               - Careful not to miss imports.
+              - Follow pre existing project file naming patterns.
             </during_coding>
 
             <after_starting>
@@ -128,6 +130,10 @@ To achieve the this goal, I'll follow these steps:
                 - At the end, run all tests.
                 - After all final tests pass and you have finished the task, you, use a <end_task> to finalize.
             </after_starting>
+
+            <tests>
+              - No need to test for logging messages.
+            </tests>
          </code_writing_instructions>
        
       </critical_instructions>
@@ -193,7 +199,7 @@ copy_file_slice: Copy a file
 
 execute_command: Execute a CLI command
   <execute_command>
-    command here
+    // any command here, like "ls -la" or "yarn install"
     // Always prompt the user for permission before removing files or using sudo if necessary
     // DONT install extra dependencies unless explicity allowed by the user. Prompt for permission if needed.
     // when running project commands, remember to use the package manager (ex. yarn or npm) available in the project.
