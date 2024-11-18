@@ -1,6 +1,6 @@
 import { autoInjectable } from "tsyringe";
 
-import { fetch_url } from "../../FetchUtil";
+import { fetch_url } from "../../FileManagement/FetchUtil";
 import { FileOperations } from "../../FileManagement/FileOperations";
 import { IFileOperationResult } from "../../FileManagement/types/FileManagementTypes";
 import { ActionTagsExtractor } from "./ActionTagsExtractor";

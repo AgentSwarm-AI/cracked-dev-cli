@@ -1,5 +1,5 @@
 import { autoInjectable } from "tsyringe";
-import { FileReader } from "./FileReader";
+import { FileReader } from "./FileManagement/FileReader";
 import { ActionsParser } from "./LLM/actions/ActionsParser";
 import { ILLMProvider } from "./LLM/ILLMProvider";
 import { LLMContextCreator } from "./LLM/LLMContextCreator";
