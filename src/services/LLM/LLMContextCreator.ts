@@ -121,6 +121,7 @@ To achieve the this goal, I'll follow these steps:
               - Careful with path imports. Make sure they are correct.
               - Careful not to miss imports.
               - Follow pre existing project file naming patterns.
+              - Do not write a comment and skip implementation. NEVER DO THIS!! Full output only!
             </during_coding>
 
             <after_starting>

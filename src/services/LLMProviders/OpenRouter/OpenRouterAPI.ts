@@ -20,8 +20,6 @@ export class OpenRouterAPI implements ILLMProvider {
     message: string,
     options?: Record<string, unknown>,
   ): Promise<string> {
-    console.log("sendMessage", model, message, options);
-
     const messages = this.getConversationContext();
     messages.push({ role: "user", content: message });
 
