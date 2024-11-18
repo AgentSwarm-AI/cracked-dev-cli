@@ -134,7 +134,7 @@ export class CrackedAgent {
     // Add default conversation instructions if none provided
     if (!instructions) {
       const defaultInstructions =
-        "You are a helpful AI assistant engaging in conversation with the user. Maintain context of the conversation and provide relevant responses.";
+        "You're an expert software engineer. Do your best. Think deeply, I'll tip 200.";
       this.llm.addSystemInstructions(defaultInstructions);
     }
   }
