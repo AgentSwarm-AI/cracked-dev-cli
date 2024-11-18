@@ -1,6 +1,6 @@
 import fs from "fs";
 import { container } from "tsyringe";
-import { DirectoryScanner } from "./DirectoryScanner";
+import { DirectoryScanner } from "../DirectoryScanner";
 
 describe("DirectoryScanner.ts", () => {
   let directoryScanner: DirectoryScanner;
