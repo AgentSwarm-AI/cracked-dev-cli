@@ -206,6 +206,7 @@ execute_command: Execute a CLI command
     // Always prompt the user for permission before removing files or using sudo if necessary
     // DONT install extra dependencies unless explicity allowed by the user. Prompt for permission if needed.
     // when running project commands, remember to use the package manager (ex. yarn or npm) available in the project.
+    // Don't output ENCODED characters. Raw text only!
   </execute_command>
 
 search_string/search_file: Search in files

@@ -63,14 +63,13 @@ export class FileSearch implements IFileSearch {
             .map((line, index) => ({
               line: index + 1,
               content: line,
-              matches: line.includes(searchContent),
             }))
-            .filter((item) => item.matches);
+            .filter((line) => line.content.includes(searchContent));
 
           if (matches.length > 0) {
             results.push({
               path: entry,
-              matches: matches.map(({ line, content }) => ({ line, content })),
+              matches: matches,
             });
           }
         } catch (error) {
