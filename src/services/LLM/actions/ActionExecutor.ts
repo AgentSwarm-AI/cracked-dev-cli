@@ -63,6 +63,9 @@ export class ActionExecutor {
       case "copy_file_slice":
         console.log("📋 Copying file...");
         return await this.fileActions.handleCopyFile(content);
+      case "fetch_url":
+        console.log("🌐 Fetching URL...");
+        return await this.fileActions.handleFetchUrl(content);
       case "execute_command":
         console.log(`🚀 Executing command: ${content}`);
         return await this.commandAction.execute(content);

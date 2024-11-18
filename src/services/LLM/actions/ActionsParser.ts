@@ -56,6 +56,16 @@ export class ActionsParser {
     return path.resolve(process.cwd(), match[1]);
   }
 
+  extractUrl(tag: string): string | null {
+    const actionMatch = /<fetch_url>[\s\S]*?<\/fetch_url>/i.exec(tag);
+    if (!actionMatch) return null;
+
+    const urlMatch = /<url>(.*?)<\/url>/i.exec(tag);
+    if (!urlMatch) return null;
+
+    return urlMatch[1];
+  }
+
   private detectActionDependencies(
     actions: IActionDependency[],
   ): IActionDependency[] {
@@ -155,6 +165,7 @@ export class ActionsParser {
       "search_string",
       "search_file",
       "end_task",
+      "fetch_url", // Included fetch_url in the list
     ] as ActionType[];
 
     const actions: IActionDependency[] = [];
@@ -225,6 +236,10 @@ export class ActionsParser {
         return result.data;
       }
       return `Here's the content of the requested file:\n\n${result.data}\n\nPlease analyze this content and continue with the task.`;
+    }
+
+    if (actionType === "fetch_url" && result.success) {
+      return `Here's the content fetched from the URL:\n\n${result.data}\n\nPlease analyze this content and continue with the task.`;
     }
 
     if (actionType === "end_task" && result.success) {

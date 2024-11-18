@@ -1,5 +1,6 @@
 import { autoInjectable } from "tsyringe";
 
+import { fetch_url } from "../../FetchUtil";
 import { FileOperations } from "../../FileManagement/FileOperations";
 import { IFileOperationResult } from "../../FileManagement/types/FileManagementTypes";
 import { ActionTagsExtractor } from "./ActionTagsExtractor";
@@ -142,5 +143,31 @@ export class FileActions {
     console.log(`📁 Destination path: ${destinationPath}`);
     const result = await this.fileOperations.copy(sourcePath, destinationPath);
     return this.convertFileResult(result);
+  }
+
+  async handleFetchUrl(content: string): Promise<IActionResult> {
+    const url = this.actionTagsExtractor.extractTag(content, "url");
+    if (!url) {
+      return {
+        success: false,
+        error: new Error("Invalid fetch_url format. Must include <url> tag."),
+      };
+    }
+
+    console.log(`🌐 URL: ${url}`);
+
+    try {
+      const data = await fetch_url(url);
+      return {
+        success: true,
+        data,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error:
+          error instanceof Error ? error : new Error("Failed to fetch URL"),
+      };
+    }
   }
 }

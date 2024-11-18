@@ -219,6 +219,11 @@ search_string/search_file: Search in files
     <term>filename pattern</term>
   </search_file>
 
+fetch_url: Fetch content from a URL
+  <fetch_url>
+    <url>https://url/should/be/here</url>
+  </fetch_url>
+
   <end_task>
     <message>Summarize what was done and finalize.</message>
   </end_task>

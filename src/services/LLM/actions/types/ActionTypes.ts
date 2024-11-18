@@ -13,7 +13,8 @@ export type ActionType =
   | "execute_command"
   | "search_string"
   | "search_file"
-  | "end_task";
+  | "end_task"
+  | "fetch_url"; // Added fetch_url here
 
 export interface IActionDependency {
   actionId: string;
