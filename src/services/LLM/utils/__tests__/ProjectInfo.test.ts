@@ -1,7 +1,7 @@
 import fs from "fs";
 import { container } from "tsyringe";
-import { DirectoryScanner } from "../../../services/FileManagement/DirectoryScanner";
-import { FileOperations } from "../../../services/FileManagement/FileOperations";
+import { DirectoryScanner } from "../../../FileManagement/DirectoryScanner";
+import { FileOperations } from "../../../FileManagement/FileOperations";
 import { ProjectInfo } from "../ProjectInfo";
 
 const mockFileScan = () => {
@@ -11,7 +11,7 @@ const mockFileScan = () => {
   });
 };
 
-jest.mock("../../../services/FileManagement/DirectoryScanner", () => {
+jest.mock("../../../../services/FileManagement/DirectoryScanner", () => {
   return {
     DirectoryScanner: jest.fn().mockImplementation(() => {
       return {
@@ -21,7 +21,7 @@ jest.mock("../../../services/FileManagement/DirectoryScanner", () => {
   };
 });
 
-jest.mock("../../../services/FileManagement/FileOperations", () => {
+jest.mock("../../../../services/FileManagement/FileOperations", () => {
   return {
     FileOperations: jest.fn().mockImplementation(() => ({})),
   };

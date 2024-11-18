@@ -1,8 +1,8 @@
 import { autoInjectable } from "tsyringe";
 import { DirectoryScanner } from "../FileManagement/DirectoryScanner";
-import { ProjectInfo } from "../ProjectInfo/ProjectInfo";
 import { ActionExecutor } from "./actions/ActionExecutor";
 import { IActionResult } from "./actions/types/ActionTypes";
+import { ProjectInfo } from "./utils/ProjectInfo";
 
 interface MessageContext {
   message: string;

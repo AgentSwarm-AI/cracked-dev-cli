@@ -1,8 +1,6 @@
 import fs from "fs";
 import path from "path";
 import { autoInjectable } from "tsyringe";
-import { DirectoryScanner } from "../FileManagement/DirectoryScanner";
-import { FileOperations } from "../FileManagement/FileOperations";
 
 export interface IProjectInfo {
   mainDependencies: string[];
@@ -12,10 +10,7 @@ export interface IProjectInfo {
 
 @autoInjectable()
 export class ProjectInfo {
-  constructor(
-    private directoryScanner: DirectoryScanner,
-    private fileOperations: FileOperations,
-  ) {}
+  constructor() {}
 
   async gatherProjectInfo(projectRoot: string): Promise<IProjectInfo> {
     const files = await fs.promises.readdir(projectRoot, {

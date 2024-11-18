@@ -1,12 +1,12 @@
 import { container } from "tsyringe";
 import { DirectoryScanner } from "../../FileManagement/DirectoryScanner";
-import { ProjectInfo } from "../../ProjectInfo/ProjectInfo";
 import { ActionExecutor } from "../actions/ActionExecutor";
 import { LLMContextCreator } from "../LLMContextCreator";
+import { ProjectInfo } from "../utils/ProjectInfo";
 
 jest.mock("../../FileManagement/DirectoryScanner");
 jest.mock("../actions/ActionExecutor");
-jest.mock("../../ProjectInfo/ProjectInfo");
+jest.mock("../utils/ProjectInfo");
 
 describe("LLMContextCreator", () => {
   let contextCreator: LLMContextCreator;
