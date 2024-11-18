@@ -14,6 +14,13 @@ export class CommandAction {
     return match ? match[1].trim() : command.trim();
   }
 
+  private isTestEnvironment(): boolean {
+    return (
+      process.env.NODE_ENV === "test" ||
+      process.env.JEST_WORKER_ID !== undefined
+    );
+  }
+
   async execute(
     command: string,
     options?: SpawnOptionsWithoutStdio & { timeout?: number },
@@ -40,16 +47,20 @@ export class CommandAction {
       child.stdout.on("data", (data: Buffer) => {
         const chunk = data.toString();
         stdoutData += chunk;
-        // Stream stdout data in green
-        process.stdout.write(chalk.green(chunk));
+        // Only stream to console if not in test environment
+        if (!this.isTestEnvironment()) {
+          process.stdout.write(chalk.green(chunk));
+        }
       });
 
       // Handle standard error data
       child.stderr.on("data", (data: Buffer) => {
         const chunk = data.toString();
         stderrData += chunk;
-        // Stream stderr data in red
-        process.stderr.write(chalk.red(chunk));
+        // Only stream to console if not in test environment
+        if (!this.isTestEnvironment()) {
+          process.stderr.write(chalk.red(chunk));
+        }
       });
 
       const finalizeAndResolve = (exitCode: number | null = null) => {
