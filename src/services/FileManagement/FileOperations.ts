@@ -25,27 +25,32 @@ export class FileOperations implements IFileOperations {
       }
 
       console.log("Attempting to read files:", filePaths);
-      const results = await Promise.all(
-        filePaths.map(async (filePath) => {
-          try {
-            const content = await fs.readFile(filePath, "utf-8");
-            if (!content) {
-              return {
-                path: filePath,
-                content: "",
-                success: false,
-              } as const;
-            }
-            return { path: filePath, content, success: true } as const;
-          } catch (error) {
-            return {
+
+      const results = [];
+      for (const filePath of filePaths) {
+        try {
+          const content = await fs.readFile(filePath, "utf-8");
+          if (!content) {
+            results.push({
               path: filePath,
-              error: error as Error,
+              content: "",
               success: false,
-            } as const;
+            } as const);
+            continue;
           }
-        }),
-      );
+          results.push({
+            path: filePath,
+            content,
+            success: true,
+          } as const);
+        } catch (error) {
+          results.push({
+            path: filePath,
+            error: error as Error,
+            success: false,
+          } as const);
+        }
+      }
 
       // Check if any reads failed
       const failures = results.filter((r) => !r.success);
@@ -59,34 +64,18 @@ export class FileOperations implements IFileOperations {
         };
       }
 
-      // Return combined successful results with verification
-      const fileContents = results.reduce(
-        (acc, r) => {
-          if (r.success && r.content) {
-            acc[r.path] = r.content;
-          }
-          return acc;
-        },
-        {} as Record<string, string>,
-      );
+      const fileContents = results
+        .filter((r) => r.content)
+        .map((r) => `[File: ${r.path}]\n${r.content}`)
+        .join("\n\n");
 
-      // Verify we have content for all files
-      if (Object.keys(fileContents).length !== filePaths.length) {
+      const fileCount = (fileContents.match(/\[File:/g) || []).length;
+      if (fileCount !== filePaths.length) {
         return {
           success: false,
           error: new Error("Some files were not read successfully"),
         };
       }
-
-      // Debug logging
-      console.log("Successfully read files:");
-      Object.entries(fileContents).forEach(([path, content]) => {
-        console.log(
-          `\n[${path}]:\n${content.slice(0, 100)}${
-            content.length > 100 ? "..." : ""
-          }`,
-        );
-      });
 
       return { success: true, data: fileContents };
     } catch (error) {
