@@ -249,7 +249,11 @@ export class ActionsParser {
       return `Task completed: ${result.data}`;
     }
 
-    return `[Action Result] ${actionType}: ${result.success ? "Success" : "Failed - " + result.error} - ${JSON.stringify(result.data)}`;
+    return `[Action Result] ${actionType}: ${
+      result.success
+        ? "Success" + (result.data ? ` - ${JSON.stringify(result.data)}` : "")
+        : "Failed" + (result.error ? ` - ${result.error}` : "")
+    }`;
   }
 
   async parseAndExecuteActions(

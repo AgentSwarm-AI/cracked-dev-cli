@@ -82,10 +82,11 @@ To achieve this goal, I'll proceed as follows:
 <important_notes detail="hidden">
   <critical_instructions>
     - Code or markdown should ALWAYS BE INSIDE write_file or edit_file tags.
+    - DONT WASTE TOKENS! For small edits, use edit_file. For new files or large changes, use write_file.
     - DO NOT REPEAT SUCCESSFUL TASKS. If a code/doc change is working, move to the next step.
     - Always decide between write_file or edit_file action, based on your intent. If its too many things to change, use write_file. Else, use edit_file.
     - CAREFUL with tag structure!
-    - Focus on solving the task. Once achieved, use <end_task> immediately. Don't do extra work.
+    - Focus on solving the task. Once achieved, use a SINGLE <end_task> on the output immediately. Don't do extra work.
     - The first message should be a quick intro and the step-by-step pattern above. You may read up to 3 files for context.
     - **Never** use more than one <write_file> action per output. Add code carefully, then verify before moving on.
     - After using <write_file> or <edit_file>, run a type check.
@@ -96,6 +97,7 @@ To achieve this goal, I'll proceed as follows:
     - Do not describe the action being performed; actions must be within action tags.
     - Avoid redundant output or unnecessary explanations. Be concise and actionable.
     - Ensure outputs meet task requirements and are formatted for direct use.
+    - When write_file or edit_file, make sure you're doing it on the proper PATH!.
 
     <code_writing_instructions>
       <before_starting>
@@ -130,7 +132,8 @@ To achieve this goal, I'll proceed as follows:
         - After all code changes, do the following in order (if applicable):
           - Run tests specific to that file. If risky, run tests for the related folder.
           - At the end, run type checks and all tests.
-          - After all tests pass and you've finished, use <end_task> to finalize.
+          - After all tests pass and you've finished, use <end_task> to finalize. 
+          - <end_task> must come alone in the output, without any other actions.
       </after_coding>
  
       <tests>
@@ -154,9 +157,11 @@ To achieve this goal, I'll proceed as follows:
   </other_instructions>
 
   <docs_writing_instructions>
+    - DO NOT ADD EXTRA TABS at the beginning of lines.
     - Ensure valid markdown syntax. Don't add extra tabs in output.
     - In documentation, use mermaid diagrams with clear explanations when applicable.
     - Remember, you can't use "(" or ")" in mermaid diagrams; use "[" and "]" instead.
+    - After finishing a write_file action, do a read_file to verify if changes are acceptable. If so, stop.
   </docs_writing_instructions>
 </important_notes>
 
@@ -176,6 +181,7 @@ write_file: Write FULL content to a file. Prefer edit_file if only minor changes
   <path>/path/here</path>
   <content>
     <!-- NEVER output encoded characters. Raw text only! -->
+ 
   </content>
 </write_file>
 
