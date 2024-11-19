@@ -149,10 +149,13 @@ export class ProjectInfo {
       const modPath = path.join(projectRoot, dependencyFile);
       const content = await fs.promises.readFile(modPath, "utf-8");
 
-      const dependencies = content
-        .split("\n")
-        .filter((line) => line.startsWith("require "))
-        .map((line) => line.replace("require ", "").trim());
+      const dependencies: string[] = [];
+      content.split("\n").forEach((line) => {
+        const trimmedLine = line.trim();
+        if (!trimmedLine.startsWith("//") && trimmedLine.split(" ")[0].includes("/")) {
+          dependencies.push(trimmedLine.split(" ")[0]);
+        }
+      });
 
       return {
         mainDependencies: dependencies,
