@@ -137,9 +137,11 @@ describe("ReadFileAction", () => {
     const actionInput = `<read_file><path>${filePath}</path></read_file>`;
     const result = await readFileAction.execute(actionInput);
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       success: false,
-      error: new Error("Failed to read files: "),
+      error: new Error(
+        "Failed to read files:  - Try using a <search_file> to find the correct file path.",
+      ),
     });
   });
 });
