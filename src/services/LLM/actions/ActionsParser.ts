@@ -249,11 +249,7 @@ export class ActionsParser {
       return `Task completed: ${result.data}`;
     }
 
-    return `[Action Result] ${actionType}: ${
-      result.success
-        ? "Success" + (result.data ? ` - ${JSON.stringify(result.data)}` : "")
-        : "Failed" + (result.error ? ` - ${result.error}` : "")
-    }`;
+    return `[Action Result] ${actionType}: ${JSON.stringify(result)}`;
   }
 
   async parseAndExecuteActions(
@@ -268,7 +264,7 @@ export class ActionsParser {
       });
 
       if (!executionPlan.groups.length) {
-        this.debugLogger.log("Actions", "No action tags found in text");
+        this.debugLogger.log("Actions", "No action tags found in text.");
         return { actions: [] };
       }
 

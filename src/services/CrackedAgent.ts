@@ -134,7 +134,7 @@ export class CrackedAgent {
     // Add default conversation instructions if none provided
     if (!instructions) {
       const defaultInstructions =
-        "You're an expert software engineer. Do your best. Think deeply, I'll tip 200.";
+        "You're an expert software engineer. Do your best. Think deeply, I'll tip 200. CRITICAL: Follow tag structure properly!";
       this.llm.addSystemInstructions(defaultInstructions);
     }
   }

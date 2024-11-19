@@ -3,6 +3,7 @@ import { CommandAction } from "./CommandAction";
 import { EndTaskAction } from "./EndTaskAction";
 import { FileActions } from "./FileActions";
 import { SearchAction } from "./SearchAction";
+import { WriteFileAction } from "./WriteFileAction";
 import { IActionResult } from "./types/ActionTypes";
 
 interface IPendingAction {
@@ -18,6 +19,7 @@ export class ActionExecutor {
     private commandAction: CommandAction,
     private searchAction: SearchAction,
     private endTaskAction: EndTaskAction,
+    private writeFileAction: WriteFileAction,
   ) {}
 
   async executeAction(actionText: string): Promise<IActionResult> {
@@ -69,7 +71,7 @@ export class ActionExecutor {
         return await this.fileActions.handleReadFile(content);
       case "write_file":
         console.log("📝 Writing to file...");
-        return await this.fileActions.handleWriteFile(content);
+        return await this.writeFileAction.execute(content);
       case "delete_file":
         console.log("🗑️ Deleting file...");
         return await this.fileActions.handleDeleteFile(content);
