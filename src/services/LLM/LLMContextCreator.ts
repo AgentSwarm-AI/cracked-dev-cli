@@ -186,27 +186,25 @@ write_file: Write FULL content to a file. Prefer edit_file if only minor changes
 </write_file>
 
 edit_file: Edit file slices. Feel free to use multiple edit_file on same output
-<!-- Multiple <edit_file> tags per input are allowed-->
+<!-- CRITICAL: Always use <read_file> after each edit_file to confirm changes -->
+<!-- CRITICAL: Careful not to add things on the wrong place! Always confirm later! -->
 <edit_file>
-  <!-- PRESERVE the original file structure. Do not add everything online or messup with new lines/tabs-->
-  <!-- Avoid complicated regex to avoid parsing failures! -->
-  <path>file.ts</path>
+<!-- Multiple <edit_file> tags per input are allowed--> 
+<!-- If you do too many mistakes, please remove all changes on this file with git checkout and use write_file instead --> 
+<path>file.ts</path>
   <changes>
+    <!-- Replace content between specific markers -->
     <replace>
-      <pattern>regex pattern here</pattern>
-      <content>replacement content</content>
+      <start_marker> 
+        // any code marking slicing start. Can't be empty
+      </start_marker>
+      <end_marker>
+        // any code marking slicing end. Can't be empty
+      </end_marker>
+      <content>
+        const newVar = 'new value';
+      </content>
     </replace>
-    <insert_before>
-      <pattern>regex pattern here</pattern>
-      <content>content to insert before match</content>
-    </insert_before>
-    <insert_after>
-      <pattern>regex pattern here</pattern>
-      <content>content to insert after match</content>
-    </insert_after>
-    <delete>
-      <pattern>regex pattern to delete</pattern>
-    </delete>
   </changes>
 </edit_file>
 
@@ -253,6 +251,8 @@ fetch_url: Fetch content from a URL
 </fetch_url>
 
 <end_task>
+  <!-- Before ending a task, use read_file to confirm changes! -->
+  <!-- Make sure all tests and type checks are passing, run command first -->
   <message>Summarize what was done and finalize.</message>
 </end_task>
 </available_actions>
