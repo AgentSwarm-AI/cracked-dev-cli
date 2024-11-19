@@ -55,15 +55,18 @@ export class ReadFileAction {
       };
     }
 
-    // Ensure data is of type Record<string, string>
-    const fileContents = result.data as Record<string, string>;
+    const fileContent = result.data.toString();
 
-    // Validate that all requested files were read
-    const missingFiles = filePaths.filter((path) => !(path in fileContents));
+    // Verify all requested files are present in the result
+    const missingFiles = filePaths.filter(
+      (path) => !fileContent.includes(`[File: ${path}]`),
+    );
     if (missingFiles.length > 0) {
       return {
         success: false,
-        error: new Error(`Failed to read files: ${missingFiles.join(", ")}`),
+        error: new Error(
+          `Failed to read files: ${missingFiles.join(", ")}. Try using search_file action to find the proper path.`,
+        ),
       };
     }
 
@@ -72,7 +75,7 @@ export class ReadFileAction {
 
     return {
       success: true,
-      data: fileContents,
+      data: fileContent,
     };
   }
 

@@ -14,7 +14,8 @@ export type ActionType =
   | "search_string"
   | "search_file"
   | "end_task"
-  | "fetch_url"; // Added fetch_url here
+  | "fetch_url"
+  | "edit_file";
 
 export interface IActionDependency {
   actionId: string;

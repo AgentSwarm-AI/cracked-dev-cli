@@ -48,10 +48,7 @@ describe("ReadFileAction", () => {
 
   it("should read multiple files successfully", async () => {
     const filePaths = ["/path/to/file1", "/path/to/file2"];
-    const fileContents = {
-      "/path/to/file1": "content1",
-      "/path/to/file2": "content2",
-    };
+    const fileContents = `[File: /path/to/file1]\ncontent1\n\n[File: /path/to/file2]\ncontent2`;
 
     mockActionTagsExtractor.extractTags.mockReturnValue(filePaths);
     mockFileOperations.readMultiple.mockResolvedValue({
@@ -141,6 +138,27 @@ describe("ReadFileAction", () => {
       success: false,
       error: new Error(
         "Failed to read files:  - Try using a <search_file> to find the correct file path.",
+      ),
+    });
+  });
+
+  it("should handle missing files in multiple read result", async () => {
+    const filePaths = ["/path/to/file1", "/path/to/file2"];
+    const incompleteContent = `[File: /path/to/file1]\ncontent1`; // missing file2
+
+    mockActionTagsExtractor.extractTags.mockReturnValue(filePaths);
+    mockFileOperations.readMultiple.mockResolvedValue({
+      success: true,
+      data: incompleteContent,
+    });
+
+    const actionInput = `<read_file>${filePaths.map((path) => `<path>${path}</path>`).join("")}</read_file>`;
+    const result = await readFileAction.execute(actionInput);
+
+    expect(result).toEqual({
+      success: false,
+      error: new Error(
+        "Failed to read files: /path/to/file2. Try using search_file action to find the proper path.",
       ),
     });
   });

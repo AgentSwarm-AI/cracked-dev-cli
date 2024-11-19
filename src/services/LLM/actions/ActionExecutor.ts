@@ -1,9 +1,16 @@
 import { autoInjectable } from "tsyringe";
 import { CommandAction } from "./CommandAction";
+import { EditFileAction } from "./EditFileAction";
 import { EndTaskAction } from "./EndTaskAction";
 import { FileActions } from "./FileActions";
 import { SearchAction } from "./SearchAction";
 import { IActionResult } from "./types/ActionTypes";
+
+interface IPendingAction {
+  type: string;
+  content: string;
+  priority: number;
+}
 
 @autoInjectable()
 export class ActionExecutor {
@@ -12,6 +19,7 @@ export class ActionExecutor {
     private commandAction: CommandAction,
     private searchAction: SearchAction,
     private endTaskAction: EndTaskAction,
+    private editFileAction: EditFileAction,
   ) {}
 
   async executeAction(actionText: string): Promise<IActionResult> {
@@ -24,16 +32,26 @@ export class ActionExecutor {
         return { success: false, error: new Error("Invalid action format") };
       }
 
-      // Execute all actions sequentially
+      // Collect and sort actions
+      const pendingActions: IPendingAction[] = matches
+        .filter(
+          ([, actionType]) => actionType !== "path" && actionType !== "content",
+        )
+        .map(([, actionType, content]) => ({
+          type: actionType,
+          content: content.trim(),
+          // execute_command gets lowest priority (runs last)
+          priority: actionType === "execute_command" ? 1 : 0,
+        }))
+        .sort((a, b) => a.priority - b.priority);
+
+      // Execute actions in order
       let lastResult: IActionResult = { success: true };
-      for (const match of matches) {
-        const [fullMatch, actionType, content] = match;
-        // Skip nested tags that are part of the content
-        if (actionType === "path" || actionType === "content") continue;
-
-        lastResult = await this.executeActionByType(actionType, content.trim());
-
-        // Stop execution if an action fails
+      for (const action of pendingActions) {
+        lastResult = await this.executeActionByType(
+          action.type,
+          action.content,
+        );
         if (!lastResult.success) break;
       }
 
@@ -76,6 +94,9 @@ export class ActionExecutor {
       case "end_task":
         console.log("🏁 Ending task...");
         return await this.endTaskAction.execute(content);
+      case "edit_file":
+        console.log("✏️ Editing file...");
+        return await this.editFileAction.execute(content);
       default:
         return {
           success: false,

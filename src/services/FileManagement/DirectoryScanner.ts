@@ -68,7 +68,8 @@ export class DirectoryScanner implements IDirectoryScanner {
   ): Promise<IFileOperationResult> {
     try {
       const scanOptions = { ...this.DEFAULT_OPTIONS, ...options };
-      // Combine required ignores with user provided ignores
+      // Only combine required ignores with user provided ignores if they exist
+      // otherwise use required + default ignores
       const ignore = [
         ...this.REQUIRED_IGNORE,
         ...(options?.ignore || this.DEFAULT_IGNORE),

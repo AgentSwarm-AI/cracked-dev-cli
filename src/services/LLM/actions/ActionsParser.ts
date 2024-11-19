@@ -45,6 +45,7 @@ export class ActionsParser {
       "delete_file",
       "move_file",
       "copy_file_slice",
+      "edit_file",
     ];
     const actionMatch = new RegExp(`<(${fileActions.join("|")})>`).exec(tag);
     if (!actionMatch) return null;
@@ -73,8 +74,8 @@ export class ActionsParser {
       const dependsOn: string[] = [];
 
       // Check for file dependencies
-      if (action.type === "write_file") {
-        // Find read_file actions that this write might depend on
+      if (action.type === "write_file" || action.type === "edit_file") {
+        // Find read_file actions that this write/edit might depend on
         const readActions = actions.filter(
           (a) =>
             a.type === "read_file" &&
@@ -87,10 +88,10 @@ export class ActionsParser {
       if (
         ["move_file", "delete_file", "copy_file_slice"].includes(action.type)
       ) {
-        // These operations should wait for any write operations to complete
+        // These operations should wait for any write/edit operations to complete
         const writeActions = actions.filter(
           (a) =>
-            a.type === "write_file" &&
+            (a.type === "write_file" || a.type === "edit_file") &&
             this.extractFilePath(a.content) ===
               this.extractFilePath(action.content),
         );
@@ -137,8 +138,9 @@ export class ActionsParser {
       // Determine if actions can be executed in parallel
       const canExecuteInParallel = currentGroup.every(
         (action) =>
-          !["write_file", "delete_file", "move_file"].includes(action.type) ||
-          currentGroup.length === 1,
+          !["write_file", "delete_file", "move_file", "edit_file"].includes(
+            action.type,
+          ) || currentGroup.length === 1,
       );
 
       groups.push({
@@ -165,7 +167,8 @@ export class ActionsParser {
       "search_string",
       "search_file",
       "end_task",
-      "fetch_url", // Included fetch_url in the list
+      "fetch_url",
+      "edit_file",
     ] as ActionType[];
 
     const actions: IActionDependency[] = [];
@@ -235,7 +238,7 @@ export class ActionsParser {
       if (typeof result.data === "string" && result.data.includes("# File:")) {
         return result.data;
       }
-      return `Here's the content of the requested file:\n\n${result.data}\n\nPlease analyze this content and continue with the task.`;
+      return `Here's the content of the requested file:\n\n${JSON.stringify(result.data)}\n\nPlease analyze this content and continue with the task.`;
     }
 
     if (actionType === "fetch_url" && result.success) {

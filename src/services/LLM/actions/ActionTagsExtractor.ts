@@ -59,4 +59,16 @@ export class ActionTagsExtractor {
 
     return this.extractTags(parentContent, childTag);
   }
+
+  /**
+   * Extracts all instances of a tag with their complete content
+   * @param content Full text content
+   * @param tagName Name of the tag to extract
+   * @returns Array of complete tag contents including nested tags
+   */
+  extractAllTagsWithContent(content: string, tagName: string): string[] {
+    const regex = new RegExp(`<${tagName}>[\\s\\S]*?<\\/${tagName}>`, "g");
+    const matches = content.match(regex);
+    return matches ? matches.map((match) => match.trim()) : [];
+  }
 }

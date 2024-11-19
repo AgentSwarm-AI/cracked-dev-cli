@@ -20,6 +20,12 @@ export interface IFileSearchResult {
   }>;
 }
 
+export interface IEditOperation {
+  type: "replace" | "insert_after" | "insert_before" | "delete";
+  pattern: string;
+  content?: string;
+}
+
 export interface IFileOperations {
   read(path: string): Promise<IFileOperationResult>;
   readMultiple(paths: string[]): Promise<IFileOperationResult>;
@@ -29,6 +35,10 @@ export interface IFileOperations {
   move(source: string, destination: string): Promise<IFileOperationResult>;
   exists(path: string): Promise<boolean>;
   stats(path: string): Promise<IFileOperationResult>;
+  edit(
+    path: string,
+    operations: IEditOperation[],
+  ): Promise<IFileOperationResult>;
 }
 
 export interface IFileSearch {

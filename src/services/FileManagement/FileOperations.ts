@@ -2,6 +2,7 @@ import fs from "fs-extra";
 import path from "path";
 import { autoInjectable } from "tsyringe";
 import {
+  IEditOperation,
   IFileOperationResult,
   IFileOperations,
   IFileStats,
@@ -24,62 +25,40 @@ export class FileOperations implements IFileOperations {
         return { success: false, error: new Error("No files provided") };
       }
 
-      console.log("Attempting to read files:", filePaths);
+      const fileContents: string[] = [];
+      const errors: string[] = [];
 
-      const results = [];
       for (const filePath of filePaths) {
         try {
           const content = await fs.readFile(filePath, "utf-8");
-          if (!content) {
-            results.push({
-              path: filePath,
-              content: "",
-              success: false,
-            } as const);
-            continue;
+          if (content) {
+            fileContents.push(`[File: ${filePath}]\\n${content}`);
+          } else {
+            errors.push(`${filePath}: Empty content`);
           }
-          results.push({
-            path: filePath,
-            content,
-            success: true,
-          } as const);
         } catch (error) {
-          results.push({
-            path: filePath,
-            error: error as Error,
-            success: false,
-          } as const);
+          errors.push(`${filePath}: ${(error as Error).message}`);
         }
       }
 
-      // Check if any reads failed
-      const failures = results.filter((r) => !r.success);
-      if (failures.length > 0) {
-        const errors = failures
-          .map((f) => `${f.path}: ${f.error?.message}`)
-          .join(", ");
+      if (errors.length > 0) {
         return {
           success: false,
-          error: new Error(`Failed to read files: ${errors}`),
+          error: new Error(`Failed to read files: ${errors.join(", ")}`),
         };
       }
 
-      const fileContents = results
-        .filter((r) => r.content)
-        .map((r) => `[File: ${r.path}]\n${r.content}`)
-        .join("\n\n");
-
-      const fileCount = (fileContents.match(/\[File:/g) || []).length;
-      if (fileCount !== filePaths.length) {
+      if (fileContents.length !== filePaths.length) {
         return {
           success: false,
-          error: new Error("Some files were not read successfully"),
+          error: new Error(
+            "Some files were not read successfully. Try using search_file action to find the proper path.",
+          ),
         };
       }
 
-      return { success: true, data: fileContents };
+      return { success: true, data: fileContents.join("\\n\\n") };
     } catch (error) {
-      console.error("Error reading files:", error);
       return { success: false, error: error as Error };
     }
   }
@@ -89,7 +68,6 @@ export class FileOperations implements IFileOperations {
     content: string | Buffer,
   ): Promise<IFileOperationResult> {
     try {
-      console.log("trying to write file", filePath);
       await fs.ensureDir(path.dirname(filePath));
       await fs.writeFile(filePath, content);
       return { success: true };
@@ -100,7 +78,12 @@ export class FileOperations implements IFileOperations {
 
   async delete(filePath: string): Promise<IFileOperationResult> {
     try {
-      console.log("trying to delete file", filePath);
+      if (!(await fs.pathExists(filePath))) {
+        return {
+          success: false,
+          error: new Error(`File does not exist: ${filePath}`),
+        };
+      }
       await fs.remove(filePath);
       return { success: true };
     } catch (error) {
@@ -113,7 +96,6 @@ export class FileOperations implements IFileOperations {
     destination: string,
   ): Promise<IFileOperationResult> {
     try {
-      console.log("trying to copy file", source, destination);
       await fs.ensureDir(path.dirname(destination));
       await fs.copy(source, destination);
       return { success: true };
@@ -127,9 +109,8 @@ export class FileOperations implements IFileOperations {
     destination: string,
   ): Promise<IFileOperationResult> {
     try {
-      console.log("trying to move file", source, destination);
       await fs.ensureDir(path.dirname(destination));
-      await fs.move(source, destination);
+      await fs.move(source, destination, { overwrite: true });
       return { success: true };
     } catch (error) {
       return { success: false, error: error as Error };
@@ -151,6 +132,52 @@ export class FileOperations implements IFileOperations {
         path: filePath,
       };
       return { success: true, data: fileStats };
+    } catch (error) {
+      return { success: false, error: error as Error };
+    }
+  }
+
+  async edit(
+    filePath: string,
+    operations: IEditOperation[],
+  ): Promise<IFileOperationResult> {
+    try {
+      let content = await fs.readFile(filePath, "utf-8");
+
+      for (const op of operations) {
+        if (!op.pattern) {
+          return {
+            success: false,
+            error: new Error("Empty pattern not allowed"),
+          };
+        }
+
+        const regex = new RegExp(op.pattern, "g");
+
+        switch (op.type) {
+          case "replace": {
+            content = content.replace(regex, op.content || "");
+            break;
+          }
+          case "insert_before": {
+            content = content.replace(regex, `${op.content || ""}$&`);
+            break;
+          }
+          case "insert_after": {
+            content = content.replace(regex, `$&${op.content || ""}`);
+            break;
+          }
+          case "delete": {
+            content = content.replace(regex, "");
+            break;
+          }
+        }
+        // Normalize spaces after each operation
+        content = content.replace(/\s+/g, " ").trim();
+      }
+
+      await fs.writeFile(filePath, content);
+      return { success: true };
     } catch (error) {
       return { success: false, error: error as Error };
     }
