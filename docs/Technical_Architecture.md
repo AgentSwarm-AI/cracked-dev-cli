@@ -1,30 +1,31 @@
 # Technical Architecture
 
-## Overview
-
-This document outlines the technical architecture of the Cracked Dev CLI application, focusing on the core components managing instructions and interactions with Large Language Models (LLMs). The application is built to be modular, allowing for easy integration and scaling of different LLM providers.
+This document outlines the technical architecture of the Cracked Dev CLI application, focusing on core components managing instructions and interactions with Large Language Models (LLMs). The application is modular, allowing for easy integration and scaling of different LLM providers.
 
 ## Key Components
 
 ### 1. CrackedAgent
 
-- **Purpose**: Manages overall execution and interaction processes.
+**Purpose**: Manages overall execution and interaction processes.
+
 - **Dependencies**:
   - `FileReader`: Reads and handles files for processing.
   - `LLMContextCreator`: Creates and manages context for LLM interactions.
-  - `DebugLogger`: Logs debug information and details of operations.
+  - `DebugLogger`: Logs debug information.
   - `ActionsParser`: Parses and executes actions from LLM responses.
   - `StreamHandler`: Manages streaming interactions with the LLM.
+
 - **Responsibilities**:
   - Validate and configure execution options.
   - Format user input messages for transmission to the LLM.
-  - Control standard and streaming message transmissions.
-  - Maintain and retrieve the conversation history.
+  - Control message transmissions (standard and streaming).
+  - Maintain and retrieve conversation history.
   - Manage and execute actions derived from LLM responses.
 
 ### 2. LLMProvider
 
-- **Purpose**: Acts as a unified interface for various LLM providers.
+**Purpose**: Acts as a unified interface for various LLM providers.
+
 - **Responsibilities**:
   - Provide a consistent API for interaction regardless of the LLM provider.
   - Route messages to the appropriate provider based on user configuration.
@@ -32,38 +33,43 @@ This document outlines the technical architecture of the Cracked Dev CLI applica
 
 ### 3. OpenRouterAPI
 
-- **Purpose**: Specifically implements the interface `ILLMProvider` for the OpenRouter LLM.
+**Purpose**: Implements `ILLMProvider` specifically for OpenRouter LLM.
+
 - **Responsibilities**:
   - Handle message sending and streaming to the OpenRouter API.
-  - Manage conversation context within the interaction, including system instructions.
-  - Verify the availability and appropriateness of models.
+  - Manage conversation context within interactions.
+  - Verify model availability.
   - Handle API communication errors and retries.
 
 ### 4. FileReader
 
-- **Purpose**: Reads and processes files based on user input.
+**Purpose**: Reads and processes files based on user input.
+
 - **Responsibilities**:
   - Read files from specified paths.
   - Format and preprocess file contents for the LLM.
-  - Return file data to `CrackedAgent` for further processing.
+  - Return file data to `CrackedAgent`.
 
 ### 5. ActionsParser
 
-- **Purpose**: Parses and executes actions from LLM responses.
+**Purpose**: Parses and executes actions from LLM responses.
+
 - **Responsibilities**:
   - Extract action tags from LLM responses.
-  - Execute actions that need to be carried out after receiving LLM responses (e.g., file operations, system commands).
+  - Execute actions such as file operations and system commands.
 
 ### 6. DebugLogger
 
-- **Purpose**: Logs debug information for troubleshooting and development.
+**Purpose**: Logs debug information for troubleshooting.
+
 - **Responsibilities**:
   - Log detailed debug information about the execution process.
   - Enable or disable logging based on configuration settings.
 
 ### 7. LLMContextCreator
 
-- **Purpose**: Creates and manages context for LLM interactions.
+**Purpose**: Creates and manages context for LLM interactions.
+
 - **Responsibilities**:
   - Set initial and system instructions for LLM interactions.
   - Maintain conversation history and context.
@@ -73,34 +79,34 @@ This document outlines the technical architecture of the Cracked Dev CLI applica
 
 ### Initialization
 
-1. **CrackedAgent** is instantiated with all necessary dependencies injected.
-2. **LLMProvider** is initialized and configured to use the OpenRouter provider by default.
-3. **FileReader** is ready to read and process any files specified by the user.
-4. **LLMContextCreator** is set up to initialize and manage the conversation context.
+1. **CrackedAgent** is instantiated with all necessary dependencies.
+2. **LLMProvider** is initialized with the OpenRouter provider as default.
+3. **FileReader** is ready to process files.
+4. **LLMContextCreator** sets up conversation context.
 
 ### Execution
 
-1. **CrackedAgent.execute()** is invoked with user input and specific execution options.
-2. Input options are validated and prepared according to application rules.
-3. Messages, formatted to be clear and contextually relevant, are sent to the LLM provider through **LLMProvider**.
-4. **LLMProvider**, based on the provider type (e.g., OpenRouter), directs messages further.
-5. **OpenRouterAPI** then interacts with the OpenRouter API, sending or streaming messages as required.
-6. Responses from the API are processed and added to the conversation context.
-7. **ActionsParser** identifies any actions in these responses and triggers their execution.
-8. **DebugLogger** logs each step of the process for debugging purposes.
+1. **CrackedAgent.execute()** is invoked with user input and options.
+2. Options are validated and prepared.
+3. Formatted messages are sent to the LLM provider.
+4. **LLMProvider** routes messages to the appropriate provider.
+5. **OpenRouterAPI** interacts with the OpenRouter API, sending or streaming messages.
+6. Responses are processed and added to the conversation context.
+7. **ActionsParser** identifies and executes actions from responses.
+8. **DebugLogger** logs each step for debugging.
 
 ### Actions Parsing & Execution
 
-- After parsing the LLM responses, **ActionsParser** extracts and executes any planned actions. This can include file operations, system commands, or further API interactions.
+- After parsing LLM responses, **ActionsParser** executes actions such as file operations or further API interactions.
 
 ### Configuration and Context Management
 
-- Configuration for the application, including LLM provider settings, can be managed via `.env` files.
-- **LLMContextCreator** manages the context and conversation history, ensuring that each session is appropriately continued from previous interactions.
+- Configuration, including LLM provider settings, is managed via `.env` files.
+- **LLMContextCreator** manages context and conversation history.
 
 ## Diagram
 
-Below is a Mermaid diagram illustrating the interaction between the key components.
+Below is a Mermaid diagram illustrating the interaction between key components.
 
 ```mermaid
 graph TD;

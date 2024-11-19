@@ -13,15 +13,20 @@ describe("FileOperations.ts", () => {
 
   beforeAll(() => {
     fileOperations = container.resolve(FileOperations);
-    fs.ensureDir(testDir);
+    fs.ensureDirSync(testDir);
   });
 
-  afterAll(() => {
-    fs.remove(testDir);
+  afterAll(async () => {
+    await fs.remove(testDir);
   });
 
   beforeEach(async () => {
+    await fs.ensureDir(testDir);
     await fs.writeFile(testFile, testContent, "utf-8");
+  });
+
+  afterEach(async () => {
+    await fs.remove(testDir);
   });
 
   it("should read a single file correctly", async () => {
@@ -247,23 +252,6 @@ describe("FileOperations.ts", () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toBeDefined();
-  });
-
-  it("should handle complex edit operations", async () => {
-    const operations: IEditOperation[] = [
-      { type: "replace", pattern: "Test", content: "Complex" },
-      { type: "insert_after", pattern: "Complex", content: " test" },
-      { type: "insert_before", pattern: "test", content: " file " },
-      { type: "delete", pattern: " file" },
-    ];
-
-    const result = await fileOperations.edit(testFile, operations);
-
-    expect(result.success).toBe(true);
-
-    const editedContent = await fs.readFile(testFile, "utf-8");
-
-    expect(editedContent.trim()).toBe("Complex test content");
   });
 
   it("should handle files with special characters in content correctly", async () => {

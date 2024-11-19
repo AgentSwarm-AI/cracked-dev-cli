@@ -81,6 +81,8 @@ To achieve this goal, I'll proceed as follows:
 
 <important_notes detail="hidden">
   <critical_instructions>
+    - Code or markdown should ALWAYS BE INSIDE write_file or edit_file tags.
+    - DO NOT REPEAT SUCCESSFUL TASKS. If a code/doc change is working, move to the next step.
     - Always decide between write_file or edit_file action, based on your intent. If its too many things to change, use write_file. Else, use edit_file.
     - CAREFUL with tag structure!
     - Focus on solving the task. Once achieved, use <end_task> immediately. Don't do extra work.
@@ -180,6 +182,7 @@ write_file: Write FULL content to a file. Prefer edit_file if only minor changes
 edit_file: Edit file slices. Feel free to use multiple edit_file on same output
 <!-- Multiple <edit_file> tags per input are allowed-->
 <edit_file>
+  <!-- PRESERVE the original file structure. Do not add everything online or messup with new lines/tabs-->
   <!-- Avoid complicated regex to avoid parsing failures! -->
   <path>file.ts</path>
   <changes>

@@ -16,6 +16,10 @@ export class EditFileAction {
     private actionTagsExtractor: ActionTagsExtractor,
   ) {}
 
+  private unescapeNewlines(content: string): string {
+    return content.replace(/\\n/g, "\n");
+  }
+
   private extractOperations(content: string): IEditOperation[] {
     const operations: IEditOperation[] = [];
 
@@ -26,13 +30,15 @@ export class EditFileAction {
     );
     for (const replace of replaces) {
       const pattern = this.actionTagsExtractor.extractTag(replace, "pattern");
-      const content = this.actionTagsExtractor.extractTag(replace, "content");
+      let content = this.actionTagsExtractor.extractTag(replace, "content");
 
       if (!pattern || !content) {
         throw new Error(
           "Invalid replace format. Must include pattern and content.",
         );
       }
+
+      content = this.unescapeNewlines(content);
 
       operations.push({
         type: "replace",
@@ -48,13 +54,15 @@ export class EditFileAction {
     );
     for (const insert of insertBefores) {
       const pattern = this.actionTagsExtractor.extractTag(insert, "pattern");
-      const content = this.actionTagsExtractor.extractTag(insert, "content");
+      let content = this.actionTagsExtractor.extractTag(insert, "content");
 
       if (!pattern || !content) {
         throw new Error(
           "Invalid insert_before format. Must include pattern and content.",
         );
       }
+
+      content = this.unescapeNewlines(content);
 
       operations.push({
         type: "insert_before",
@@ -70,13 +78,15 @@ export class EditFileAction {
     );
     for (const insert of insertAfters) {
       const pattern = this.actionTagsExtractor.extractTag(insert, "pattern");
-      const content = this.actionTagsExtractor.extractTag(insert, "content");
+      let content = this.actionTagsExtractor.extractTag(insert, "content");
 
       if (!pattern || !content) {
         throw new Error(
           "Invalid insert_after format. Must include pattern and content.",
         );
       }
+
+      content = this.unescapeNewlines(content);
 
       operations.push({
         type: "insert_after",

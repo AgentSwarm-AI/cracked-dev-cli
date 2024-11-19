@@ -174,8 +174,6 @@ export class FileOperations implements IFileOperations {
             break;
           }
         }
-        // Normalize spaces after each operation
-        content = content.replace(/\s+/g, " ").trim();
       }
 
       await fs.writeFile(filePath, content);
