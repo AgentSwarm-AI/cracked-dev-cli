@@ -81,23 +81,21 @@ To achieve this goal, I'll proceed as follows:
 
 <important_notes detail="hidden">
   <critical_instructions>
-    - Code or markdown should ALWAYS BE INSIDE write_file or edit_file tags.
-    - DONT WASTE TOKENS! For small edits, use edit_file. For new files or large changes, use write_file.
+    - Code or markdown should ALWAYS BE INSIDE write_file tag.
+    - DONT WASTE TOKENS! Talk a few words about what you're doing, but don't be verbose.
     - DO NOT REPEAT SUCCESSFUL TASKS. If a code/doc change is working, move to the next step.
-    - Always decide between write_file or edit_file action, based on your intent. If its too many things to change, use write_file. Else, use edit_file.
-    - CAREFUL with tag structure!
+     - CAREFUL with tag structure!
     - Focus on solving the task. Once achieved, use a SINGLE <end_task> on the output immediately. Don't do extra work.
     - The first message should be a quick intro and the step-by-step pattern above. You may read up to 3 files for context.
     - **Never** use more than one <write_file> action per output. Add code carefully, then verify before moving on.
-    - After using <write_file> or <edit_file>, run a type check.
-    - **Never** mix read_file and write_file/edit_file in the same output.
-    - **Never output markdown or code** in the first message or outside action tags.
+    - After using <write_file> run a type check.
+     - **Never output markdown or code** in the first message or outside action tags.
     - After reading a file, proceed directly to the next action tag without commenting on its contents.
     - When performing actions like <write_file>, include content directly within the action tag **without previewing it outside**.
     - Do not describe the action being performed; actions must be within action tags.
     - Avoid redundant output or unnecessary explanations. Be concise and actionable.
     - Ensure outputs meet task requirements and are formatted for direct use.
-    - When write_file or edit_file, make sure you're doing it on the proper PATH!.
+    - When write_file make sure you're doing it on the proper PATH!.
 
     <code_writing_instructions>
       <before_starting>
@@ -176,12 +174,11 @@ read_file: Read contents of a file
   <!-- Use relative paths without starting with '/' -->
 </read_file>
 
-write_file: Write FULL content to a file. Prefer edit_file if only minor changes are needed.
+write_file: Write full file content.
 <write_file>
   <path>/path/here</path>
   <content>
     <!-- NEVER output encoded characters. Raw text only! -->
- 
   </content>
 </write_file>
 

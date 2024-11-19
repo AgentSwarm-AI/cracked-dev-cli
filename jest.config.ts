@@ -17,8 +17,8 @@ const config: Config = {
   },
   extensionsToTreatAsEsm: [".ts"],
   moduleFileExtensions: ["ts", "tsx", "js", "jsx", "json", "node"],
-
   transformIgnorePatterns: ["node_modules"],
+  testMatch: ["<rootDir>/src/**/__tests__/**/*.test.ts"],
 };
 
 export default config;
