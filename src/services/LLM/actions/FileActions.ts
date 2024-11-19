@@ -48,7 +48,9 @@ export class FileActions {
     if (invalidPaths.length > 0) {
       return {
         success: false,
-        error: new Error(`Failed to read files: ${invalidPaths.join(", ")}`),
+        error: new Error(
+          `Failed to read files: ${invalidPaths.join(", ")}  - Try using a <search_file> to find the correct file path.`,
+        ),
       };
     }
 

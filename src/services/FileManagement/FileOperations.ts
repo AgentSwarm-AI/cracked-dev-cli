@@ -44,7 +44,9 @@ export class FileOperations implements IFileOperations {
       if (errors.length > 0) {
         return {
           success: false,
-          error: new Error(`Failed to read files: ${errors.join(", ")}`),
+          error: new Error(
+            `Failed to read files: ${errors.join(", ")}  - Try using a <search_file> to find the correct file path.`,
+          ),
         };
       }
 
