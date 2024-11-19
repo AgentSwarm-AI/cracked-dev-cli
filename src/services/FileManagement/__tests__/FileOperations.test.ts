@@ -2,7 +2,6 @@ import fs from "fs-extra";
 import path from "path";
 import { container } from "tsyringe";
 import { FileOperations } from "../FileOperations";
-import { IEditOperation } from "../types/FileManagementTypes";
 
 const testDir = path.join(__dirname, "testDir");
 const testFile = path.join(testDir, "testFile.txt");
@@ -173,50 +172,6 @@ describe("FileOperations.ts", () => {
     expect(result.error).toBeDefined();
   });
 
-  it("should perform edit operations on a file", async () => {
-    const operations: IEditOperation[] = [
-      { type: "replace", pattern: "content", content: "value" },
-      { type: "insert_after", pattern: "value", content: "!" },
-      { type: "delete", pattern: "Test" },
-    ];
-
-    const result = await fileOperations.edit(testFile, operations);
-
-    expect(result.success).toBe(true);
-
-    const editedContent = await fs.readFile(testFile, "utf-8");
-
-    expect(editedContent.trim()).toBe("file value!");
-  });
-
-  it("should handle errors when performing edit operations on a non-existent file", async () => {
-    const nonExistentFile = "nonexistentFile.txt";
-    const operations: IEditOperation[] = [
-      { type: "replace", pattern: "content", content: "value" },
-    ];
-
-    const result = await fileOperations.edit(nonExistentFile, operations);
-
-    expect(result.success).toBe(false);
-    expect(result.error).toBeDefined();
-  });
-
-  it("should handle empty content in edit operations", async () => {
-    const operations: IEditOperation[] = [
-      { type: "replace", pattern: "content", content: "" },
-      { type: "insert_after", pattern: "Test", content: "!" },
-      { type: "delete", pattern: "file" },
-    ];
-
-    const result = await fileOperations.edit(testFile, operations);
-
-    expect(result.success).toBe(true);
-
-    const editedContent = await fs.readFile(testFile, "utf-8");
-
-    expect(editedContent.trim()).toBe("Test!");
-  });
-
   it("should handle large files correctly", async () => {
     const largeContent = "a".repeat(1000000);
     await fs.writeFile(testFile, largeContent, "utf-8");
@@ -289,33 +244,6 @@ describe("FileOperations.ts", () => {
     expect(await fs.pathExists(newFile)).toBe(true);
     expect(result.error).toBeUndefined();
     expect(await fs.readFile(newFile, "utf-8")).toBe(testContent);
-  });
-
-  it("should handle edit operations with empty patterns", async () => {
-    const operations: IEditOperation[] = [
-      { type: "replace", pattern: "", content: "value" },
-    ];
-
-    const result = await fileOperations.edit(testFile, operations);
-
-    expect(result.success).toBe(false);
-    expect(result.error).toBeDefined();
-  });
-
-  it("should handle edit operations with multiple matching patterns", async () => {
-    const contentWithMultipleMatches = "repeat repeat repeat";
-    await fs.writeFile(testFile, contentWithMultipleMatches, "utf-8");
-
-    const operations: IEditOperation[] = [
-      { type: "replace", pattern: "repeat", content: "match" },
-    ];
-
-    const result = await fileOperations.edit(testFile, operations);
-
-    expect(result.success).toBe(true);
-    const editedContent = await fs.readFile(testFile, "utf-8");
-
-    expect(editedContent.trim()).toBe("match match match");
   });
 
   it("should copy files with special characters in paths", async () => {

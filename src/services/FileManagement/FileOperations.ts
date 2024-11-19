@@ -2,7 +2,6 @@ import fs from "fs-extra";
 import path from "path";
 import { autoInjectable } from "tsyringe";
 import {
-  IEditOperation,
   IFileOperationResult,
   IFileOperations,
   IFileStats,
@@ -134,50 +133,6 @@ export class FileOperations implements IFileOperations {
         path: filePath,
       };
       return { success: true, data: fileStats };
-    } catch (error) {
-      return { success: false, error: error as Error };
-    }
-  }
-
-  async edit(
-    filePath: string,
-    operations: IEditOperation[],
-  ): Promise<IFileOperationResult> {
-    try {
-      let content = await fs.readFile(filePath, "utf-8");
-
-      for (const op of operations) {
-        if (!op.pattern) {
-          return {
-            success: false,
-            error: new Error("Empty pattern not allowed"),
-          };
-        }
-
-        const regex = new RegExp(op.pattern, "g");
-
-        switch (op.type) {
-          case "replace": {
-            content = content.replace(regex, op.content || "");
-            break;
-          }
-          case "insert_before": {
-            content = content.replace(regex, `${op.content || ""}$&`);
-            break;
-          }
-          case "insert_after": {
-            content = content.replace(regex, `$&${op.content || ""}`);
-            break;
-          }
-          case "delete": {
-            content = content.replace(regex, "");
-            break;
-          }
-        }
-      }
-
-      await fs.writeFile(filePath, content);
-      return { success: true };
     } catch (error) {
       return { success: false, error: error as Error };
     }

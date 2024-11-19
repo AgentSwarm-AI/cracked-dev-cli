@@ -17,6 +17,8 @@ const config: Config = {
   },
   extensionsToTreatAsEsm: [".ts"],
   moduleFileExtensions: ["ts", "tsx", "js", "jsx", "json", "node"],
+
+  transformIgnorePatterns: ["node_modules"],
 };
 
 export default config;

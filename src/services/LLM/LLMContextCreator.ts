@@ -185,29 +185,6 @@ write_file: Write FULL content to a file. Prefer edit_file if only minor changes
   </content>
 </write_file>
 
-edit_file: Edit file slices. Feel free to use multiple edit_file on same output
-<!-- CRITICAL: Always use <read_file> after each edit_file to confirm changes -->
-<!-- CRITICAL: Careful not to add things on the wrong place! Always confirm later! -->
-<edit_file>
-<!-- Multiple <edit_file> tags per input are allowed--> 
-<!-- If you do too many mistakes, please remove all changes on this file with git checkout and use write_file instead --> 
-<path>file.ts</path>
-  <changes>
-    <!-- Replace content between specific markers -->
-    <replace>
-      <start_marker> 
-        // any code marking slicing start. Can't be empty
-      </start_marker>
-      <end_marker>
-        // any code marking slicing end. Can't be empty
-      </end_marker>
-      <content>
-        const newVar = 'new value';
-      </content>
-    </replace>
-  </changes>
-</edit_file>
-
 delete_file: Delete a file
 <delete_file>
   <path>/path/here</path>

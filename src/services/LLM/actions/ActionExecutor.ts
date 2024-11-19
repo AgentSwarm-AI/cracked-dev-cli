@@ -1,6 +1,5 @@
 import { autoInjectable } from "tsyringe";
 import { CommandAction } from "./CommandAction";
-import { EditFileAction } from "./EditFileAction";
 import { EndTaskAction } from "./EndTaskAction";
 import { FileActions } from "./FileActions";
 import { SearchAction } from "./SearchAction";
@@ -19,7 +18,6 @@ export class ActionExecutor {
     private commandAction: CommandAction,
     private searchAction: SearchAction,
     private endTaskAction: EndTaskAction,
-    private editFileAction: EditFileAction,
   ) {}
 
   async executeAction(actionText: string): Promise<IActionResult> {
@@ -94,9 +92,6 @@ export class ActionExecutor {
       case "end_task":
         console.log("🏁 Ending task...");
         return await this.endTaskAction.execute(content);
-      case "edit_file":
-        console.log("✏️ Editing file...");
-        return await this.editFileAction.execute(content);
       default:
         return {
           success: false,
