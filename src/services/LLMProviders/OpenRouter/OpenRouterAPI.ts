@@ -2,6 +2,7 @@ import { autoInjectable, inject } from "tsyringe";
 import { openRouterClient } from "../../../constants/openRouterClient";
 import { ConversationContext } from "../../LLM/ConversationContext";
 import { ILLMProvider, IMessage } from "../../LLM/ILLMProvider";
+import { HtmlEntityDecoder } from "../../text/HTMLEntityDecoder";
 import { IOpenRouterModelInfo } from "./types/OpenRouterAPITypes";
 
 const MAX_RETRIES = 3;
@@ -25,6 +26,7 @@ export class OpenRouterAPI implements ILLMProvider {
   constructor(
     @inject(ConversationContext)
     private conversationContext: ConversationContext,
+    private htmlEntityDecoder: HtmlEntityDecoder,
   ) {
     this.httpClient = openRouterClient;
   }
@@ -241,7 +243,8 @@ export class OpenRouterAPI implements ILLMProvider {
         // Extract content from delta if available
         const deltaContent = parsed.choices?.[0]?.delta?.content;
         if (deltaContent) {
-          content += deltaContent;
+          // Decode HTML entities before adding to content
+          content += this.htmlEntityDecoder.decode(deltaContent);
         }
       } catch (e) {
         // Silently skip individual parsing errors

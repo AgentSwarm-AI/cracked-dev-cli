@@ -6,6 +6,7 @@ import { LLMContextCreator } from "./LLM/LLMContextCreator";
 import { LLMProvider, LLMProviderType } from "./LLM/LLMProvider";
 import { DebugLogger } from "./logging/DebugLogger";
 import { StreamHandler } from "./streaming/StreamHandler";
+import { HtmlEntityDecoder } from "./text/HTMLEntityDecoder";
 
 export interface CrackedAgentOptions {
   root?: string;
@@ -36,6 +37,7 @@ export class CrackedAgent {
     private debugLogger: DebugLogger,
     private actionsParser: ActionsParser,
     private streamHandler: StreamHandler,
+    private htmlEntityDecoder: HtmlEntityDecoder,
   ) {}
 
   async execute(
@@ -150,6 +152,8 @@ export class CrackedAgent {
       model,
       message,
       async (chunk: string) => {
+        chunk = this.htmlEntityDecoder.decode(chunk);
+
         response += chunk;
         this.actionsParser.appendToBuffer(chunk);
         process.stdout.write(chunk);

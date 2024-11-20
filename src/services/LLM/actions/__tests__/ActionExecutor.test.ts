@@ -1,6 +1,8 @@
 import { FileOperations } from "../../../FileManagement/FileOperations";
 import { FileSearch } from "../../../FileManagement/FileSearch";
+import { PathAdjuster } from "../../../FileManagement/PathAdjuster";
 import { DebugLogger } from "../../../logging/DebugLogger";
+import { HtmlEntityDecoder } from "../../../text/HTMLEntityDecoder";
 import { ActionExecutor } from "../ActionExecutor";
 import { ActionTagsExtractor } from "../ActionTagsExtractor";
 import { CommandAction } from "../CommandAction";
@@ -8,7 +10,6 @@ import { EndTaskAction } from "../EndTaskAction";
 import { FileActions } from "../FileActions";
 import { SearchAction } from "../SearchAction";
 import { WriteFileAction } from "../WriteFileAction";
-import { HtmlEntityDecoder } from "../../../text/HTMLEntityDecoder";
 
 jest.mock("../FileActions");
 jest.mock("../CommandAction");
@@ -33,13 +34,19 @@ describe("ActionExecutor", () => {
   let mockActionTagsExtractor: jest.Mocked<ActionTagsExtractor>;
   let mockDebugLogger: jest.Mocked<DebugLogger>;
   let mockHtmlEntityDecoder: jest.Mocked<HtmlEntityDecoder>;
+  let mockPathAdjuster: jest.Mocked<PathAdjuster>;
 
   beforeEach(() => {
     mockDebugLogger = new DebugLogger() as jest.Mocked<DebugLogger>;
-    mockFileOperations = new FileOperations() as jest.Mocked<FileOperations>;
+    mockFileOperations = new FileOperations(
+      mockPathAdjuster,
+      mockDebugLogger,
+    ) as jest.Mocked<FileOperations>;
     mockFileSearch = new FileSearch() as jest.Mocked<FileSearch>;
-    mockActionTagsExtractor = new ActionTagsExtractor() as jest.Mocked<ActionTagsExtractor>;
-    mockHtmlEntityDecoder = new HtmlEntityDecoder() as jest.Mocked<HtmlEntityDecoder>;
+    mockActionTagsExtractor =
+      new ActionTagsExtractor() as jest.Mocked<ActionTagsExtractor>;
+    mockHtmlEntityDecoder =
+      new HtmlEntityDecoder() as jest.Mocked<HtmlEntityDecoder>;
 
     mockFileActions = new FileActions(
       mockFileOperations,
@@ -73,7 +80,9 @@ describe("ActionExecutor", () => {
     mockDebugLogger.log.mockImplementation(() => {});
     mockDebugLogger.setDebug.mockImplementation(() => {});
     mockActionTagsExtractor.extractTag.mockImplementation(() => null);
-    mockActionTagsExtractor.extractAllTagsWithContent.mockImplementation(() => []);
+    mockActionTagsExtractor.extractAllTagsWithContent.mockImplementation(
+      () => [],
+    );
     mockHtmlEntityDecoder.decode.mockImplementation((text) => text);
   });
 

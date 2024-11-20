@@ -1,5 +1,6 @@
 import { FileOperations } from "../../../FileManagement/FileOperations";
 import { FileSearch } from "../../../FileManagement/FileSearch";
+import { PathAdjuster } from "../../../FileManagement/PathAdjuster";
 import { DebugLogger } from "../../../logging/DebugLogger";
 import { ActionTagsExtractor } from "../ActionTagsExtractor";
 import { ReadFileAction } from "../ReadFileAction";
@@ -15,9 +16,13 @@ describe("ReadFileAction", () => {
   let mockFileSearch: jest.Mocked<FileSearch>;
   let mockActionTagsExtractor: jest.Mocked<ActionTagsExtractor>;
   let mockDebugLogger: jest.Mocked<DebugLogger>;
+  let mockPathAdjuster: jest.Mocked<PathAdjuster>;
 
   beforeEach(() => {
-    mockFileOperations = new FileOperations() as jest.Mocked<FileOperations>;
+    mockFileOperations = new FileOperations(
+      mockPathAdjuster,
+      mockDebugLogger,
+    ) as jest.Mocked<FileOperations>;
     mockFileSearch = new FileSearch() as jest.Mocked<FileSearch>;
     mockActionTagsExtractor =
       new ActionTagsExtractor() as jest.Mocked<ActionTagsExtractor>;

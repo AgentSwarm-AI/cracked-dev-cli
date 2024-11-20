@@ -1,8 +1,9 @@
 import { container } from "tsyringe";
 import { OpenRouterAPI } from "../../LLMProviders/OpenRouter/OpenRouterAPI";
+import { HtmlEntityDecoder } from "../../text/HTMLEntityDecoder";
+import { ConversationContext } from "../ConversationContext";
 import { ILLMProvider } from "../ILLMProvider";
 import { LLMProvider, LLMProviderType } from "../LLMProvider";
-import { ConversationContext } from "../ConversationContext";
 
 jest.mock("../../LLMProviders/OpenRouter/OpenRouterAPI");
 jest.mock("../ConversationContext");
@@ -11,22 +12,37 @@ describe("LLMProvider", () => {
   let provider: ILLMProvider;
   let mockOpenRouterAPI: jest.Mocked<OpenRouterAPI>;
   let mockConversationContext: jest.Mocked<ConversationContext>;
+  let mockHtmlEntityDecoder: jest.Mocked<HtmlEntityDecoder>;
 
   beforeEach(() => {
-    mockConversationContext = new ConversationContext() as jest.Mocked<ConversationContext>;
-    jest.spyOn(mockConversationContext, "setSystemInstructions").mockImplementation();
-    jest.spyOn(mockConversationContext, "getSystemInstructions").mockReturnValue(null);
+    mockConversationContext =
+      new ConversationContext() as jest.Mocked<ConversationContext>;
+    jest
+      .spyOn(mockConversationContext, "setSystemInstructions")
+      .mockImplementation();
+    jest
+      .spyOn(mockConversationContext, "getSystemInstructions")
+      .mockReturnValue(null);
     jest.spyOn(mockConversationContext, "getMessages").mockReturnValue([]);
     jest.spyOn(mockConversationContext, "clear").mockImplementation();
     jest.spyOn(mockConversationContext, "addMessage").mockImplementation();
 
-    mockOpenRouterAPI = new OpenRouterAPI(mockConversationContext) as jest.Mocked<OpenRouterAPI>;
+    mockOpenRouterAPI = new OpenRouterAPI(
+      mockConversationContext,
+      mockHtmlEntityDecoder,
+    ) as jest.Mocked<OpenRouterAPI>;
     jest.spyOn(mockOpenRouterAPI, "sendMessage").mockResolvedValue("response");
-    jest.spyOn(mockOpenRouterAPI, "sendMessageWithContext").mockResolvedValue("response");
-    jest.spyOn(mockOpenRouterAPI, "clearConversationContext").mockImplementation();
+    jest
+      .spyOn(mockOpenRouterAPI, "sendMessageWithContext")
+      .mockResolvedValue("response");
+    jest
+      .spyOn(mockOpenRouterAPI, "clearConversationContext")
+      .mockImplementation();
     jest.spyOn(mockOpenRouterAPI, "getConversationContext").mockReturnValue([]);
     jest.spyOn(mockOpenRouterAPI, "addSystemInstructions").mockImplementation();
-    jest.spyOn(mockOpenRouterAPI, "getAvailableModels").mockResolvedValue(["model1", "model2"]);
+    jest
+      .spyOn(mockOpenRouterAPI, "getAvailableModels")
+      .mockResolvedValue(["model1", "model2"]);
     jest.spyOn(mockOpenRouterAPI, "validateModel").mockResolvedValue(true);
     jest.spyOn(mockOpenRouterAPI, "getModelInfo").mockResolvedValue({});
     jest.spyOn(mockOpenRouterAPI, "streamMessage").mockResolvedValue(undefined);
@@ -136,14 +152,26 @@ describe("LLMProvider", () => {
 
     it("should throw an error when sendMessage is called with an unsupported model", async () => {
       mockOpenRouterAPI.validateModel = jest.fn().mockResolvedValue(false);
-      mockOpenRouterAPI.sendMessage = jest.fn().mockRejectedValue(new Error("Model not available"));
-      await expect(provider.sendMessage("unsupported-model", "message")).rejects.toThrowError("Model not available");
+      mockOpenRouterAPI.sendMessage = jest
+        .fn()
+        .mockRejectedValue(new Error("Model not available"));
+      await expect(
+        provider.sendMessage("unsupported-model", "message"),
+      ).rejects.toThrowError("Model not available");
     });
 
     it("should throw an error when sendMessageWithContext is called with an unsupported model", async () => {
       mockOpenRouterAPI.validateModel = jest.fn().mockResolvedValue(false);
-      mockOpenRouterAPI.sendMessageWithContext = jest.fn().mockRejectedValue(new Error("Model not available"));
-      await expect(provider.sendMessageWithContext("unsupported-model", "message", "systemInstructions")).rejects.toThrowError("Model not available");
+      mockOpenRouterAPI.sendMessageWithContext = jest
+        .fn()
+        .mockRejectedValue(new Error("Model not available"));
+      await expect(
+        provider.sendMessageWithContext(
+          "unsupported-model",
+          "message",
+          "systemInstructions",
+        ),
+      ).rejects.toThrowError("Model not available");
     });
   });
 });

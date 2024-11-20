@@ -2,31 +2,74 @@ import fs from "fs-extra";
 import path from "path";
 import { container } from "tsyringe";
 import { FileOperations } from "../FileOperations";
+import { PathAdjuster } from "../PathAdjuster";
 
 const testDir = path.join(__dirname, "testDir");
 const testFile = path.join(testDir, "testFile.txt");
 const testContent = "Test file content";
 
+// Enable fake timers
+jest.useFakeTimers();
+
+// Mock PathAdjuster with proper types
+const mockPathAdjuster = {
+  isInitialized: jest.fn<boolean, []>().mockReturnValue(true),
+  getInitializationError: jest.fn<Error | null, []>().mockReturnValue(null),
+  adjustPath: jest
+    .fn<Promise<string | null>, [string, (number | undefined)?]>()
+    .mockImplementation(async (filePath: string) => filePath),
+} as unknown as PathAdjuster;
+
 describe("FileOperations.ts", () => {
   let fileOperations: FileOperations;
 
   beforeAll(() => {
+    // Register mock PathAdjuster
+    container.registerInstance(PathAdjuster, mockPathAdjuster);
     fileOperations = container.resolve(FileOperations);
     fs.ensureDirSync(testDir);
   });
 
   afterAll(async () => {
     await fs.remove(testDir);
+    // Reset container
+    container.clearInstances();
   });
 
   beforeEach(async () => {
     await fs.ensureDir(testDir);
     await fs.writeFile(testFile, testContent, "utf-8");
+    // Reset mock implementations
+    (mockPathAdjuster.isInitialized as jest.Mock).mockReturnValue(true);
+    (mockPathAdjuster.getInitializationError as jest.Mock).mockReturnValue(
+      null,
+    );
+    (mockPathAdjuster.adjustPath as jest.Mock).mockImplementation(
+      async (filePath: string) => filePath,
+    );
+    jest.clearAllTimers();
   });
 
   afterEach(async () => {
     await fs.remove(testDir);
+    jest.clearAllMocks();
   });
+
+  it("should handle PathAdjuster initialization timeout", async () => {
+    // Mock PathAdjuster to never initialize
+    (mockPathAdjuster.isInitialized as jest.Mock).mockReturnValue(false);
+
+    // Create the promise but don't await it yet
+    const promise = fileOperations.read(testFile);
+
+    // Run all timers immediately
+    jest.runAllTimers();
+
+    // Now await the promise and expect it to be rejected
+    const result = await promise;
+    expect(result.success).toBe(false);
+    expect(result.error?.message).toBe("PathAdjuster initialization timed out");
+  }, 10000); // Increase timeout for this test
 
   it("should read a single file correctly", async () => {
     const result = await fileOperations.read(testFile);
@@ -258,4 +301,18 @@ describe("FileOperations.ts", () => {
     expect(result.error).toBeUndefined();
     expect(await fs.readFile(destinationFile, "utf-8")).toBe(testContent);
   });
+
+  it("should handle PathAdjuster initialization failure", async () => {
+    (mockPathAdjuster.isInitialized as jest.Mock).mockReturnValue(false);
+    (mockPathAdjuster.getInitializationError as jest.Mock).mockReturnValue(
+      new Error("PathAdjuster initialization timed out"),
+    );
+
+    const promise = fileOperations.read(testFile);
+    jest.runAllTimers();
+    const result = await promise;
+
+    expect(result.success).toBe(false);
+    expect(result.error?.message).toBe("PathAdjuster initialization timed out");
+  }, 10000); // Increase timeout for this test
 });
