@@ -15,14 +15,20 @@ export const modelConfigs: IModelConfig[] = [
     description: "Base model for initial attempts",
   },
   {
-    id: "anthropic/claude-3.5-sonnet:beta",
+    id: "openai/gpt-4o-2024-11-20",
     priority: 2,
     active: true,
     description: "Scaled model for retry attempts",
   },
   {
-    id: "openai/o1-mini",
+    id: "anthropic/claude-3.5-sonnet:beta",
     priority: 3,
+    active: true,
+    description: "Scaled model for retry attempts",
+  },
+  {
+    id: "openai/o1-mini",
+    priority: 4,
     active: false,
     description: "Final model for complex cases (currently inactive)",
   },

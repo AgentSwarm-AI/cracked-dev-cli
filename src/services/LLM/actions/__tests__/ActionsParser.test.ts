@@ -7,6 +7,7 @@ import { ActionTagsExtractor } from "../ActionTagsExtractor";
 
 jest.mock("../../../logging/DebugLogger");
 jest.mock("../../LLMContextCreator");
+jest.mock("../ActionTagsExtractor");
 
 describe("ActionsParser", () => {
   let actionsParser: ActionsParser;
@@ -25,9 +26,14 @@ describe("ActionsParser", () => {
     mockHtmlEntityDecoder = container.resolve(
       HtmlEntityDecoder,
     ) as jest.Mocked<HtmlEntityDecoder>;
-    mockActionTagsExtractor = container.resolve(
-      ActionTagsExtractor,
-    ) as jest.Mocked<ActionTagsExtractor>;
+    mockActionTagsExtractor = {
+      validateStructure: jest.fn().mockReturnValue(""),
+      extractTag: jest.fn(),
+      extractTags: jest.fn(),
+      extractTagLines: jest.fn(),
+      extractNestedTags: jest.fn(),
+      extractAllTagsWithContent: jest.fn(),
+    } as jest.Mocked<ActionTagsExtractor>;
 
     actionsParser = new ActionsParser(
       mockDebugLogger,
