@@ -2,11 +2,15 @@ import chalk from "chalk";
 import { spawn, SpawnOptionsWithoutStdio } from "child_process";
 import { autoInjectable } from "tsyringe";
 import { DebugLogger } from "../../logging/DebugLogger";
+import { AnsiStripper } from "../../text/AnsiStripper";
 import { IActionResult } from "./types/ActionTypes";
 
 @autoInjectable()
 export class CommandAction {
-  constructor(private debugLogger: DebugLogger) {}
+  constructor(
+    private debugLogger: DebugLogger,
+    private ansiStripper: AnsiStripper,
+  ) {}
 
   private extractCommand(command: string): string {
     const regex = /<execute_command>\s*([\s\S]*?)\s*<\/execute_command>/i;
@@ -43,10 +47,18 @@ export class CommandAction {
       let stderrData = "";
       let isResolved = false;
 
+      // Buffers to handle partial ANSI codes
+      let stdoutBuffer = "";
+      let stderrBuffer = "";
+
       // Handle standard output data
       child.stdout.on("data", (data: Buffer) => {
         const chunk = data.toString();
-        stdoutData += chunk;
+        stdoutBuffer += chunk;
+        const strippedChunk = this.ansiStripper.strip(stdoutBuffer);
+        stdoutData += strippedChunk;
+        stdoutBuffer = ""; // Reset buffer after processing
+
         // Only stream to console if not in test environment
         if (!this.isTestEnvironment()) {
           process.stdout.write(chalk.green(chunk));
@@ -56,7 +68,11 @@ export class CommandAction {
       // Handle standard error data
       child.stderr.on("data", (data: Buffer) => {
         const chunk = data.toString();
-        stderrData += chunk;
+        stderrBuffer += chunk;
+        const strippedChunk = this.ansiStripper.strip(stderrBuffer);
+        stderrData += strippedChunk;
+        stderrBuffer = ""; // Reset buffer after processing
+
         // Only stream to console if not in test environment
         if (!this.isTestEnvironment()) {
           process.stderr.write(chalk.red(chunk));
@@ -66,11 +82,19 @@ export class CommandAction {
       const finalizeAndResolve = (exitCode: number | null = null) => {
         if (!isResolved) {
           isResolved = true;
+          // Process any remaining buffered data
+          if (stdoutBuffer) {
+            stdoutData += this.ansiStripper.strip(stdoutBuffer);
+          }
+          if (stderrBuffer) {
+            stderrData += this.ansiStripper.strip(stderrBuffer);
+          }
+
           const combinedOutput = stdoutData + stderrData;
           this.debugLogger.log("CommandAction", "Command execution completed", {
             command: cleanedCommand,
             exitCode,
-            output: combinedOutput,
+            output: combinedOutput, // Clean output without ANSI codes
           });
 
           if (exitCode === 0) {

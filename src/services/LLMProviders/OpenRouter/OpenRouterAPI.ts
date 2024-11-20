@@ -22,6 +22,7 @@ class LLMError extends Error {
 @autoInjectable()
 export class OpenRouterAPI implements ILLMProvider {
   private readonly httpClient: typeof openRouterClient;
+  private streamBuffer: string = "";
 
   constructor(
     @inject(ConversationContext)
@@ -208,48 +209,63 @@ export class OpenRouterAPI implements ILLMProvider {
     );
   }
 
-  private parseStreamChunk(chunk: string): { content: string; error?: any } {
-    // Handle empty chunks
-    if (!chunk.trim()) {
+  private processCompleteMessage(message: string): {
+    content: string;
+    error?: any;
+  } {
+    try {
+      // Remove 'data: ' prefix if present and validate JSON structure
+      const jsonStr = message.replace(/^data: /, "").trim();
+      if (
+        !jsonStr ||
+        jsonStr === "[DONE]" ||
+        !jsonStr.startsWith("{") ||
+        !jsonStr.endsWith("}")
+      ) {
+        return { content: "" };
+      }
+
+      const parsed = JSON.parse(jsonStr);
+
+      if (parsed.error) {
+        return { content: "", error: parsed.error };
+      }
+
+      const deltaContent = parsed.choices?.[0]?.delta?.content;
+      if (!deltaContent) {
+        return { content: "" };
+      }
+
+      // First unescape any escaped characters
+      const unescapedContent =
+        this.htmlEntityDecoder.unescapeString(deltaContent);
+      // Then decode any HTML entities
+      const decodedContent = this.htmlEntityDecoder.decode(unescapedContent);
+
+      return { content: decodedContent };
+    } catch (e) {
       return { content: "" };
     }
+  }
 
-    // Split chunk into lines and process each line
-    const lines = chunk.split("\n");
+  private parseStreamChunk(chunk: string): { content: string; error?: any } {
+    // Add chunk to buffer
+    this.streamBuffer += chunk;
+
     let content = "";
     let error;
 
-    for (const line of lines) {
-      const trimmedLine = line.trim();
-      if (!trimmedLine || trimmedLine === "data: [DONE]") continue;
+    // Find complete messages in buffer
+    const messages = this.streamBuffer.split("\n");
 
-      try {
-        // Remove 'data: ' prefix if present
-        const jsonStr = trimmedLine.replace(/^data: /, "");
+    // Keep the last potentially incomplete message in buffer
+    this.streamBuffer = messages.pop() || "";
 
-        // Validate JSON structure before parsing
-        if (!jsonStr.startsWith("{") || !jsonStr.endsWith("}")) {
-          continue; // Skip malformed JSON
-        }
-
-        const parsed = JSON.parse(jsonStr);
-
-        // Handle error objects
-        if (parsed.error) {
-          error = parsed.error;
-          continue;
-        }
-
-        // Extract content from delta if available
-        const deltaContent = parsed.choices?.[0]?.delta?.content;
-        if (deltaContent) {
-          // Decode HTML entities before adding to content
-          content += this.htmlEntityDecoder.decode(deltaContent);
-        }
-      } catch (e) {
-        // Silently skip individual parsing errors
-        continue;
-      }
+    // Process complete messages
+    for (const message of messages) {
+      const result = this.processCompleteMessage(message);
+      if (result.error) error = result.error;
+      content += result.content;
     }
 
     return { content, error };
@@ -267,6 +283,9 @@ export class OpenRouterAPI implements ILLMProvider {
     let assistantMessage = "";
     let lastActivityTimestamp = Date.now();
     const TIMEOUT_THRESHOLD = 30000; // 30 seconds
+
+    // Reset stream buffer at start of new message
+    this.streamBuffer = "";
 
     const streamOperation = async () => {
       const response = await this.httpClient.post(
@@ -296,40 +315,10 @@ export class OpenRouterAPI implements ILLMProvider {
       }, 5000);
 
       try {
-        let buffer = "";
         for await (const chunk of response.data) {
           lastActivityTimestamp = Date.now();
-          buffer += chunk.toString();
+          const { content, error } = this.parseStreamChunk(chunk.toString());
 
-          // Process complete messages from buffer
-          const lastNewlineIndex = buffer.lastIndexOf("\n");
-          if (lastNewlineIndex !== -1) {
-            const completeChunks = buffer.substring(0, lastNewlineIndex);
-            buffer = buffer.substring(lastNewlineIndex + 1);
-
-            const { content, error } = this.parseStreamChunk(completeChunks);
-
-            if (error) {
-              const llmError = new LLMError(
-                error.message ||
-                  "Stream error - continuing with partial response",
-                "STREAM_ERROR",
-                error,
-              );
-              callback("", llmError);
-              // Don't throw, continue processing
-            }
-
-            if (content) {
-              assistantMessage += content;
-              callback(content);
-            }
-          }
-        }
-
-        // Process any remaining buffer content
-        if (buffer) {
-          const { content, error } = this.parseStreamChunk(buffer);
           if (error) {
             const llmError = new LLMError(
               error.message ||
@@ -338,7 +327,27 @@ export class OpenRouterAPI implements ILLMProvider {
               error,
             );
             callback("", llmError);
-            // Don't throw, continue with partial response
+          }
+
+          if (content) {
+            assistantMessage += content;
+            callback(content);
+          }
+        }
+
+        // Process any remaining buffer content at the end
+        if (this.streamBuffer) {
+          const { content, error } = this.processCompleteMessage(
+            this.streamBuffer,
+          );
+          if (error) {
+            const llmError = new LLMError(
+              error.message ||
+                "Stream error - continuing with partial response",
+              "STREAM_ERROR",
+              error,
+            );
+            callback("", llmError);
           }
           if (content) {
             assistantMessage += content;
@@ -347,6 +356,8 @@ export class OpenRouterAPI implements ILLMProvider {
         }
       } finally {
         clearInterval(checkTimeout);
+        // Reset buffer
+        this.streamBuffer = "";
       }
 
       // Always save whatever we got

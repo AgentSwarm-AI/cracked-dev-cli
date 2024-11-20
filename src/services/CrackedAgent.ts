@@ -152,8 +152,6 @@ export class CrackedAgent {
       model,
       message,
       async (chunk: string) => {
-        chunk = this.htmlEntityDecoder.decode(chunk);
-
         response += chunk;
         this.actionsParser.appendToBuffer(chunk);
         process.stdout.write(chunk);

@@ -5,7 +5,6 @@
 import { WriteStream } from "tty";
 import { ActionsParser } from "../LLM/actions/ActionsParser";
 import { DebugLogger } from "../logging/DebugLogger";
-import { HtmlEntityDecoder } from "../text/HTMLEntityDecoder";
 
 export interface StreamCallback {
   (message: string): Promise<string>;
@@ -42,7 +41,6 @@ export class StreamHandler {
   constructor(
     private debugLogger: DebugLogger,
     private actionsParser: ActionsParser,
-    private htmlEntityDecoder: HtmlEntityDecoder,
   ) {}
 
   reset() {
@@ -140,7 +138,7 @@ export class StreamHandler {
 
   private safeWriteToStdout(text: string) {
     try {
-      process.stdout.write(this.htmlEntityDecoder.decode(text));
+      process.stdout.write(text);
     } catch (error) {
       // Ignore write errors in non-TTY environments
     }
@@ -199,11 +197,10 @@ export class StreamHandler {
     }
 
     // Decode the chunk before any processing
-    const decodedChunk = this.htmlEntityDecoder.decode(chunk);
 
-    this.safeWriteToStdout(decodedChunk);
-    this.actionsParser.appendToBuffer(decodedChunk);
-    this.responseBuffer += decodedChunk;
+    this.safeWriteToStdout(chunk);
+    this.actionsParser.appendToBuffer(chunk);
+    this.responseBuffer += chunk;
 
     // Check if the message is complete
     const isMessageComplete = this.actionsParser.isCompleteMessage(
@@ -240,9 +237,8 @@ export class StreamHandler {
                 this.displayError(error);
                 return;
               }
-              const decodedActionChunk = this.htmlEntityDecoder.decode(chunk);
-              this.safeWriteToStdout(decodedActionChunk);
-              actionResponse += decodedActionChunk;
+              this.safeWriteToStdout(chunk);
+              actionResponse += chunk;
               this.lastActivityTimestamp = Date.now();
             });
 

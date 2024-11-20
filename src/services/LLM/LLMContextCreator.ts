@@ -77,16 +77,6 @@ ${context.message}
 
 ## Initial Instructions
 
-CRITICAL: SETUP YOUR WORKTREE FIRST
-
-### Git worktree (isolating your work)
-
-- Create a new worktree for your task using the following command:
-    - git worktree add ../<task-directory>
-- Replace <task-directory> with a descriptive name for the task
-   - Work only within the new task directory and limit changes to files directly related to your task. Do not modify unrelated files.
-
-THEN SAY:
 
 To achieve this goal, I'll:
 - Step 1: Brief explanation.
@@ -98,7 +88,7 @@ To achieve this goal, I'll:
 
 ## Important Notes
 ### Critical Instructions
-- Output raw text only. **MOST IMPORTANT RULE! DO NOT OUTPUT ENCODED OR ESCAPED CHARACTERS.**
+- Output raw text only. **MOST IMPORTANT RULE! DO NOT OUTPUT ENCODED OR ESCAPED CHARACTERS, especially \\".**
 - Pay attention to my initial request and STICK TO WHAT WAS ASKED. Do not go beyond the task! Be very precise.
 - REALLY CAREFUL with file paths precision. Double check!
 - Always reuse project dependencies. **DO NOT INSTALL EXTRA DEPENDENCIES.** unless you ask the user.
@@ -179,6 +169,7 @@ To achieve this goal, I'll:
 ### Useful Commands
 - **Run all tests:** yarn test
 - **Run a specific test:** yarn test path/to/test
+- **Fetch test failures (use this after running specific test and its failing):** yarn test --only-failures
 - **Run type check:** yarn type-check
 
 ## Available Actions

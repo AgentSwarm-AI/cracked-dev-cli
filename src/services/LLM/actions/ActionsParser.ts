@@ -2,6 +2,7 @@ import path from "path";
 import { autoInjectable } from "tsyringe";
 import { v4 as uuidv4 } from "uuid";
 import { DebugLogger } from "../../logging/DebugLogger";
+import { HtmlEntityDecoder } from "../../text/HTMLEntityDecoder";
 import { LLMContextCreator } from "../LLMContextCreator";
 import {
   ActionType,
@@ -25,6 +26,7 @@ export class ActionsParser {
   constructor(
     private debugLogger: DebugLogger,
     private contextCreator: LLMContextCreator,
+    private htmlEntityDecoder: HtmlEntityDecoder,
   ) {}
 
   reset() {
@@ -233,12 +235,16 @@ export class ActionsParser {
 
     const [_, actionType] = actionMatch;
 
+    const output = this.htmlEntityDecoder.decode(JSON.stringify(result.data), {
+      uneescape: true,
+    });
+
     if (actionType === "read_file" && result.success) {
       // If the result data is already formatted (contains # File:), return it as is
       if (typeof result.data === "string" && result.data.includes("# File:")) {
         return result.data;
       }
-      return `Here's the content of the requested file:\n\n${JSON.stringify(result.data)}\n\nPlease analyze this content and continue with the task.`;
+      return `Here's the content of the requested file:\n\n${output}\n\nPlease analyze this content and continue with the task.`;
     }
 
     if (actionType === "fetch_url" && result.success) {
@@ -249,7 +255,7 @@ export class ActionsParser {
       return `Task completed: ${result.data}`;
     }
 
-    return `[Action Result] ${actionType}: ${JSON.stringify(result)}`;
+    return `[Action Result] ${actionType}: ${JSON.stringify(result)} ${result.success && "Proceed to next step."}`;
   }
 
   async parseAndExecuteActions(

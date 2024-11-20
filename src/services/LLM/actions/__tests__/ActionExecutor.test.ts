@@ -2,6 +2,7 @@ import { FileOperations } from "../../../FileManagement/FileOperations";
 import { FileSearch } from "../../../FileManagement/FileSearch";
 import { PathAdjuster } from "../../../FileManagement/PathAdjuster";
 import { DebugLogger } from "../../../logging/DebugLogger";
+import { AnsiStripper } from "../../../text/AnsiStripper";
 import { HtmlEntityDecoder } from "../../../text/HTMLEntityDecoder";
 import { ActionExecutor } from "../ActionExecutor";
 import { ActionTagsExtractor } from "../ActionTagsExtractor";
@@ -35,6 +36,7 @@ describe("ActionExecutor", () => {
   let mockDebugLogger: jest.Mocked<DebugLogger>;
   let mockHtmlEntityDecoder: jest.Mocked<HtmlEntityDecoder>;
   let mockPathAdjuster: jest.Mocked<PathAdjuster>;
+  let mockAnsiStripper: jest.Mocked<AnsiStripper>;
 
   beforeEach(() => {
     mockDebugLogger = new DebugLogger() as jest.Mocked<DebugLogger>;
@@ -54,6 +56,7 @@ describe("ActionExecutor", () => {
     ) as jest.Mocked<FileActions>;
     mockCommandAction = new CommandAction(
       mockDebugLogger,
+      mockAnsiStripper,
     ) as jest.Mocked<CommandAction>;
     mockSearchAction = new SearchAction(
       mockFileSearch,

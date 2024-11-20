@@ -1,5 +1,6 @@
 import { container } from "tsyringe";
 import { DebugLogger } from "../../../logging/DebugLogger";
+import { HtmlEntityDecoder } from "../../../text/HTMLEntityDecoder";
 import { LLMContextCreator } from "../../LLMContextCreator";
 import { ActionsParser } from "../ActionsParser";
 
@@ -10,6 +11,7 @@ describe("ActionsParser", () => {
   let actionsParser: ActionsParser;
   let mockDebugLogger: jest.Mocked<DebugLogger>;
   let mockContextCreator: jest.Mocked<LLMContextCreator>;
+  let mockHtmlEntityDecoder: jest.Mocked<HtmlEntityDecoder>;
 
   beforeEach(() => {
     mockDebugLogger = container.resolve(
@@ -18,7 +20,15 @@ describe("ActionsParser", () => {
     mockContextCreator = container.resolve(
       LLMContextCreator,
     ) as jest.Mocked<LLMContextCreator>;
-    actionsParser = new ActionsParser(mockDebugLogger, mockContextCreator);
+    mockHtmlEntityDecoder = container.resolve(
+      HtmlEntityDecoder,
+    ) as jest.Mocked<HtmlEntityDecoder>;
+
+    actionsParser = new ActionsParser(
+      mockDebugLogger,
+      mockContextCreator,
+      mockHtmlEntityDecoder,
+    );
   });
 
   describe("reset", () => {
