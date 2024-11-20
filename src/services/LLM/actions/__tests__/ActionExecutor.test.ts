@@ -4,6 +4,7 @@ import { PathAdjuster } from "../../../FileManagement/PathAdjuster";
 import { DebugLogger } from "../../../logging/DebugLogger";
 import { AnsiStripper } from "../../../text/AnsiStripper";
 import { HtmlEntityDecoder } from "../../../text/HTMLEntityDecoder";
+import { ModelScaler } from "../../ModelScaler";
 import { ActionExecutor } from "../ActionExecutor";
 import { ActionTagsExtractor } from "../ActionTagsExtractor";
 import { CommandAction } from "../CommandAction";
@@ -40,6 +41,7 @@ describe("ActionExecutor", () => {
   let mockHtmlEntityDecoder: jest.Mocked<HtmlEntityDecoder>;
   let mockPathAdjuster: jest.Mocked<PathAdjuster>;
   let mockAnsiStripper: jest.Mocked<AnsiStripper>;
+  let mockModelScaler: jest.Mocked<ModelScaler>;
 
   beforeEach(() => {
     mockDebugLogger = new DebugLogger() as jest.Mocked<DebugLogger>;
@@ -68,10 +70,15 @@ describe("ActionExecutor", () => {
     mockEndTaskAction = new EndTaskAction(
       mockActionTagsExtractor,
     ) as jest.Mocked<EndTaskAction>;
+    mockModelScaler = new ModelScaler(
+      mockDebugLogger,
+    ) as jest.Mocked<ModelScaler>;
+
     mockWriteFileAction = new WriteFileAction(
       mockFileOperations,
       mockActionTagsExtractor,
       mockHtmlEntityDecoder,
+      mockModelScaler,
     ) as jest.Mocked<WriteFileAction>;
     mockRelativePathLookupAction = new RelativePathLookupAction(
       mockPathAdjuster,
@@ -96,17 +103,68 @@ describe("ActionExecutor", () => {
     mockHtmlEntityDecoder.decode.mockImplementation((text) => text);
   });
 
+  describe("tag validation", () => {
+    it("should detect action without proper tag structure", async () => {
+      const content = "write_file some content";
+      const result = await actionExecutor.executeAction(content);
+
+      expect(result.success).toBe(false);
+      expect(result.error?.message).toContain(
+        'Found "write_file" without proper XML tag structure',
+      );
+      expect(result.error?.message).toContain(
+        "Tags must be wrapped in < > brackets",
+      );
+      expect(result.error?.message).toContain(
+        "<write_file>content</write_file>",
+      );
+    });
+
+    it("should detect missing closing tag", async () => {
+      const content = "<write_file>some content";
+      const result = await actionExecutor.executeAction(content);
+
+      expect(result.success).toBe(false);
+      expect(result.error?.message).toContain("No valid action tags found");
+      expect(result.error?.message).toContain(
+        "Actions must be wrapped in XML-style tags",
+      );
+    });
+
+    it("should detect missing opening tag", async () => {
+      const content = "some content</write_file>";
+      const result = await actionExecutor.executeAction(content);
+
+      expect(result.success).toBe(false);
+      expect(result.error?.message).toContain("No valid action tags found");
+      expect(result.error?.message).toContain(
+        "Actions must be wrapped in XML-style tags",
+      );
+    });
+
+    it("should accept properly formatted tags", async () => {
+      const content =
+        "<write_file><path>test.txt</path><content>test</content></write_file>";
+      mockWriteFileAction.execute.mockResolvedValue({ success: true });
+
+      const result = await actionExecutor.executeAction(content);
+
+      expect(result.success).toBe(true);
+      expect(mockWriteFileAction.execute).toHaveBeenCalled();
+    });
+  });
+
   it("should handle invalid action format", async () => {
     const content = "invalid content";
 
     const result = await actionExecutor.executeAction(content);
 
     expect(result.success).toBe(false);
-    expect(result.error?.message).toBe("Invalid action format");
+    expect(result.error?.message).toContain("No valid action tags found");
   });
 
   it("should handle unknown action type", async () => {
-    const content = `\n      <unknown_action>\n        <content>test</content>\n      </unknown_action>\n    `;
+    const content = `<unknown_action><content>test</content></unknown_action>`;
 
     const result = await actionExecutor.executeAction(content);
 
@@ -125,8 +183,6 @@ describe("ActionExecutor", () => {
 
     expect(result.success).toBe(true);
     expect(result.data).toBe("/absolute/path/to/file");
-    expect(mockRelativePathLookupAction.execute).toHaveBeenCalledWith(
-      `<path>./some/path</path>`,
-    );
+    expect(mockRelativePathLookupAction.execute).toHaveBeenCalledWith(content);
   });
 });

@@ -1,8 +1,8 @@
 import { autoInjectable } from "tsyringe";
 import { BLOCK_WRITE_IF_CONTENT_REMOVAL_THRESHOLD } from "../../../constants/writeConstants";
 import { FileOperations } from "../../FileManagement/FileOperations";
-import { IFileOperationResult } from "../../FileManagement/types/FileManagementTypes";
 import { HtmlEntityDecoder } from "../../text/HTMLEntityDecoder";
+import { ModelScaler } from "../ModelScaler";
 import { ActionTagsExtractor } from "./ActionTagsExtractor";
 import { IActionResult } from "./types/ActionTypes";
 
@@ -12,13 +12,22 @@ export class WriteFileAction {
     private fileOperations: FileOperations,
     private actionTagsExtractor: ActionTagsExtractor,
     private htmlEntityDecoder: HtmlEntityDecoder,
+    private modelScaler: ModelScaler,
   ) {}
 
   async execute(content: string): Promise<IActionResult> {
     const filePath = this.actionTagsExtractor.extractTag(content, "path");
     const fileContent = this.actionTagsExtractor.extractTag(content, "content");
+    const tryCount = this.actionTagsExtractor.extractTag(content, "try");
 
     if (!filePath || !fileContent) {
+      if (!filePath) {
+        console.log("🚫 No file path provided");
+      }
+      if (!fileContent) {
+        console.log("🚫 No file content provided");
+      }
+
       return {
         success: false,
         error: new Error(
@@ -28,6 +37,13 @@ export class WriteFileAction {
     }
 
     console.log(`📁 File path: ${filePath}`);
+
+    // Update model scaler with try count if provided
+    if (tryCount) {
+      const count = parseInt(tryCount, 10);
+      console.log(`🔄 Try count: ${count}`);
+      this.modelScaler.setTryCount(filePath, count);
+    }
 
     // Check for large content removal if file exists
     const removalCheck = await this.checkLargeRemoval(filePath, fileContent);
@@ -39,7 +55,20 @@ export class WriteFileAction {
       filePath,
       this.htmlEntityDecoder.decode(fileContent),
     );
-    return this.convertFileResult(result);
+
+    if (!result.success) {
+      return {
+        success: false,
+        error: result.error,
+      };
+    }
+
+    return {
+      success: true,
+      data: {
+        selectedModel: this.modelScaler.getCurrentModel(),
+      },
+    };
   }
 
   private async checkLargeRemoval(
@@ -85,21 +114,5 @@ export class WriteFileAction {
 
     const removedLength = Math.max(0, existingLength - newLength);
     return (removedLength / existingLength) * 100;
-  }
-
-  private convertFileResult(result: IFileOperationResult): IActionResult {
-    if (result.success) {
-      console.log("✅ Action completed successfully. Please wait...\n\n");
-    } else {
-      console.log("❌ Action failed");
-    }
-
-    console.log("-".repeat(50));
-
-    return {
-      success: result.success,
-      data: result.data,
-      error: result.error,
-    };
   }
 }

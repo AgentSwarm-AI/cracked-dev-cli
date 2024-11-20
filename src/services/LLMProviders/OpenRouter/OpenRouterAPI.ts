@@ -2,6 +2,8 @@ import { autoInjectable, inject } from "tsyringe";
 import { openRouterClient } from "../../../constants/openRouterClient";
 import { ConversationContext } from "../../LLM/ConversationContext";
 import { ILLMProvider, IMessage } from "../../LLM/ILLMProvider";
+import { ModelScaler } from "../../LLM/ModelScaler";
+import { DebugLogger } from "../../logging/DebugLogger";
 import { HtmlEntityDecoder } from "../../text/HTMLEntityDecoder";
 import { IOpenRouterModelInfo } from "./types/OpenRouterAPITypes";
 
@@ -25,6 +27,8 @@ export class OpenRouterAPI implements ILLMProvider {
     @inject(ConversationContext)
     private conversationContext: ConversationContext,
     private htmlEntityDecoder: HtmlEntityDecoder,
+    private modelScaler: ModelScaler,
+    private debugLogger: DebugLogger,
   ) {
     this.httpClient = openRouterClient;
   }
@@ -101,7 +105,7 @@ export class OpenRouterAPI implements ILLMProvider {
 
     try {
       const response = await this.httpClient.post("/chat/completions", {
-        model,
+        model: this.modelScaler.getCurrentModel() || model,
         messages,
         ...options,
       });
@@ -110,6 +114,10 @@ export class OpenRouterAPI implements ILLMProvider {
 
       this.conversationContext.addMessage("user", message);
       this.conversationContext.addMessage("assistant", assistantMessage);
+
+      this.debugLogger.log("Model", "Using model", {
+        model: this.modelScaler.getCurrentModel(),
+      });
 
       return assistantMessage;
     } catch (error) {
@@ -131,6 +139,7 @@ export class OpenRouterAPI implements ILLMProvider {
 
   clearConversationContext(): void {
     this.conversationContext.clear();
+    this.modelScaler.reset();
   }
 
   getConversationContext(): IMessage[] {
@@ -268,7 +277,7 @@ export class OpenRouterAPI implements ILLMProvider {
       const response = await this.httpClient.post(
         "/chat/completions",
         {
-          model,
+          model: this.modelScaler.getCurrentModel() || model,
           messages,
           stream: true,
           ...options,

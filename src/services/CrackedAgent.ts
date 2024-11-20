@@ -30,6 +30,7 @@ export interface ExecutionResult {
 export class CrackedAgent {
   private llm!: ILLMProvider;
   private isFirstInteraction: boolean = true;
+  private currentModel: string = "";
 
   constructor(
     private fileReader: FileReader,
@@ -45,6 +46,7 @@ export class CrackedAgent {
     options: CrackedAgentOptions,
   ): Promise<ExecutionResult | void> {
     const finalOptions = await this.setupExecution(options);
+    this.currentModel = finalOptions.model;
 
     const formattedMessage = await this.contextCreator.create(
       message,
@@ -60,7 +62,7 @@ export class CrackedAgent {
     if (finalOptions.stream) {
       return this.handleStreamExecution(
         formattedMessage,
-        finalOptions.model,
+        this.currentModel,
         finalOptions.options,
         finalOptions.stream,
       );
@@ -68,7 +70,7 @@ export class CrackedAgent {
 
     const result = await this.handleNormalExecution(
       formattedMessage,
-      finalOptions.model,
+      this.currentModel,
       finalOptions.options,
       finalOptions.stream,
     );
@@ -159,7 +161,7 @@ export class CrackedAgent {
     );
     process.stdout.write("\n");
 
-    if (!response) return { response: "" }; // safeguard against null response
+    if (!response) return { response: "" };
 
     const { actions, followupResponse } =
       await this.parseAndExecuteWithCallback(
@@ -188,7 +190,7 @@ export class CrackedAgent {
       conversationHistory: this.llm.getConversationContext(),
     });
 
-    if (!response) return { response: "" }; // safeguard against null response
+    if (!response) return { response: "" };
 
     const { actions, followupResponse } =
       await this.parseAndExecuteWithCallback(response, model, options, stream);
@@ -212,7 +214,7 @@ export class CrackedAgent {
     const result = await this.actionsParser.parseAndExecuteActions(
       response,
       model,
-      async (followupMsg) => {
+      async (followupMsg: string) => {
         const formattedFollowup = await this.contextCreator.create(
           followupMsg,
           process.cwd(),
@@ -222,7 +224,7 @@ export class CrackedAgent {
         if (stream) {
           let followupResponse = "";
           await this.llm.streamMessage(
-            model,
+            this.currentModel,
             formattedFollowup,
             async (chunk: string) => {
               followupResponse += chunk;
@@ -234,7 +236,7 @@ export class CrackedAgent {
 
           const followupResult = await this.parseAndExecuteWithCallback(
             followupResponse,
-            model,
+            this.currentModel,
             options,
             stream,
           );
@@ -242,14 +244,14 @@ export class CrackedAgent {
           return followupResult.followupResponse || followupResponse;
         } else {
           const followupResponse = await this.llm.sendMessage(
-            model,
+            this.currentModel,
             formattedFollowup,
             options,
           );
 
           const followupResult = await this.parseAndExecuteWithCallback(
             followupResponse,
-            model,
+            this.currentModel,
             options,
             stream,
           );
@@ -259,7 +261,10 @@ export class CrackedAgent {
       },
     );
 
-    return result;
+    return {
+      actions: result.actions,
+      followupResponse: result.followupResponse,
+    };
   }
 
   getConversationHistory() {

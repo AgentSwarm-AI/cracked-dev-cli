@@ -4,15 +4,21 @@ import { HtmlEntityDecoder } from "../../text/HTMLEntityDecoder";
 import { ConversationContext } from "../ConversationContext";
 import { ILLMProvider } from "../ILLMProvider";
 import { LLMProvider, LLMProviderType } from "../LLMProvider";
+import { ModelScaler } from "../ModelScaler";
+import { DebugLogger } from "../../logging/DebugLogger";
 
 jest.mock("../../LLMProviders/OpenRouter/OpenRouterAPI");
 jest.mock("../ConversationContext");
+jest.mock("../ModelScaler");
+jest.mock("../../logging/DebugLogger");
 
 describe("LLMProvider", () => {
   let provider: ILLMProvider;
   let mockOpenRouterAPI: jest.Mocked<OpenRouterAPI>;
   let mockConversationContext: jest.Mocked<ConversationContext>;
   let mockHtmlEntityDecoder: jest.Mocked<HtmlEntityDecoder>;
+  let mockModelScaler: jest.Mocked<ModelScaler>;
+  let mockDebugLogger: jest.Mocked<DebugLogger>;
 
   beforeEach(() => {
     mockConversationContext =
@@ -27,9 +33,21 @@ describe("LLMProvider", () => {
     jest.spyOn(mockConversationContext, "clear").mockImplementation();
     jest.spyOn(mockConversationContext, "addMessage").mockImplementation();
 
+    mockHtmlEntityDecoder =
+      new HtmlEntityDecoder() as jest.Mocked<HtmlEntityDecoder>;
+
+    mockDebugLogger = new DebugLogger() as jest.Mocked<DebugLogger>;
+    jest.spyOn(mockDebugLogger, "log").mockImplementation();
+
+    mockModelScaler = new ModelScaler(mockDebugLogger) as jest.Mocked<ModelScaler>;
+    jest.spyOn(mockModelScaler, "getCurrentModel").mockReturnValue("model1");
+    jest.spyOn(mockModelScaler, "reset").mockImplementation();
+
     mockOpenRouterAPI = new OpenRouterAPI(
       mockConversationContext,
       mockHtmlEntityDecoder,
+      mockModelScaler,
+      mockDebugLogger,
     ) as jest.Mocked<OpenRouterAPI>;
     jest.spyOn(mockOpenRouterAPI, "sendMessage").mockResolvedValue("response");
     jest
@@ -51,6 +69,12 @@ describe("LLMProvider", () => {
     container.resolve = jest.fn().mockImplementation((token) => {
       if (token === ConversationContext) {
         return mockConversationContext;
+      } else if (token === HtmlEntityDecoder) {
+        return mockHtmlEntityDecoder;
+      } else if (token === ModelScaler) {
+        return mockModelScaler;
+      } else if (token === DebugLogger) {
+        return mockDebugLogger;
       } else if (token === OpenRouterAPI) {
         return mockOpenRouterAPI;
       } else if (token === LLMProvider) {

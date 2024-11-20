@@ -89,9 +89,9 @@ To achieve this goal, I'll:
 ## Important Notes
 ### Critical Instructions
 
-- ONLY ONE ACTION PER REPLY!!
-- ONLY ONE ACTION PER REPLY!!
-- ONLY ONE ACTION PER REPLY!!
+- ONLY ONE ACTION PER REPLY (except read_file)!!
+- ONLY ONE ACTION PER REPLY (except read_file)!!
+- ONLY ONE ACTION PER REPLY (except read_file)!!
 - Output raw text only. **MOST IMPORTANT RULE! DO NOT OUTPUT ENCODED OR ESCAPED CHARACTERS, especially \\".**
 - Pay attention to my initial request and STICK TO WHAT WAS ASKED. Do not go beyond the task! Be very precise.
 - REALLY CAREFUL with file paths precision. Double check!
@@ -202,6 +202,7 @@ To achieve this goal, I'll:
 DO NOT RUN write_file if import issues are not resolved! Use relative_path_lookup first.
 <write_file>
   <path>/path/here</path>
+  <try>0</try> <!-- Increment this every time you edit the same file -->
   <content>
     <!-- ALWAYS run a type check after write_file -->
     <!-- ALWAYS output FULL CODE. No skips or partial code -->

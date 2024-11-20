@@ -11,6 +11,7 @@ interface IPendingAction {
   type: string;
   content: string;
   priority: number;
+  rawContent: string;
 }
 
 @autoInjectable()
@@ -26,12 +27,47 @@ export class ActionExecutor {
 
   async executeAction(actionText: string): Promise<IActionResult> {
     try {
+      // Check for action words without proper XML structure
+      const actionWords = [
+        "write_file",
+        "read_file",
+        "delete_file",
+        "move_file",
+        "copy_file_slice",
+        "fetch_url",
+        "execute_command",
+        "search_string",
+        "search_file",
+        "end_task",
+        "relative_path_lookup",
+      ];
+
+      for (const word of actionWords) {
+        if (
+          actionText.includes(word) &&
+          !actionText.includes(`<${word}>`) &&
+          !actionText.includes(`</${word}>`)
+        ) {
+          return {
+            success: false,
+            error: new Error(
+              `Found "${word}" without proper XML tag structure. Tags must be wrapped in < > brackets. For example: <${word}>content</${word}>`,
+            ),
+          };
+        }
+      }
+
       // Updated regex to better handle nested tags
       const actionMatch = /<(\w+)>([\s\S]*?)<\/\1>/g;
       const matches = Array.from(actionText.matchAll(actionMatch));
 
       if (!matches.length) {
-        return { success: false, error: new Error("Invalid action format") };
+        return {
+          success: false,
+          error: new Error(
+            "No valid action tags found. Actions must be wrapped in XML-style tags.",
+          ),
+        };
       }
 
       // Collect and sort actions
@@ -39,9 +75,10 @@ export class ActionExecutor {
         .filter(
           ([, actionType]) => actionType !== "path" && actionType !== "content",
         )
-        .map(([, actionType, content]) => ({
+        .map(([fullMatch, actionType, content]) => ({
           type: actionType,
           content: content.trim(),
+          rawContent: fullMatch,
           // execute_command gets lowest priority (runs last)
           priority: actionType === "execute_command" ? 1 : 0,
         }))
@@ -52,7 +89,9 @@ export class ActionExecutor {
       for (const action of pendingActions) {
         lastResult = await this.executeActionByType(
           action.type,
-          action.content,
+          action.type === "relative_path_lookup"
+            ? action.rawContent
+            : action.content,
         );
         if (!lastResult.success) break;
       }

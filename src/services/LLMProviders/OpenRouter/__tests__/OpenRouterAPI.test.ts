@@ -1,17 +1,23 @@
 import { openRouterClient } from "../../../../constants/openRouterClient";
 import { ConversationContext } from "../../../LLM/ConversationContext";
 import { HtmlEntityDecoder } from "../../../text/HTMLEntityDecoder";
+import { ModelScaler } from "../../../LLM/ModelScaler";
+import { DebugLogger } from "../../../logging/DebugLogger";
 import { OpenRouterAPI } from "../OpenRouterAPI";
 import { IOpenRouterModelInfo } from "../types/OpenRouterAPITypes";
 
 jest.mock("../../../../constants/openRouterClient");
 jest.mock("../../../LLM/ConversationContext");
 jest.mock("../../../text/HTMLEntityDecoder");
+jest.mock("../../../LLM/ModelScaler");
+jest.mock("../../../logging/DebugLogger");
 
 describe("OpenRouterAPI", () => {
   let openRouterAPI: OpenRouterAPI;
   let conversationContext: jest.Mocked<ConversationContext>;
   let htmlEntityDecoder: jest.Mocked<HtmlEntityDecoder>;
+  let modelScaler: jest.Mocked<ModelScaler>;
+  let debugLogger: jest.Mocked<DebugLogger>;
 
   beforeEach(() => {
     (openRouterClient.post as jest.Mock).mockClear();
@@ -20,6 +26,8 @@ describe("OpenRouterAPI", () => {
       new ConversationContext() as jest.Mocked<ConversationContext>;
     htmlEntityDecoder =
       new HtmlEntityDecoder() as jest.Mocked<HtmlEntityDecoder>;
+    debugLogger = new DebugLogger() as jest.Mocked<DebugLogger>;
+    modelScaler = new ModelScaler(debugLogger) as jest.Mocked<ModelScaler>;
 
     conversationContext.getMessages.mockReturnValue([]);
     conversationContext.addMessage.mockImplementation(
@@ -29,7 +37,7 @@ describe("OpenRouterAPI", () => {
     htmlEntityDecoder.unescapeString.mockImplementation((str) => str);
     htmlEntityDecoder.decode.mockImplementation((str) => str);
 
-    openRouterAPI = new OpenRouterAPI(conversationContext, htmlEntityDecoder);
+    openRouterAPI = new OpenRouterAPI(conversationContext, htmlEntityDecoder, modelScaler, debugLogger);
   });
 
   describe("sendMessage", () => {
