@@ -5,9 +5,6 @@ import { ILLMProvider, IMessage } from "../../LLM/ILLMProvider";
 import { HtmlEntityDecoder } from "../../text/HTMLEntityDecoder";
 import { IOpenRouterModelInfo } from "./types/OpenRouterAPITypes";
 
-const MAX_RETRIES = 3;
-const RETRY_DELAY = 1000;
-
 class LLMError extends Error {
   constructor(
     message: string,
@@ -36,7 +33,6 @@ export class OpenRouterAPI implements ILLMProvider {
     if (error?.response?.data) {
       const data = error.response.data;
 
-      // Handle context length errors
       if (data.error?.message?.includes("context length")) {
         return new LLMError(
           "Maximum context length exceeded",
@@ -48,7 +44,6 @@ export class OpenRouterAPI implements ILLMProvider {
         );
       }
 
-      // Handle rate limit errors
       if (
         data.error?.type === "rate_limit_exceeded" ||
         data.error?.code === 429
@@ -60,7 +55,6 @@ export class OpenRouterAPI implements ILLMProvider {
         );
       }
 
-      // Handle model-specific errors
       if (data.error?.message?.includes("model")) {
         return new LLMError(
           "Model error occurred - continuing with partial response",
@@ -69,7 +63,6 @@ export class OpenRouterAPI implements ILLMProvider {
         );
       }
 
-      // Handle token budget errors
       if (data.error?.code === "insufficient_quota") {
         return new LLMError(
           "Insufficient token budget - continuing with partial response",
@@ -77,9 +70,12 @@ export class OpenRouterAPI implements ILLMProvider {
           { required: data.error.required, available: data.error.available },
         );
       }
+
+      if (data.error?.message) {
+        return new LLMError(data.error.message, "SERVER_ERROR", error);
+      }
     }
 
-    // Handle network/timeout errors
     if (error.code === "ECONNRESET" || error.code === "ETIMEDOUT") {
       return new LLMError(
         "Network connection error - continuing with partial response",
@@ -88,10 +84,8 @@ export class OpenRouterAPI implements ILLMProvider {
       );
     }
 
-    // Generic error fallback
     return new LLMError(
-      error.message ||
-        "An unknown error occurred - continuing with partial response",
+      "An unknown error occurred - continuing with partial response",
       "UNKNOWN_ERROR",
       error,
     );
@@ -173,23 +167,16 @@ export class OpenRouterAPI implements ILLMProvider {
     }
   }
 
-  private delay(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-  }
-
   private async retryStreamOperation<T>(
     operation: () => Promise<T>,
-    retryCount = 0,
   ): Promise<T> {
     try {
       return await operation();
     } catch (error) {
-      if (retryCount < MAX_RETRIES && this.isRetryableError(error)) {
-        await this.delay(RETRY_DELAY * Math.pow(2, retryCount));
-        return this.retryStreamOperation(operation, retryCount + 1);
+      if (this.isRetryableError(error)) {
+        return await operation();
       }
 
-      // Instead of throwing, return partial response
       if (error instanceof LLMError) {
         return error as unknown as T;
       }
@@ -214,7 +201,6 @@ export class OpenRouterAPI implements ILLMProvider {
     error?: any;
   } {
     try {
-      // Remove 'data: ' prefix if present and validate JSON structure
       const jsonStr = message.replace(/^data: /, "").trim();
       if (
         !jsonStr ||
@@ -236,10 +222,8 @@ export class OpenRouterAPI implements ILLMProvider {
         return { content: "" };
       }
 
-      // First unescape any escaped characters
       const unescapedContent =
         this.htmlEntityDecoder.unescapeString(deltaContent);
-      // Then decode any HTML entities
       const decodedContent = this.htmlEntityDecoder.decode(unescapedContent);
 
       return { content: decodedContent };
@@ -249,19 +233,15 @@ export class OpenRouterAPI implements ILLMProvider {
   }
 
   private parseStreamChunk(chunk: string): { content: string; error?: any } {
-    // Add chunk to buffer
     this.streamBuffer += chunk;
 
     let content = "";
     let error;
 
-    // Find complete messages in buffer
     const messages = this.streamBuffer.split("\n");
 
-    // Keep the last potentially incomplete message in buffer
     this.streamBuffer = messages.pop() || "";
 
-    // Process complete messages
     for (const message of messages) {
       const result = this.processCompleteMessage(message);
       if (result.error) error = result.error;
@@ -281,10 +261,7 @@ export class OpenRouterAPI implements ILLMProvider {
     messages.push({ role: "user", content: message });
 
     let assistantMessage = "";
-    let lastActivityTimestamp = Date.now();
-    const TIMEOUT_THRESHOLD = 30000; // 30 seconds
 
-    // Reset stream buffer at start of new message
     this.streamBuffer = "";
 
     const streamOperation = async () => {
@@ -298,25 +275,12 @@ export class OpenRouterAPI implements ILLMProvider {
         },
         {
           responseType: "stream",
-          timeout: 120000, // 2 minutes timeout
+          timeout: 0,
         },
       );
 
-      const checkTimeout = setInterval(() => {
-        if (Date.now() - lastActivityTimestamp > TIMEOUT_THRESHOLD) {
-          clearInterval(checkTimeout);
-          const error = new LLMError(
-            "Stream timeout - continuing with partial response",
-            "STREAM_TIMEOUT",
-            { threshold: TIMEOUT_THRESHOLD },
-          );
-          callback("", error);
-        }
-      }, 5000);
-
       try {
         for await (const chunk of response.data) {
-          lastActivityTimestamp = Date.now();
           const { content, error } = this.parseStreamChunk(chunk.toString());
 
           if (error) {
@@ -335,7 +299,6 @@ export class OpenRouterAPI implements ILLMProvider {
           }
         }
 
-        // Process any remaining buffer content at the end
         if (this.streamBuffer) {
           const { content, error } = this.processCompleteMessage(
             this.streamBuffer,
@@ -355,12 +318,9 @@ export class OpenRouterAPI implements ILLMProvider {
           }
         }
       } finally {
-        clearInterval(checkTimeout);
-        // Reset buffer
         this.streamBuffer = "";
       }
 
-      // Always save whatever we got
       if (assistantMessage) {
         this.conversationContext.addMessage("user", message);
         this.conversationContext.addMessage("assistant", assistantMessage);
@@ -370,12 +330,10 @@ export class OpenRouterAPI implements ILLMProvider {
     try {
       await this.retryStreamOperation(streamOperation);
     } catch (error) {
-      // Never throw, always try to continue with partial response
       const llmError =
         error instanceof LLMError ? error : this.handleLLMError(error);
       callback("", llmError);
 
-      // Save partial response if we have any
       if (assistantMessage) {
         this.conversationContext.addMessage("user", message);
         this.conversationContext.addMessage("assistant", assistantMessage);

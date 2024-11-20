@@ -36,7 +36,6 @@ export class StreamHandler {
   private responseBuffer: string = "";
   private isStreamComplete: boolean = false;
   private lastActivityTimestamp: number = Date.now();
-  private readonly INACTIVITY_THRESHOLD = 10000; // 10 seconds
 
   constructor(
     private debugLogger: DebugLogger,
@@ -119,20 +118,20 @@ export class StreamHandler {
     const { title, details, suggestion } = this.formatErrorDisplay(error);
 
     this.safeWriteToStdout("\n\n");
-    this.safeWriteToStdout("\x1b[31m"); // Red color
+    this.safeWriteToStdout("\x1b[31m");
     this.safeWriteToStdout(`❌ ${title}\n`);
-    this.safeWriteToStdout("\x1b[0m"); // Reset color
+    this.safeWriteToStdout("\x1b[0m");
 
-    this.safeWriteToStdout("\x1b[37m"); // White color
+    this.safeWriteToStdout("\x1b[37m");
     this.safeWriteToStdout(`${details}\n`);
 
     if (suggestion) {
       this.safeWriteToStdout("\n");
-      this.safeWriteToStdout("\x1b[36m"); // Cyan color
+      this.safeWriteToStdout("\x1b[36m");
       this.safeWriteToStdout(`💡 ${suggestion}\n`);
     }
 
-    this.safeWriteToStdout("\x1b[0m"); // Reset color
+    this.safeWriteToStdout("\x1b[0m");
     this.safeWriteToStdout("\n");
   }
 
@@ -140,7 +139,7 @@ export class StreamHandler {
     try {
       process.stdout.write(text);
     } catch (error) {
-      // Ignore write errors in non-TTY environments
+      console.error("Error writing to stdout", error);
     }
   }
 
@@ -150,7 +149,7 @@ export class StreamHandler {
         (process.stdout as WriteStream).clearLine(0);
       }
     } catch (error) {
-      // Ignore clear errors in non-TTY environments
+      console.error("Error clearing line", error);
     }
   }
 
@@ -160,12 +159,8 @@ export class StreamHandler {
         (process.stdout as WriteStream).cursorTo(x);
       }
     } catch (error) {
-      // Ignore cursor errors in non-TTY environments
+      console.error("Error moving cursor", error);
     }
-  }
-
-  private isInactive(): boolean {
-    return Date.now() - this.lastActivityTimestamp > this.INACTIVITY_THRESHOLD;
   }
 
   async handleChunk(
@@ -180,7 +175,6 @@ export class StreamHandler {
   ) {
     this.lastActivityTimestamp = Date.now();
 
-    // Handle error chunks
     if (chunk.startsWith('{"error":')) {
       try {
         const error = JSON.parse(chunk).error;
@@ -192,39 +186,29 @@ export class StreamHandler {
         this.displayError(llmError);
         return [];
       } catch (e) {
-        // If error parsing fails, continue with normal chunk handling
+        this.displayError(
+          new LLMError("Unknown error", "UNKNOWN_ERROR", { originalError: e }),
+        );
+        return [];
       }
     }
-
-    // Decode the chunk before any processing
 
     this.safeWriteToStdout(chunk);
     this.actionsParser.appendToBuffer(chunk);
     this.responseBuffer += chunk;
 
-    // Check if the message is complete
     const isMessageComplete = this.actionsParser.isCompleteMessage(
       this.actionsParser.buffer,
     );
-    const isInactive = this.isInactive();
 
-    if (!this.actionsParser.isComplete && (isMessageComplete || isInactive)) {
+    if (!this.actionsParser.isComplete && isMessageComplete) {
       this.actionsParser.isComplete = true;
       this.isStreamComplete = true;
-      this.debugLogger.log(
-        "Status",
-        isInactive
-          ? "Stream completed due to inactivity"
-          : "Complete message detected",
-        null,
-      );
       this.safeWriteToStdout("\n");
     }
 
-    // Only process actions if the stream is complete and we're not already processing
     if (this.isStreamComplete && !this.actionsParser.isProcessing) {
       this.actionsParser.isProcessing = true;
-      this.debugLogger.log("Action", "Processing actions", null);
 
       try {
         const actionResult = await this.actionsParser.parseAndExecuteActions(
@@ -255,16 +239,15 @@ export class StreamHandler {
         this.lastActivityTimestamp = Date.now();
 
         // Refresh terminal state for new input
+
         this.safeWriteToStdout("\n");
-        this.safeWriteToStdout("\x1B[?25h"); // Show cursor
+        this.safeWriteToStdout("\x1B[?25h");
         this.safeClearLine();
         this.safeCursorTo(0);
-        this.safeWriteToStdout("> "); // Write prompt character immediately
+        this.safeWriteToStdout("> ");
 
         return actionResult.actions;
       } catch (error) {
-        // Handle errors during action execution
-        this.debugLogger.log("Error", "Action execution failed", error);
         if (error instanceof LLMError) {
           this.displayError(error);
         } else {
@@ -276,7 +259,7 @@ export class StreamHandler {
             ),
           );
         }
-        this.reset(); // Reset state on error
+        this.reset();
         throw error;
       }
     }
