@@ -5,6 +5,10 @@ const config: Config = {
   testEnvironment: "node",
   setupFilesAfterEnv: ["<rootDir>/src/jest/jestSetupFilesAfterEnv.ts"],
   moduleNameMapper: {
+    "^@/(.*)$": "<rootDir>/src/$1",
+    "^@constants/(.*)$": "<rootDir>/src/constants/$1",
+    "^@services/(.*)$": "<rootDir>/src/services/$1",
+    "^@tests/(.*)$": "<rootDir>/src/__tests__/$1",
     "^(\\.{1,2}/.*)\\.js$": "$1",
   },
   transform: {

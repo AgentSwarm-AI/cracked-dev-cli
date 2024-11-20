@@ -14,7 +14,14 @@
     "allowJs": true,
     "resolveJsonModule": true,
     "experimentalDecorators": true,
-    "emitDecoratorMetadata": true
+    "emitDecoratorMetadata": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@constants/*": ["src/constants/*"],
+      "@services/*": ["src/services/*"],
+      "@tests/*": ["src/__tests__/*"]
+    }
   },
   "include": ["src"],
   "exclude": ["node_modules", "dist"]

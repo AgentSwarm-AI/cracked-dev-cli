@@ -1,5 +1,5 @@
+import { getModelForTryCount } from "@constants/modelScaling";
 import { singleton } from "tsyringe";
-import { getModelForTryCount } from "../../constants/modelScaling";
 import { DebugLogger } from "../logging/DebugLogger";
 
 @singleton()
