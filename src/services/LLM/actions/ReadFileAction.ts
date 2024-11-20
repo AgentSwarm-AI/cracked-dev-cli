@@ -1,5 +1,7 @@
+import path from "path";
 import { autoInjectable } from "tsyringe";
 import { FileOperations } from "../../FileManagement/FileOperations";
+import { FileSearch } from "../../FileManagement/FileSearch";
 import { IFileOperationResult } from "../../FileManagement/types/FileManagementTypes";
 import { DebugLogger } from "../../logging/DebugLogger";
 import { ActionTagsExtractor } from "./ActionTagsExtractor";
@@ -11,6 +13,7 @@ export class ReadFileAction {
     private fileOperations: FileOperations,
     private actionTagsExtractor: ActionTagsExtractor,
     private debugLogger: DebugLogger,
+    private fileSearch: FileSearch,
   ) {}
 
   async execute(content: string): Promise<IActionResult> {
@@ -39,12 +42,50 @@ export class ReadFileAction {
 
     // If only one path, use single file read for backward compatibility
     if (filePaths.length === 1) {
+      const exists = await this.fileOperations.exists(filePaths[0]);
+      if (!exists) {
+        const fileName = path.basename(filePaths[0]);
+        const searchResults = await this.fileSearch.findByName(
+          fileName,
+          process.cwd(),
+        );
+
+        if (searchResults.length > 0) {
+          console.log(
+            `🔍 File not found at specified path. Found alternative(s): ${searchResults.join(", ")}`,
+          );
+          const result = await this.fileOperations.read(searchResults[0]);
+          return this.convertFileResult(result);
+        }
+      }
       const result = await this.fileOperations.read(filePaths[0]);
       return this.convertFileResult(result);
     }
 
-    // Multiple paths, use readMultiple
-    const result = await this.fileOperations.readMultiple(filePaths);
+    // Multiple paths, handle each file individually first
+    const resolvedPaths = [];
+    for (const filePath of filePaths) {
+      const exists = await this.fileOperations.exists(filePath);
+      if (!exists) {
+        const fileName = path.basename(filePath);
+        const searchResults = await this.fileSearch.findByName(
+          fileName,
+          process.cwd(),
+        );
+        if (searchResults.length > 0) {
+          console.log(
+            `🔍 File not found at ${filePath}. Found at: ${searchResults[0]}`,
+          );
+          resolvedPaths.push(searchResults[0]);
+        } else {
+          resolvedPaths.push(filePath);
+        }
+      } else {
+        resolvedPaths.push(filePath);
+      }
+    }
+
+    const result = await this.fileOperations.readMultiple(resolvedPaths);
 
     this.debugLogger.log("ReadFileAction", "execute", result);
 
@@ -58,7 +99,7 @@ export class ReadFileAction {
     const fileContent = result.data.toString();
 
     // Verify all requested files are present in the result
-    const missingFiles = filePaths.filter(
+    const missingFiles = resolvedPaths.filter(
       (path) => !fileContent.includes(`[File: ${path}]`),
     );
     if (missingFiles.length > 0) {

@@ -1,20 +1,24 @@
 import { FileOperations } from "../../../FileManagement/FileOperations";
+import { FileSearch } from "../../../FileManagement/FileSearch";
 import { DebugLogger } from "../../../logging/DebugLogger";
 import { ActionTagsExtractor } from "../ActionTagsExtractor";
 import { ReadFileAction } from "../ReadFileAction";
 
 jest.mock("../../../FileManagement/FileOperations");
+jest.mock("../../../FileManagement/FileSearch");
 jest.mock("../ActionTagsExtractor");
 jest.mock("../../../logging/DebugLogger");
 
 describe("ReadFileAction", () => {
   let readFileAction: ReadFileAction;
   let mockFileOperations: jest.Mocked<FileOperations>;
+  let mockFileSearch: jest.Mocked<FileSearch>;
   let mockActionTagsExtractor: jest.Mocked<ActionTagsExtractor>;
   let mockDebugLogger: jest.Mocked<DebugLogger>;
 
   beforeEach(() => {
     mockFileOperations = new FileOperations() as jest.Mocked<FileOperations>;
+    mockFileSearch = new FileSearch() as jest.Mocked<FileSearch>;
     mockActionTagsExtractor =
       new ActionTagsExtractor() as jest.Mocked<ActionTagsExtractor>;
     mockDebugLogger = new DebugLogger() as jest.Mocked<DebugLogger>;
@@ -22,6 +26,7 @@ describe("ReadFileAction", () => {
       mockFileOperations,
       mockActionTagsExtractor,
       mockDebugLogger,
+      mockFileSearch,
     );
   });
 
@@ -30,6 +35,7 @@ describe("ReadFileAction", () => {
     const fileContent = "file content";
 
     mockActionTagsExtractor.extractTags.mockReturnValue([filePath]);
+    mockFileOperations.exists.mockResolvedValue(true);
     mockFileOperations.read.mockResolvedValue({
       success: true,
       data: fileContent,
@@ -46,11 +52,36 @@ describe("ReadFileAction", () => {
     expect(result).toEqual({ success: true, data: fileContent });
   });
 
+  it("should search and read a single file when not found at original path", async () => {
+    const originalPath = "/path/to/file";
+    const foundPath = "/different/path/to/file";
+    const fileContent = "file content";
+
+    mockActionTagsExtractor.extractTags.mockReturnValue([originalPath]);
+    mockFileOperations.exists.mockResolvedValue(false);
+    mockFileSearch.findByName.mockResolvedValue([foundPath]);
+    mockFileOperations.read.mockResolvedValue({
+      success: true,
+      data: fileContent,
+    });
+
+    const actionInput = `<read_file><path>${originalPath}</path></read_file>`;
+    const result = await readFileAction.execute(actionInput);
+
+    expect(mockFileSearch.findByName).toHaveBeenCalledWith(
+      "file",
+      process.cwd(),
+    );
+    expect(mockFileOperations.read).toHaveBeenCalledWith(foundPath);
+    expect(result).toEqual({ success: true, data: fileContent });
+  });
+
   it("should read multiple files successfully", async () => {
     const filePaths = ["/path/to/file1", "/path/to/file2"];
     const fileContents = `[File: /path/to/file1]\ncontent1\n\n[File: /path/to/file2]\ncontent2`;
 
     mockActionTagsExtractor.extractTags.mockReturnValue(filePaths);
+    mockFileOperations.exists.mockResolvedValue(true);
     mockFileOperations.readMultiple.mockResolvedValue({
       success: true,
       data: fileContents,
@@ -64,6 +95,35 @@ describe("ReadFileAction", () => {
       "path",
     );
     expect(mockFileOperations.readMultiple).toHaveBeenCalledWith(filePaths);
+    expect(result).toEqual({ success: true, data: fileContents });
+  });
+
+  it("should search and read multiple files when some not found at original paths", async () => {
+    const originalPaths = ["/path/to/file1", "/path/to/file2"];
+    const foundPath = "/different/path/to/file2";
+    const fileContents = `[File: /path/to/file1]\ncontent1\n\n[File: ${foundPath}]\ncontent2`;
+
+    mockActionTagsExtractor.extractTags.mockReturnValue(originalPaths);
+    mockFileOperations.exists
+      .mockResolvedValueOnce(true) // file1 exists
+      .mockResolvedValueOnce(false); // file2 doesn't exist
+    mockFileSearch.findByName.mockResolvedValue([foundPath]);
+    mockFileOperations.readMultiple.mockResolvedValue({
+      success: true,
+      data: fileContents,
+    });
+
+    const actionInput = `<read_file>${originalPaths.map((path) => `<path>${path}</path>`).join("")}</read_file>`;
+    const result = await readFileAction.execute(actionInput);
+
+    expect(mockFileSearch.findByName).toHaveBeenCalledWith(
+      "file2",
+      process.cwd(),
+    );
+    expect(mockFileOperations.readMultiple).toHaveBeenCalledWith([
+      originalPaths[0],
+      foundPath,
+    ]);
     expect(result).toEqual({ success: true, data: fileContents });
   });
 
@@ -90,6 +150,7 @@ describe("ReadFileAction", () => {
     const error = new Error("Read failed");
 
     mockActionTagsExtractor.extractTags.mockReturnValue([filePath]);
+    mockFileOperations.exists.mockResolvedValue(true);
     mockFileOperations.read.mockResolvedValue({
       success: false,
       error,
@@ -111,6 +172,7 @@ describe("ReadFileAction", () => {
     const error = new Error("Multiple read failed");
 
     mockActionTagsExtractor.extractTags.mockReturnValue(filePaths);
+    mockFileOperations.exists.mockResolvedValue(true);
     mockFileOperations.readMultiple.mockResolvedValue({
       success: false,
       error,
@@ -147,6 +209,7 @@ describe("ReadFileAction", () => {
     const incompleteContent = `[File: /path/to/file1]\ncontent1`; // missing file2
 
     mockActionTagsExtractor.extractTags.mockReturnValue(filePaths);
+    mockFileOperations.exists.mockResolvedValue(true);
     mockFileOperations.readMultiple.mockResolvedValue({
       success: true,
       data: incompleteContent,
