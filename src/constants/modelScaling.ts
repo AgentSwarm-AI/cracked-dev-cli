@@ -5,7 +5,7 @@ interface IModelConfig {
   description?: string;
 }
 
-export const MODEL_SCALE_THRESHOLD = 2; // Scale up after 2 tries
+export const MODEL_SCALE_THRESHOLD = 4;
 
 export const modelConfigs: IModelConfig[] = [
   {
