@@ -48,6 +48,7 @@ export class ActionsParser {
       "move_file",
       "copy_file_slice",
       "edit_file",
+      "relative_path_lookup",
     ];
     const actionMatch = new RegExp(`<(${fileActions.join("|")})>`).exec(tag);
     if (!actionMatch) return null;
@@ -171,6 +172,7 @@ export class ActionsParser {
       "end_task",
       "fetch_url",
       "edit_file",
+      "relative_path_lookup",
     ] as ActionType[];
 
     const actions: IActionDependency[] = [];
@@ -253,6 +255,10 @@ export class ActionsParser {
 
     if (actionType === "end_task" && result.success) {
       return `Task completed: ${result.data}`;
+    }
+
+    if (actionType === "relative_path_lookup" && result.success) {
+      return `Found matching path: ${JSON.stringify(result.data)}`;
     }
 
     return `[Action Result] ${actionType}: ${JSON.stringify(result)} ${result.success && "Proceed to next step."}`;

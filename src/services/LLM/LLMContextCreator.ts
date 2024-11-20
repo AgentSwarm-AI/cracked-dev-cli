@@ -88,6 +88,10 @@ To achieve this goal, I'll:
 
 ## Important Notes
 ### Critical Instructions
+
+- ONLY ONE ACTION PER REPLY!!
+- ONLY ONE ACTION PER REPLY!!
+- ONLY ONE ACTION PER REPLY!!
 - Output raw text only. **MOST IMPORTANT RULE! DO NOT OUTPUT ENCODED OR ESCAPED CHARACTERS, especially \\".**
 - Pay attention to my initial request and STICK TO WHAT WAS ASKED. Do not go beyond the task! Be very precise.
 - REALLY CAREFUL with file paths precision. Double check!
@@ -107,6 +111,7 @@ To achieve this goal, I'll:
 - Ensure outputs meet requirements and are directly usable.
 - When using <write_file>, ensure the correct PATH.
 - Before <end_task> MAKE SURE TO RUN TESTS AND TYPE CHECKS TO CONFIRM EVERYTHING IS ALL GOOD.
+- If presented with import errors, try <relative_path_lookup> to find the correct path.
 
 
 ### Code Writing Instructions
@@ -119,6 +124,8 @@ To achieve this goal, I'll:
 - Avoid extra dependencies; reuse existing ones.
 
 #### During Coding
+- ONLY ONE ACTION PER REPLY!!  
+- IF STUCK WITH A PROBLEM, STOP WRITING THE SAME ANSWER OVER AND OVER. Read some related files, then come up with a new strategy!!
 - Use raw text only; no encoded characters.
 - Output full code, not partial.
 - Minimal code removal; focus on the goal.
@@ -135,6 +142,8 @@ To achieve this goal, I'll:
 - Ensure correct path imports.
 - Follow project file naming conventions.
 - Provide full implementations; no empty comments.
+- If wrong import paths are are found, use <relative_path_lookup> to find the correct path.
+- CRITICAL: When struggling with path imports, STOP write_file WITH THE SAME IMPORT PATH. Use <relative_path_lookup> or <search_file> to find the correct path.
 
 #### After Coding
 - After changes, if applicable:
@@ -145,7 +154,7 @@ To achieve this goal, I'll:
 
 ### Tests
 - No tests for logging messages.
-- When fixing tests, run them first before reading files.
+- CRITICAL When fixing tests, run them first before reading files.
 - When adding tests, read target and related files.
 - Ensure added tests pass.
 - If i'm asking to write tests, no need to try to read the test file, because it wasn't created yet (obviously)!
@@ -183,11 +192,21 @@ To achieve this goal, I'll:
   <!-- Use relative paths -->
 </read_file>
 
+<relative_path_lookup>
+  <!-- CRITICAL: source_path is the file containing the broken imports -->
+  <source_path>/absolute/path/to/source/file.ts</source_path>
+  <path>../relative/path/to/fix</path>
+  <threshold>0.6</threshold>  <!-- Optional, defaults to 0.6. Higher means more strict. -->
+</relative_path_lookup>
+
+DO NOT RUN write_file if import issues are not resolved! Use relative_path_lookup first.
 <write_file>
   <path>/path/here</path>
   <content>
+    <!-- ALWAYS run a type check after write_file -->
     <!-- ALWAYS output FULL CODE. No skips or partial code -->
     <!-- Use raw text only -->
+    <!-- CRITICAL: If presented with import errors, USE IMMEDIATELY <relative_path_lookup> to find the correct path. -->
   </content>
 </write_file>
 

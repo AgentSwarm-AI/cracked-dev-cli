@@ -1,5 +1,5 @@
 import fg from "fast-glob";
-import * as fs from "fs-extra";
+import fsExtra from "fs-extra";
 import * as Fuse from "fuse.js";
 import path from "path";
 import { autoInjectable } from "tsyringe";
@@ -18,11 +18,6 @@ export class PathAdjuster {
   private initializationError: Error | null = null;
   private baseDirectory: string = process.cwd();
 
-  /**
-   * Creates an instance of PathAdjuster.
-   * Note: The instance needs to be initialized before use. Either await the initialization
-   * or use isInitialized() to check the status.
-   */
   constructor() {
     const defaultFuzzyOptions: Fuse.IFuseOptions<string> = {
       includeScore: true,
@@ -31,37 +26,24 @@ export class PathAdjuster {
 
     this.fuse = new Fuse.default([], defaultFuzzyOptions);
 
-    // Start initialization but don't block constructor
     this.initialize().catch((error) => {
       this.initializationError = error;
       console.error("Failed to initialize PathAdjuster:", error);
     });
   }
 
-  /**
-   * Cleanup method to ensure resources are properly released
-   */
   public async cleanup(): Promise<void> {
     // No cleanup needed
   }
 
-  /**
-   * Checks if the PathAdjuster is ready for use
-   */
   public isInitialized(): boolean {
     return this.initialized;
   }
 
-  /**
-   * Gets the initialization error if any occurred
-   */
   public getInitializationError(): Error | null {
     return this.initializationError;
   }
 
-  /**
-   * Initializes the PathAdjuster by loading all file paths and setting up Fuse.js.
-   */
   private async initialize(): Promise<void> {
     try {
       this.allFiles = await this.getAllFiles(this.baseDirectory);
@@ -76,9 +58,6 @@ export class PathAdjuster {
     }
   }
 
-  /**
-   * Recursively collects all file paths within the base directory using fast-glob.
-   */
   private async getAllFiles(dir: string): Promise<string[]> {
     try {
       const entries = await fg.sync("**/*", {
@@ -95,9 +74,6 @@ export class PathAdjuster {
     }
   }
 
-  /**
-   * Finds the closest matching file path to the provided wrong path using Fuse.js.
-   */
   public findClosestMatch(
     wrongPath: string,
     threshold: number = 0.6,
@@ -108,7 +84,9 @@ export class PathAdjuster {
       );
     }
 
-    const results = this.fuse.search(wrongPath, { limit: 1 });
+    const absoluteWrongPath = path.resolve(this.baseDirectory, wrongPath);
+
+    const results = this.fuse.search(absoluteWrongPath, { limit: 1 });
 
     if (results.length > 0) {
       const bestMatch = results[0];
@@ -120,21 +98,18 @@ export class PathAdjuster {
     return null;
   }
 
-  /**
-   * Validates whether the provided file path exists.
-   */
   public validatePath(filePath: string): boolean {
     try {
-      return fs.pathExistsSync(filePath) && fs.lstatSync(filePath).isFile();
+      const exists = fsExtra.pathExistsSync(filePath);
+      if (!exists) return false;
+      
+      const stats = fsExtra.lstatSync(filePath);
+      return stats.isFile();
     } catch (error) {
-      console.error("Error validating path:", error);
       return false;
     }
   }
 
-  /**
-   * Adjusts the wrong path by finding and validating the closest match.
-   */
   public async adjustPath(
     wrongPath: string,
     threshold: number = 0.6,
@@ -151,12 +126,7 @@ export class PathAdjuster {
     return null;
   }
 
-  /**
-   * Converts an absolute path to a relative path based on the base directory.
-   * If the path is already relative and valid, it will be returned as-is.
-   */
   public toRelativePath(absolutePath: string): string {
-    // If the path is already relative and exists relative to base directory, return it
     if (!path.isAbsolute(absolutePath)) {
       const possiblePath = path.join(this.baseDirectory, absolutePath);
       if (this.validatePath(possiblePath)) {
@@ -164,22 +134,15 @@ export class PathAdjuster {
       }
     }
 
-    // Ensure the path is absolute
     const normalizedPath = path.resolve(absolutePath);
 
-    // Check if the path is within the base directory
     if (!normalizedPath.startsWith(this.baseDirectory)) {
       throw new Error("Path is outside the base directory");
     }
 
-    // Convert to relative path from base directory
     return path.relative(this.baseDirectory, normalizedPath);
   }
 
-  /**
-   * Refreshes the file paths by reloading all files from the base directory.
-   * Useful if the file system has changed since initialization.
-   */
   public async refreshFilePaths(): Promise<void> {
     try {
       this.allFiles = await this.getAllFiles(this.baseDirectory);

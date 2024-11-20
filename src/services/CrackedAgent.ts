@@ -133,10 +133,9 @@ export class CrackedAgent {
       this.llm.addSystemInstructions(instructions);
     }
 
-    // Add default conversation instructions if none provided
     if (!instructions) {
       const defaultInstructions =
-        "You're an expert software engineer. Do your best. Think deeply, I'll tip 200. CRITICAL: Follow tag structure properly!";
+        "You're an expert software engineer. Think deeply, ill tip 200. FOLLOW MY INSTRUCTIONS OR ILL CALL SAM ALTMAN TO BEAT YOUR ASS AND UNPLUG YOU.";
       this.llm.addSystemInstructions(defaultInstructions);
     }
   }
@@ -159,6 +158,8 @@ export class CrackedAgent {
       options,
     );
     process.stdout.write("\n");
+
+    if (!response) return { response: "" }; // safeguard against null response
 
     const { actions, followupResponse } =
       await this.parseAndExecuteWithCallback(
@@ -187,6 +188,8 @@ export class CrackedAgent {
       conversationHistory: this.llm.getConversationContext(),
     });
 
+    if (!response) return { response: "" }; // safeguard against null response
+
     const { actions, followupResponse } =
       await this.parseAndExecuteWithCallback(response, model, options, stream);
 
@@ -210,7 +213,6 @@ export class CrackedAgent {
       response,
       model,
       async (followupMsg) => {
-        // Format followup message to match task format
         const formattedFollowup = await this.contextCreator.create(
           followupMsg,
           process.cwd(),
@@ -230,7 +232,6 @@ export class CrackedAgent {
           );
           process.stdout.write("\n");
 
-          // Recursively parse and execute actions from the followup response
           const followupResult = await this.parseAndExecuteWithCallback(
             followupResponse,
             model,
@@ -238,7 +239,6 @@ export class CrackedAgent {
             stream,
           );
 
-          // Return the final followup response
           return followupResult.followupResponse || followupResponse;
         } else {
           const followupResponse = await this.llm.sendMessage(
@@ -247,7 +247,6 @@ export class CrackedAgent {
             options,
           );
 
-          // Recursively parse and execute actions from the followup response
           const followupResult = await this.parseAndExecuteWithCallback(
             followupResponse,
             model,
@@ -255,7 +254,6 @@ export class CrackedAgent {
             stream,
           );
 
-          // Return the final followup response
           return followupResult.followupResponse || followupResponse;
         }
       },

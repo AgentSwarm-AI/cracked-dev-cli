@@ -9,6 +9,7 @@ import { ActionTagsExtractor } from "../ActionTagsExtractor";
 import { CommandAction } from "../CommandAction";
 import { EndTaskAction } from "../EndTaskAction";
 import { FileActions } from "../FileActions";
+import { RelativePathLookupAction } from "../RelativePathLookupAction";
 import { SearchAction } from "../SearchAction";
 import { WriteFileAction } from "../WriteFileAction";
 
@@ -17,6 +18,7 @@ jest.mock("../CommandAction");
 jest.mock("../SearchAction");
 jest.mock("../EndTaskAction");
 jest.mock("../WriteFileAction");
+jest.mock("../RelativePathLookupAction");
 jest.mock("../../../logging/DebugLogger");
 jest.mock("../../../FileManagement/FileSearch");
 jest.mock("../ActionTagsExtractor");
@@ -30,6 +32,7 @@ describe("ActionExecutor", () => {
   let mockSearchAction: jest.Mocked<SearchAction>;
   let mockEndTaskAction: jest.Mocked<EndTaskAction>;
   let mockWriteFileAction: jest.Mocked<WriteFileAction>;
+  let mockRelativePathLookupAction: jest.Mocked<RelativePathLookupAction>;
   let mockFileOperations: jest.Mocked<FileOperations>;
   let mockFileSearch: jest.Mocked<FileSearch>;
   let mockActionTagsExtractor: jest.Mocked<ActionTagsExtractor>;
@@ -70,6 +73,9 @@ describe("ActionExecutor", () => {
       mockActionTagsExtractor,
       mockHtmlEntityDecoder,
     ) as jest.Mocked<WriteFileAction>;
+    mockRelativePathLookupAction = new RelativePathLookupAction(
+      mockPathAdjuster,
+    ) as jest.Mocked<RelativePathLookupAction>;
 
     actionExecutor = new ActionExecutor(
       mockFileActions,
@@ -77,6 +83,7 @@ describe("ActionExecutor", () => {
       mockSearchAction,
       mockEndTaskAction,
       mockWriteFileAction,
+      mockRelativePathLookupAction,
     );
 
     // Setup default mock implementations
@@ -105,5 +112,21 @@ describe("ActionExecutor", () => {
 
     expect(result.success).toBe(false);
     expect(result.error?.message).toBe("Unknown action type: unknown_action");
+  });
+
+  it("should handle relative_path_lookup action", async () => {
+    const content = `<relative_path_lookup><path>./some/path</path></relative_path_lookup>`;
+    mockRelativePathLookupAction.execute.mockResolvedValue({
+      success: true,
+      data: "/absolute/path/to/file",
+    });
+
+    const result = await actionExecutor.executeAction(content);
+
+    expect(result.success).toBe(true);
+    expect(result.data).toBe("/absolute/path/to/file");
+    expect(mockRelativePathLookupAction.execute).toHaveBeenCalledWith(
+      `<path>./some/path</path>`,
+    );
   });
 });

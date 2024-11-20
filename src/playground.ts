@@ -1,12 +1,12 @@
 import "reflect-metadata";
 
 import { container } from "tsyringe";
-import { ProjectInfo } from "./services/LLM/utils/ProjectInfo";
+import { PathAdjuster } from "./services/FileManagement/PathAdjuster";
 
-const projectInfo = container.resolve(ProjectInfo);
+const pathAdjuster = container.resolve(PathAdjuster);
 
 const main = async () => {
-  const info = await projectInfo.gatherProjectInfo(".");
+  const info = await pathAdjuster.adjustPath("src/playground.ts");
   console.log(info);
 };
 

@@ -2,9 +2,10 @@ import { autoInjectable } from "tsyringe";
 import { CommandAction } from "./CommandAction";
 import { EndTaskAction } from "./EndTaskAction";
 import { FileActions } from "./FileActions";
+import { RelativePathLookupAction } from "./RelativePathLookupAction";
 import { SearchAction } from "./SearchAction";
-import { WriteFileAction } from "./WriteFileAction";
 import { IActionResult } from "./types/ActionTypes";
+import { WriteFileAction } from "./WriteFileAction";
 
 interface IPendingAction {
   type: string;
@@ -20,6 +21,7 @@ export class ActionExecutor {
     private searchAction: SearchAction,
     private endTaskAction: EndTaskAction,
     private writeFileAction: WriteFileAction,
+    private relativePathLookupAction: RelativePathLookupAction,
   ) {}
 
   async executeAction(actionText: string): Promise<IActionResult> {
@@ -94,6 +96,9 @@ export class ActionExecutor {
       case "end_task":
         console.log("🏁 Ending task...");
         return await this.endTaskAction.execute(content);
+      case "relative_path_lookup":
+        console.log("🔄 Looking up relative path...");
+        return await this.relativePathLookupAction.execute(content);
       default:
         return {
           success: false,
