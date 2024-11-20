@@ -9,6 +9,7 @@ const config: Config = {
     "^@constants/(.*)$": "<rootDir>/src/constants/$1",
     "^@services/(.*)$": "<rootDir>/src/services/$1",
     "^@tests/(.*)$": "<rootDir>/src/__tests__/$1",
+    "^@utils/(.*)$": "<rootDir>/src/services/utils/$1",
     "^(\\.{1,2}/.*)\\.js$": "$1",
   },
   transform: {

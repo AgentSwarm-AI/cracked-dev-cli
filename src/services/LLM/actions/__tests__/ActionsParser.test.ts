@@ -3,6 +3,7 @@ import { DebugLogger } from "../../../logging/DebugLogger";
 import { HtmlEntityDecoder } from "../../../text/HTMLEntityDecoder";
 import { LLMContextCreator } from "../../LLMContextCreator";
 import { ActionsParser } from "../ActionsParser";
+import { ActionTagsExtractor } from "../ActionTagsExtractor";
 
 jest.mock("../../../logging/DebugLogger");
 jest.mock("../../LLMContextCreator");
@@ -12,6 +13,7 @@ describe("ActionsParser", () => {
   let mockDebugLogger: jest.Mocked<DebugLogger>;
   let mockContextCreator: jest.Mocked<LLMContextCreator>;
   let mockHtmlEntityDecoder: jest.Mocked<HtmlEntityDecoder>;
+  let mockActionTagsExtractor: jest.Mocked<ActionTagsExtractor>;
 
   beforeEach(() => {
     mockDebugLogger = container.resolve(
@@ -23,11 +25,15 @@ describe("ActionsParser", () => {
     mockHtmlEntityDecoder = container.resolve(
       HtmlEntityDecoder,
     ) as jest.Mocked<HtmlEntityDecoder>;
+    mockActionTagsExtractor = container.resolve(
+      ActionTagsExtractor,
+    ) as jest.Mocked<ActionTagsExtractor>;
 
     actionsParser = new ActionsParser(
       mockDebugLogger,
       mockContextCreator,
       mockHtmlEntityDecoder,
+      mockActionTagsExtractor,
     );
   });
 
@@ -46,6 +52,7 @@ describe("ActionsParser", () => {
 
     it("should allow reprocessing of previously processed tags after reset", () => {
       const tag = "<read_file><path>test.txt</path></read_file>";
+      mockActionTagsExtractor.validateStructure.mockReturnValue("");
 
       // First processing
       let result = actionsParser.findCompleteTags(tag);
@@ -88,6 +95,10 @@ describe("ActionsParser", () => {
   });
 
   describe("findCompleteTags", () => {
+    beforeEach(() => {
+      mockActionTagsExtractor.validateStructure.mockReturnValue("");
+    });
+
     it("should find all complete action tags", () => {
       const text = `
         <read_file><path>test1.txt</path></read_file>
@@ -100,10 +111,19 @@ describe("ActionsParser", () => {
       expect(allActions[1].content).toContain("write_file");
     });
 
-    it("should not find incomplete tags", () => {
+    it("should not process tags when validation fails", () => {
       const text = "<read_file><path>test.txt</path>";
+      mockActionTagsExtractor.validateStructure.mockReturnValue(
+        "Missing closing tag for <read_file>",
+      );
+
       const result = actionsParser.findCompleteTags(text);
       expect(result.groups).toHaveLength(0);
+      expect(mockDebugLogger.log).toHaveBeenCalledWith(
+        "Validation",
+        "Tag structure validation failed",
+        expect.any(Object),
+      );
     });
 
     it("should not return previously processed tags until buffer is cleared", () => {
@@ -139,6 +159,10 @@ describe("ActionsParser", () => {
   });
 
   describe("buffer management", () => {
+    beforeEach(() => {
+      mockActionTagsExtractor.validateStructure.mockReturnValue("");
+    });
+
     it("should append to buffer", () => {
       actionsParser.appendToBuffer("test1");
       actionsParser.appendToBuffer("test2");
@@ -162,6 +186,10 @@ describe("ActionsParser", () => {
   });
 
   describe("parseAndExecuteActions", () => {
+    beforeEach(() => {
+      mockActionTagsExtractor.validateStructure.mockReturnValue("");
+    });
+
     it("should return empty actions when no complete tags found", async () => {
       const text = "no tags here";
       const result = await actionsParser.parseAndExecuteActions(
@@ -220,6 +248,26 @@ describe("ActionsParser", () => {
       expect(mockDebugLogger.log).toHaveBeenCalledWith(
         "Error",
         "Failed to parse and execute actions",
+        expect.any(Object),
+      );
+    });
+
+    it("should not execute actions when tag validation fails", async () => {
+      const text = "<read_file><path>test.txt</path>";
+      mockActionTagsExtractor.validateStructure.mockReturnValue(
+        "Missing closing tag for <read_file>",
+      );
+
+      const result = await actionsParser.parseAndExecuteActions(
+        text,
+        "test-model",
+        async (msg) => "response",
+      );
+
+      expect(result.actions).toEqual([]);
+      expect(mockDebugLogger.log).toHaveBeenCalledWith(
+        "Validation",
+        "Tag structure validation failed",
         expect.any(Object),
       );
     });

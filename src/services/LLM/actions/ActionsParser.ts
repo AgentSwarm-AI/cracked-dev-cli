@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from "uuid";
 import { DebugLogger } from "../../logging/DebugLogger";
 import { HtmlEntityDecoder } from "../../text/HTMLEntityDecoder";
 import { LLMContextCreator } from "../LLMContextCreator";
+import { ActionTagsExtractor } from "./ActionTagsExtractor";
 import {
   ActionType,
   IActionDependency,
@@ -29,6 +30,7 @@ export class ActionsParser {
     private debugLogger: DebugLogger,
     private contextCreator: LLMContextCreator,
     private htmlEntityDecoder: HtmlEntityDecoder,
+    private actionTagsExtractor: ActionTagsExtractor,
   ) {}
 
   reset() {
@@ -155,6 +157,17 @@ export class ActionsParser {
 
   findCompleteTags(text: string): IActionExecutionPlan {
     const combinedText = this.currentMessageBuffer + text;
+
+    // Validate tag structure before processing
+    const validationError =
+      this.actionTagsExtractor.validateStructure(combinedText);
+    if (validationError) {
+      this.debugLogger.log("Validation", "Tag structure validation failed", {
+        error: validationError,
+      });
+      return { groups: [] };
+    }
+
     const actionTags = [
       "read_file",
       "write_file",

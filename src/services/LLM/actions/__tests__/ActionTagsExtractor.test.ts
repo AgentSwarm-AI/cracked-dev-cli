@@ -1,10 +1,38 @@
 import { container } from "tsyringe";
 import { ActionTagsExtractor } from "../ActionTagsExtractor";
+
 describe("TagsExtractor", () => {
   let actionTagsExtractor: ActionTagsExtractor;
 
   beforeEach(() => {
     actionTagsExtractor = container.resolve(ActionTagsExtractor);
+  });
+
+  describe("validateStructure", () => {
+    it("should return empty string for valid tag structure", () => {
+      const content = "<read_file><path>test.txt</path></read_file>";
+      expect(actionTagsExtractor.validateStructure(content)).toBe("");
+    });
+
+    it("should detect missing closing tag", () => {
+      const content = "<read_file><path>test.txt</path>";
+      expect(actionTagsExtractor.validateStructure(content)).toContain(
+        "Missing closing tag for <read_file>",
+      );
+    });
+
+    it("should detect missing opening tag", () => {
+      const content = "<path>test.txt</path></read_file>";
+      expect(actionTagsExtractor.validateStructure(content)).toContain(
+        "Missing opening tag for <read_file>",
+      );
+    });
+
+    it("should handle multiple valid tags", () => {
+      const content =
+        "<read_file><path>test.txt</path></read_file><write_file><path>out.txt</path><content>data</content></write_file>";
+      expect(actionTagsExtractor.validateStructure(content)).toBe("");
+    });
   });
 
   describe("extractTag", () => {

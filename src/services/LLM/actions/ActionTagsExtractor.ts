@@ -3,6 +3,41 @@ import { autoInjectable } from "tsyringe";
 @autoInjectable()
 export class ActionTagsExtractor {
   /**
+   * Validates if a tag has proper XML structure
+   * @param content Full text content to validate
+   * @returns Message indicating if structure is valid or what's wrong
+   */
+  validateStructure(content: string): string {
+    const actionTags = [
+      "read_file",
+      "write_file",
+      "delete_file",
+      "move_file",
+      "copy_file_slice",
+      "execute_command",
+      "search_string",
+      "search_file",
+      "end_task",
+      "fetch_url",
+      "edit_file",
+      "relative_path_lookup",
+    ];
+
+    for (const tag of actionTags) {
+      const openCount = (content.match(new RegExp(`<${tag}>`, "g")) || [])
+        .length;
+      const closeCount = (content.match(new RegExp(`</${tag}>`, "g")) || [])
+        .length;
+
+      if (openCount !== closeCount) {
+        return `We need to use proper tag structure, try again. Missing ${openCount > closeCount ? "closing" : "opening"} tag for <${tag}>.`;
+      }
+    }
+
+    return "";
+  }
+
+  /**
    * Extracts content from a single tag
    * @param content Full text content
    * @param tagName Name of the tag to extract
