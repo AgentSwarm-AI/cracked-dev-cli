@@ -10,6 +10,9 @@ const config: Config = {
     "^@services/(.*)$": "<rootDir>/src/services/$1",
     "^@tests/(.*)$": "<rootDir>/src/__tests__/$1",
     "^@utils/(.*)$": "<rootDir>/src/services/utils/$1",
+    "^@middlewares/(.*)$": "<rootDir>/src/middlewares/$1",
+    "^@commands/(.*)$": "<rootDir>/src/commands/$1",
+    "^@config/(.*)$": "<rootDir>/src/config/$1",
     "^(\\.{1,2}/.*)\\.js$": "$1",
   },
   transform: {
