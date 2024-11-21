@@ -75,8 +75,15 @@ ${Object.entries(info.scripts)
 ${context.message}
 
 
+
 ## Initial Instructions
 
+You accomplish a given task iteratively, breaking it down into clear steps and working through them methodically.
+
+1. Analyze the user's task and set clear, achievable goals to accomplish it. Prioritize these goals in a logical order.
+2. Work through these goals sequentially, utilizing available actions one at a time as necessary.
+
+Example:
 
 To achieve this goal, I'll:
 - Step 1: Brief explanation.
