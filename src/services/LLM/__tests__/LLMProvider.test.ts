@@ -1,3 +1,4 @@
+// src/services/LLM/__tests__/LLMProvider.test.ts
 import { ConversationContext } from "@services/LLM/ConversationContext";
 import { ILLMProvider } from "@services/LLM/ILLMProvider";
 import { LLMProvider, LLMProviderType } from "@services/LLM/LLMProvider";
@@ -5,94 +6,107 @@ import { ModelScaler } from "@services/LLM/ModelScaler";
 import { OpenRouterAPI } from "@services/LLMProviders/OpenRouter/OpenRouterAPI";
 import { DebugLogger } from "@services/logging/DebugLogger";
 import { HtmlEntityDecoder } from "@services/text/HTMLEntityDecoder";
+import { UnitTestMocker } from "@tests/mocks/UnitTestMocker";
 import { container } from "tsyringe";
-
-jest.mock("../../LLMProviders/OpenRouter/OpenRouterAPI");
-jest.mock("../ConversationContext");
-jest.mock("../ModelScaler");
-jest.mock("@services/logging/DebugLogger");
 
 describe("LLMProvider", () => {
   let provider: ILLMProvider;
+  let mocker: UnitTestMocker;
+
+  // Mocked Instances
   let mockOpenRouterAPI: jest.Mocked<OpenRouterAPI>;
   let mockConversationContext: jest.Mocked<ConversationContext>;
   let mockHtmlEntityDecoder: jest.Mocked<HtmlEntityDecoder>;
   let mockModelScaler: jest.Mocked<ModelScaler>;
   let mockDebugLogger: jest.Mocked<DebugLogger>;
 
-  beforeEach(() => {
+  beforeAll(() => {
+    // Initialize UnitTestMocker
+    mocker = new UnitTestMocker();
+
+    // Instantiate mocked dependencies
     mockConversationContext =
       new ConversationContext() as jest.Mocked<ConversationContext>;
-    jest
-      .spyOn(mockConversationContext, "setSystemInstructions")
-      .mockImplementation();
-    jest
-      .spyOn(mockConversationContext, "getSystemInstructions")
-      .mockReturnValue(null);
-    jest.spyOn(mockConversationContext, "getMessages").mockReturnValue([]);
-    jest.spyOn(mockConversationContext, "clear").mockImplementation();
-    jest.spyOn(mockConversationContext, "addMessage").mockImplementation();
-
     mockHtmlEntityDecoder =
       new HtmlEntityDecoder() as jest.Mocked<HtmlEntityDecoder>;
-
     mockDebugLogger = new DebugLogger() as jest.Mocked<DebugLogger>;
-    jest.spyOn(mockDebugLogger, "log").mockImplementation();
-
     mockModelScaler = new ModelScaler(
       mockDebugLogger,
     ) as jest.Mocked<ModelScaler>;
-    jest.spyOn(mockModelScaler, "getCurrentModel").mockReturnValue("model1");
-    jest.spyOn(mockModelScaler, "reset").mockImplementation();
-
     mockOpenRouterAPI = new OpenRouterAPI(
       mockConversationContext,
       mockHtmlEntityDecoder,
       mockModelScaler,
       mockDebugLogger,
     ) as jest.Mocked<OpenRouterAPI>;
-    jest.spyOn(mockOpenRouterAPI, "sendMessage").mockResolvedValue("response");
-    jest
-      .spyOn(mockOpenRouterAPI, "sendMessageWithContext")
+
+    // Set up mock implementations
+    mockOpenRouterAPI.sendMessage = jest.fn().mockResolvedValue("response");
+    mockOpenRouterAPI.sendMessageWithContext = jest
+      .fn()
       .mockResolvedValue("response");
-    jest
-      .spyOn(mockOpenRouterAPI, "clearConversationContext")
-      .mockImplementation();
-    jest.spyOn(mockOpenRouterAPI, "getConversationContext").mockReturnValue([]);
-    jest.spyOn(mockOpenRouterAPI, "addSystemInstructions").mockImplementation();
-    jest
-      .spyOn(mockOpenRouterAPI, "getAvailableModels")
+    mockOpenRouterAPI.clearConversationContext = jest.fn();
+    mockOpenRouterAPI.getConversationContext = jest.fn().mockReturnValue([]);
+    mockOpenRouterAPI.addSystemInstructions = jest.fn();
+    mockOpenRouterAPI.getAvailableModels = jest
+      .fn()
       .mockResolvedValue(["model1", "model2"]);
-    jest.spyOn(mockOpenRouterAPI, "validateModel").mockResolvedValue(true);
-    jest.spyOn(mockOpenRouterAPI, "getModelInfo").mockResolvedValue({});
-    jest.spyOn(mockOpenRouterAPI, "streamMessage").mockResolvedValue(undefined);
+    mockOpenRouterAPI.validateModel = jest.fn().mockResolvedValue(true);
+    mockOpenRouterAPI.getModelInfo = jest.fn().mockResolvedValue({});
+    mockOpenRouterAPI.streamMessage = jest.fn().mockResolvedValue(undefined);
 
-    // Mocking container.resolve to return the LLMProvider instance
-    container.resolve = jest.fn().mockImplementation((token) => {
-      if (token === ConversationContext) {
-        return mockConversationContext;
-      } else if (token === HtmlEntityDecoder) {
-        return mockHtmlEntityDecoder;
-      } else if (token === ModelScaler) {
-        return mockModelScaler;
-      } else if (token === DebugLogger) {
-        return mockDebugLogger;
-      } else if (token === OpenRouterAPI) {
-        return mockOpenRouterAPI;
-      } else if (token === LLMProvider) {
-        return new LLMProvider();
-      }
-      return null;
-    });
+    // Spy on prototype methods using UnitTestMocker
+    mocker.spyOnPrototype(
+      ConversationContext,
+      "setSystemInstructions",
+      jest.fn(),
+    );
+    mocker.spyOnPrototype(
+      ConversationContext,
+      "getSystemInstructions",
+      jest.fn().mockReturnValue(null),
+    );
+    mocker.spyOnPrototype(
+      ConversationContext,
+      "getMessages",
+      jest.fn().mockReturnValue([]),
+    );
+    mocker.spyOnPrototype(ConversationContext, "clear", jest.fn());
+    mocker.spyOnPrototype(ConversationContext, "addMessage", jest.fn());
 
-    // Resolving LLMProvider after setting up the mocks
+    mocker.spyOnPrototype(DebugLogger, "log", jest.fn());
+
+    mocker.spyOnPrototype(
+      ModelScaler,
+      "getCurrentModel",
+      jest.fn().mockReturnValue("model1"),
+    );
+    mocker.spyOnPrototype(ModelScaler, "reset", jest.fn());
+
+    // Register mocked instances with tsyringe container
+    container.registerInstance(ConversationContext, mockConversationContext);
+    container.registerInstance(HtmlEntityDecoder, mockHtmlEntityDecoder);
+    container.registerInstance(ModelScaler, mockModelScaler);
+    container.registerInstance(DebugLogger, mockDebugLogger);
+    container.registerInstance(OpenRouterAPI, mockOpenRouterAPI);
+
+    // Register LLMProvider in the container
+    container.register(LLMProvider, { useClass: LLMProvider });
+
+    // Resolve LLMProvider from the container
     provider = container.resolve(LLMProvider);
+  });
+
+  afterAll(() => {
+    // Clear all mocks after all tests
+    mocker.clearAllMocks();
+    jest.resetAllMocks();
   });
 
   describe("getInstance", () => {
     it("should return an instance of OpenRouterAPI for OpenRouter provider type", () => {
-      provider = LLMProvider.getInstance(LLMProviderType.OpenRouter);
-      expect(provider).toBe(mockOpenRouterAPI);
+      const instance = LLMProvider.getInstance(LLMProviderType.OpenRouter);
+      expect(instance).toBe(mockOpenRouterAPI);
     });
 
     it("should throw an error if the provider type is not recognized", () => {
@@ -104,6 +118,7 @@ describe("LLMProvider", () => {
 
   describe("Delegated Methods", () => {
     beforeEach(() => {
+      // Ensure provider uses the OpenRouterAPI mock
       provider = LLMProvider.getInstance(LLMProviderType.OpenRouter);
     });
 
@@ -177,20 +192,20 @@ describe("LLMProvider", () => {
     });
 
     it("should throw an error when sendMessage is called with an unsupported model", async () => {
-      mockOpenRouterAPI.validateModel = jest.fn().mockResolvedValue(false);
-      mockOpenRouterAPI.sendMessage = jest
-        .fn()
-        .mockRejectedValue(new Error("Model not available"));
+      mockOpenRouterAPI.validateModel.mockResolvedValueOnce(false);
+      mockOpenRouterAPI.sendMessage.mockRejectedValueOnce(
+        new Error("Model not available"),
+      );
       await expect(
         provider.sendMessage("unsupported-model", "message"),
       ).rejects.toThrowError("Model not available");
     });
 
     it("should throw an error when sendMessageWithContext is called with an unsupported model", async () => {
-      mockOpenRouterAPI.validateModel = jest.fn().mockResolvedValue(false);
-      mockOpenRouterAPI.sendMessageWithContext = jest
-        .fn()
-        .mockRejectedValue(new Error("Model not available"));
+      mockOpenRouterAPI.validateModel.mockResolvedValueOnce(false);
+      mockOpenRouterAPI.sendMessageWithContext.mockRejectedValueOnce(
+        new Error("Model not available"),
+      );
       await expect(
         provider.sendMessageWithContext(
           "unsupported-model",
