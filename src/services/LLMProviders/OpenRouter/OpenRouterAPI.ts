@@ -1,11 +1,11 @@
 import { openRouterClient } from "@constants/openRouterClient";
-import { ConversationContext } from "@services/LLM/ConversationContext";
 import { ILLMProvider, IMessage } from "@services/LLM/ILLMProvider";
+import { MessageContextManager } from "@services/LLM/MessageContextManager";
 import { ModelScaler } from "@services/LLM/ModelScaler";
 import { IOpenRouterModelInfo } from "@services/LLMProviders/OpenRouter/types/OpenRouterAPITypes";
 import { DebugLogger } from "@services/logging/DebugLogger";
 import { HtmlEntityDecoder } from "@services/text/HTMLEntityDecoder";
-import { autoInjectable, inject } from "tsyringe";
+import { autoInjectable } from "tsyringe";
 
 class LLMError extends Error {
   constructor(
@@ -24,8 +24,7 @@ export class OpenRouterAPI implements ILLMProvider {
   private streamBuffer: string = "";
 
   constructor(
-    @inject(ConversationContext)
-    private conversationContext: ConversationContext,
+    private messageContextManager: MessageContextManager,
     private htmlEntityDecoder: HtmlEntityDecoder,
     private modelScaler: ModelScaler,
     private debugLogger: DebugLogger,
@@ -105,18 +104,18 @@ export class OpenRouterAPI implements ILLMProvider {
 
     try {
       const response = await this.httpClient.post("/chat/completions", {
-        model: this.modelScaler.getCurrentModel() || model,
+        model: this.modelScaler?.getCurrentModel() || model,
         messages,
         ...options,
       });
 
       const assistantMessage = response.data.choices[0].message.content;
 
-      this.conversationContext.addMessage("user", message);
-      this.conversationContext.addMessage("assistant", assistantMessage);
+      this.messageContextManager.addMessage("user", message);
+      this.messageContextManager.addMessage("assistant", assistantMessage);
 
-      this.debugLogger.log("Model", "Using model", {
-        model: this.modelScaler.getCurrentModel(),
+      this.debugLogger?.log("Model", "Using model", {
+        model: this.modelScaler?.getCurrentModel(),
       });
 
       return assistantMessage;
@@ -138,16 +137,16 @@ export class OpenRouterAPI implements ILLMProvider {
   }
 
   clearConversationContext(): void {
-    this.conversationContext.clear();
-    this.modelScaler.reset();
+    this.messageContextManager.clear();
+    this.modelScaler?.reset();
   }
 
   getConversationContext(): IMessage[] {
-    return this.conversationContext.getMessages();
+    return this.messageContextManager.getMessages();
   }
 
   addSystemInstructions(instructions: string): void {
-    this.conversationContext.setSystemInstructions(instructions);
+    this.messageContextManager.setSystemInstructions(instructions);
   }
 
   async getAvailableModels(): Promise<string[]> {
@@ -331,8 +330,8 @@ export class OpenRouterAPI implements ILLMProvider {
       }
 
       if (assistantMessage) {
-        this.conversationContext.addMessage("user", message);
-        this.conversationContext.addMessage("assistant", assistantMessage);
+        this.messageContextManager.addMessage("user", message);
+        this.messageContextManager.addMessage("assistant", assistantMessage);
       }
     };
 
@@ -344,8 +343,8 @@ export class OpenRouterAPI implements ILLMProvider {
       callback("", llmError);
 
       if (assistantMessage) {
-        this.conversationContext.addMessage("user", message);
-        this.conversationContext.addMessage("assistant", assistantMessage);
+        this.messageContextManager.addMessage("user", message);
+        this.messageContextManager.addMessage("assistant", assistantMessage);
       }
     }
   }

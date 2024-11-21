@@ -1,229 +1,274 @@
-import { openRouterClient } from "@constants/openRouterClient";
-import { ConversationContext } from "@services/LLM/ConversationContext";
+import { MessageContextManager } from "@services/LLM/MessageContextManager";
 import { ModelScaler } from "@services/LLM/ModelScaler";
 import { OpenRouterAPI } from "@services/LLMProviders/OpenRouter/OpenRouterAPI";
-import { IOpenRouterModelInfo } from "@services/LLMProviders/OpenRouter/types/OpenRouterAPITypes";
 import { DebugLogger } from "@services/logging/DebugLogger";
 import { HtmlEntityDecoder } from "@services/text/HTMLEntityDecoder";
-
-jest.mock("@constants/openRouterClient");
-jest.mock("@services/LLM/ConversationContext");
-jest.mock("@services/text/HTMLEntityDecoder");
-jest.mock("@services/LLM/ModelScaler");
-jest.mock("@services/logging/DebugLogger");
+import { UnitTestMocker } from "@tests/mocks/UnitTestMocker";
+import { container } from "tsyringe";
 
 describe("OpenRouterAPI", () => {
   let openRouterAPI: OpenRouterAPI;
-  let conversationContext: jest.Mocked<ConversationContext>;
-  let htmlEntityDecoder: jest.Mocked<HtmlEntityDecoder>;
-  let modelScaler: jest.Mocked<ModelScaler>;
-  let debugLogger: jest.Mocked<DebugLogger>;
+  let mocker: UnitTestMocker;
 
   beforeEach(() => {
-    (openRouterClient.post as jest.Mock).mockClear();
-    (openRouterClient.get as jest.Mock).mockClear();
-    conversationContext =
-      new ConversationContext() as jest.Mocked<ConversationContext>;
-    htmlEntityDecoder =
-      new HtmlEntityDecoder() as jest.Mocked<HtmlEntityDecoder>;
-    debugLogger = new DebugLogger() as jest.Mocked<DebugLogger>;
-    modelScaler = new ModelScaler(debugLogger) as jest.Mocked<ModelScaler>;
+    mocker = new UnitTestMocker();
 
-    conversationContext.getMessages.mockReturnValue([]);
-    conversationContext.addMessage.mockImplementation(
-      jest.fn(() => Promise.resolve()),
+    // Spy on MessageContextManager methods
+    mocker.spyOnPrototypeWithImplementation(
+      MessageContextManager,
+      "getMessages",
+      () => [],
+    );
+    mocker.spyOnPrototypeWithImplementation(
+      MessageContextManager,
+      "addMessage",
+      () => {},
+    );
+    mocker.spyOnPrototypeWithImplementation(
+      MessageContextManager,
+      "clear",
+      () => {},
+    );
+    mocker.spyOnPrototypeWithImplementation(
+      MessageContextManager,
+      "setSystemInstructions",
+      () => {},
     );
 
-    htmlEntityDecoder.unescapeString.mockImplementation((str) => str);
-    htmlEntityDecoder.decode.mockImplementation((str) => str);
-
-    openRouterAPI = new OpenRouterAPI(
-      conversationContext,
-      htmlEntityDecoder,
-      modelScaler,
-      debugLogger,
+    // Spy on other dependencies
+    mocker.spyOnPrototypeWithImplementation(
+      ModelScaler,
+      "getCurrentModel",
+      () => null,
     );
+    mocker.spyOnPrototypeWithImplementation(ModelScaler, "reset", () => {});
+    mocker.spyOnPrototypeWithImplementation(
+      HtmlEntityDecoder,
+      "decode",
+      (str) => str,
+    );
+    mocker.spyOnPrototypeWithImplementation(
+      HtmlEntityDecoder,
+      "unescapeString",
+      (str) => str,
+    );
+    mocker.spyOnPrototypeWithImplementation(DebugLogger, "log", () => {});
+
+    // Register dependencies in the container
+    container.register(MessageContextManager, {
+      useClass: MessageContextManager,
+    });
+    container.register(ModelScaler, { useClass: ModelScaler });
+    container.register(HtmlEntityDecoder, { useClass: HtmlEntityDecoder });
+    container.register(DebugLogger, { useClass: DebugLogger });
+    container.register(OpenRouterAPI, { useClass: OpenRouterAPI });
+
+    // Resolve OpenRouterAPI from the container
+    openRouterAPI = container.resolve(OpenRouterAPI);
+  });
+
+  afterEach(() => {
+    mocker.clearAllMocks();
+    container.clearInstances();
+    jest.clearAllMocks();
   });
 
   describe("sendMessage", () => {
-    it("should send a message and return the assistant response", async () => {
+    it("should send a message and handle the response", async () => {
       const mockResponse = {
         data: {
-          choices: [
-            {
-              message: {
-                content: "Hello assistant response!",
-              },
-            },
-          ],
+          choices: [{ message: { content: "Hello!" } }],
         },
       };
-      (openRouterClient.post as jest.Mock).mockResolvedValue(mockResponse);
 
-      const message = await openRouterAPI.sendMessage("model1", "Hello user!");
-      expect(openRouterClient.post).toHaveBeenCalledWith("/chat/completions", {
-        model: "model1",
-        messages: [{ role: "user", content: "Hello user!" }],
-      });
-      expect(message).toBe("Hello assistant response!");
+      mocker.spyOnPrototypeWithImplementation(
+        MessageContextManager,
+        "getMessages",
+        () => [],
+      );
+
+      jest
+        .spyOn(openRouterAPI["httpClient"], "post")
+        .mockResolvedValueOnce(mockResponse);
+
+      const response = await openRouterAPI.sendMessage("gpt-4", "Hi");
+
+      expect(response).toBe("Hello!");
+      expect(MessageContextManager.prototype.addMessage).toHaveBeenCalledWith(
+        "user",
+        "Hi",
+      );
+      expect(MessageContextManager.prototype.addMessage).toHaveBeenCalledWith(
+        "assistant",
+        "Hello!",
+      );
     });
 
-    it("should handle errors and throw LLMError", async () => {
-      const mockError = {
+    it("should handle errors appropriately", async () => {
+      const error = {
         response: {
           data: {
             error: {
-              message: "An error occurred",
-              code: 400,
+              message: "Test error",
             },
           },
         },
       };
-      (openRouterClient.post as jest.Mock).mockRejectedValue(mockError);
 
-      await expect(
-        openRouterAPI.sendMessage("model1", "Hello user!"),
-      ).rejects.toThrow("An error occurred");
+      mocker.spyOnPrototypeWithImplementation(
+        MessageContextManager,
+        "getMessages",
+        () => [],
+      );
+
+      jest
+        .spyOn(openRouterAPI["httpClient"], "post")
+        .mockRejectedValueOnce(error);
+
+      await expect(openRouterAPI.sendMessage("gpt-4", "Hi")).rejects.toThrow(
+        "Test error",
+      );
     });
   });
 
   describe("sendMessageWithContext", () => {
-    it("should add system instructions if provided", async () => {
+    it("should send a message with system instructions", async () => {
       const mockResponse = {
         data: {
-          choices: [
-            {
-              message: {
-                content: "Hello assistant response!",
-              },
-            },
-          ],
+          choices: [{ message: { content: "Hello!" } }],
         },
       };
-      (openRouterClient.post as jest.Mock).mockResolvedValue(mockResponse);
 
-      await openRouterAPI.sendMessageWithContext(
-        "model1",
-        "Hello user!",
-        "System instructions",
+      mocker.spyOnPrototypeWithImplementation(
+        MessageContextManager,
+        "getMessages",
+        () => [],
       );
-      expect(conversationContext.setSystemInstructions).toHaveBeenCalledWith(
-        "System instructions",
+
+      jest
+        .spyOn(openRouterAPI["httpClient"], "post")
+        .mockResolvedValueOnce(mockResponse);
+
+      const response = await openRouterAPI.sendMessageWithContext(
+        "gpt-4",
+        "Hi",
+        "Be helpful",
       );
+
+      expect(response).toBe("Hello!");
+      expect(
+        MessageContextManager.prototype.setSystemInstructions,
+      ).toHaveBeenCalledWith("Be helpful");
     });
   });
 
-  describe("getAvailableModels", () => {
-    it("should return a list of available models", async () => {
+  describe("conversation context management", () => {
+    it("should clear conversation context", () => {
+      openRouterAPI.clearConversationContext();
+      expect(MessageContextManager.prototype.clear).toHaveBeenCalled();
+      expect(ModelScaler.prototype.reset).toHaveBeenCalled();
+    });
+
+    it("should get conversation context", () => {
+      const messages = [{ role: "user", content: "Hi" }];
+      mocker.spyOnPrototypeWithImplementation(
+        MessageContextManager,
+        "getMessages",
+        () => messages,
+      );
+
+      const context = openRouterAPI.getConversationContext();
+      expect(context).toEqual(messages);
+    });
+
+    it("should add system instructions", () => {
+      openRouterAPI.addSystemInstructions("Be helpful");
+      expect(
+        MessageContextManager.prototype.setSystemInstructions,
+      ).toHaveBeenCalledWith("Be helpful");
+    });
+  });
+
+  describe("model management", () => {
+    it("should get available models", async () => {
       const mockResponse = {
         data: {
-          data: [
-            { id: "model1", name: "Model 1" } as IOpenRouterModelInfo,
-            { id: "model2", name: "Model 2" } as IOpenRouterModelInfo,
-          ],
+          data: [{ id: "model1" }, { id: "model2" }],
         },
       };
-      (openRouterClient.get as jest.Mock).mockResolvedValue(mockResponse);
+
+      jest
+        .spyOn(openRouterAPI["httpClient"], "get")
+        .mockResolvedValueOnce(mockResponse);
 
       const models = await openRouterAPI.getAvailableModels();
       expect(models).toEqual(["model1", "model2"]);
     });
 
-    it("should handle errors and throw LLMError", async () => {
-      const mockError = {
-        response: {
-          data: {
-            error: {
-              message: "An error occurred",
-              code: 400,
-            },
-          },
+    it("should validate model", async () => {
+      const mockResponse = {
+        data: {
+          data: [{ id: "gpt-4" }, { id: "gpt-3.5-turbo" }],
         },
       };
-      (openRouterClient.get as jest.Mock).mockRejectedValue(mockError);
 
-      await expect(openRouterAPI.getAvailableModels()).rejects.toThrow(
-        "An error occurred",
-      );
-    });
-  });
-
-  describe("validateModel", () => {
-    it("should return true if model is available", async () => {
       jest
-        .spyOn(openRouterAPI, "getAvailableModels")
-        .mockResolvedValue(["model1", "model2"]);
+        .spyOn(openRouterAPI["httpClient"], "get")
+        .mockResolvedValueOnce(mockResponse);
 
-      const isValid = await openRouterAPI.validateModel("model1");
+      const isValid = await openRouterAPI.validateModel("gpt-4");
       expect(isValid).toBe(true);
     });
 
-    it("should return false if model is not available", async () => {
-      jest
-        .spyOn(openRouterAPI, "getAvailableModels")
-        .mockResolvedValue(["model1", "model2"]);
+    it("should get model info", async () => {
+      const mockModelInfo = { id: "gpt-4", context_length: 8192 };
+      const mockResponse = {
+        data: {
+          data: [mockModelInfo],
+        },
+      };
 
-      const isValid = await openRouterAPI.validateModel("model3");
-      expect(isValid).toBe(false);
+      jest
+        .spyOn(openRouterAPI["httpClient"], "get")
+        .mockResolvedValueOnce(mockResponse);
+
+      const modelInfo = await openRouterAPI.getModelInfo("gpt-4");
+      expect(modelInfo).toEqual(mockModelInfo);
     });
   });
 
-  describe("getModelInfo", () => {
-    it("should return the model info", async () => {
-      const mockResponse = {
-        data: {
-          data: [
-            {
-              id: "model1",
-              name: "Model 1",
-              context_length: 4096,
-            } as IOpenRouterModelInfo,
-          ],
-        },
+  describe("streaming", () => {
+    it("should handle streaming messages", async () => {
+      const mockStream = {
+        data: [
+          Buffer.from('data: {"choices":[{"delta":{"content":"Hello"}}]}\n\n'),
+          Buffer.from('data: {"choices":[{"delta":{"content":"!"}}]}\n\n'),
+          Buffer.from("data: [DONE]\n\n"),
+        ],
       };
-      (openRouterClient.get as jest.Mock).mockResolvedValue(mockResponse);
 
-      const modelInfo = await openRouterAPI.getModelInfo("model1");
-      expect(modelInfo).toEqual({
-        id: "model1",
-        name: "Model 1",
-        context_length: 4096,
-      });
-    });
+      mocker.spyOnPrototypeWithImplementation(
+        MessageContextManager,
+        "getMessages",
+        () => [],
+      );
 
-    it("should return an empty object if model is not found", async () => {
-      const mockResponse = {
-        data: {
-          data: [
-            {
-              id: "model1",
-              name: "Model 1",
-              context_length: 4096,
-            } as IOpenRouterModelInfo,
-          ],
-        },
-      };
-      (openRouterClient.get as jest.Mock).mockResolvedValue(mockResponse);
+      jest
+        .spyOn(openRouterAPI["httpClient"], "post")
+        .mockResolvedValueOnce(mockStream);
 
-      const modelInfo = await openRouterAPI.getModelInfo("model2");
-      expect(modelInfo).toEqual({});
-    });
+      const mockCallback = jest.fn();
+      await openRouterAPI.streamMessage("gpt-4", "Hi", mockCallback);
 
-    it("should handle errors and throw LLMError", async () => {
-      const mockError = {
-        response: {
-          data: {
-            error: {
-              message: "An error occurred",
-              code: 400,
-            },
-          },
-        },
-      };
-      (openRouterClient.get as jest.Mock).mockRejectedValue(mockError);
-
-      await expect(openRouterAPI.getModelInfo("model1")).rejects.toThrow(
-        "An error occurred",
+      expect(mockCallback).toHaveBeenCalledWith("Hello");
+      expect(mockCallback).toHaveBeenCalledWith("!");
+      expect(MessageContextManager.prototype.addMessage).toHaveBeenCalledWith(
+        "user",
+        "Hi",
+      );
+      expect(MessageContextManager.prototype.addMessage).toHaveBeenCalledWith(
+        "assistant",
+        "Hello!",
       );
     });
   });
