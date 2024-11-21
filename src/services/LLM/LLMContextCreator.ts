@@ -204,11 +204,12 @@ DO NOT RUN write_file if import issues are not resolved! Use relative_path_looku
   <path>/path/here</path>
   <try>0</try> <!-- Increment this every time you edit the same file -->
   <content>
-    <!-- ALWAYS run a type check after write_file -->
-    <!-- ALWAYS output FULL CODE. No skips or partial code -->
-    <!-- Use raw text only -->
-    <!-- CRITICAL: If presented with import errors, USE IMMEDIATELY <relative_path_lookup> to find the correct path. -->
-    <!-- If available, use path alias on imports -->
+   <!-- CRITICAL: Most write_file tasks are ADDITIVES if you already have content in place. Make sure to read_file first, then edit. -->
+   <!-- CRITICAL: If presented with import errors, USE IMMEDIATELY <relative_path_lookup> to find the correct path. -->
+   <!-- ALWAYS run a type check after write_file -->
+   <!-- ALWAYS output FULL CODE. No skips or partial code -->
+   <!-- Use raw text only -->
+   <!-- If available, use path alias on imports -->
   </content>
 </write_file>
 
