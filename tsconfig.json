@@ -20,11 +20,11 @@
       "@/*": ["src/*"],
       "@constants/*": ["src/constants/*"],
       "@services/*": ["src/services/*"],
-      "@tests/*": ["src/__tests__/*"],
       "@utils/*": ["src/services/utils/*"],
       "@middleware/*": ["src/middleware/*"],
       "@commands/*": ["src/commands/*"],
-      "@config/*": ["src/config/*"]
+      "@config/*": ["src/config/*"],
+      "@tests/*": ["src/jest/*"]
     }
   },
   "include": ["src"],
