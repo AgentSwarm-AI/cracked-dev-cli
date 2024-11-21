@@ -47,11 +47,7 @@ describe("OpenRouterAPI", () => {
       "decode",
       (str) => str,
     );
-    mocker.spyOnPrototypeWithImplementation(
-      HtmlEntityDecoder,
-      "unescapeString",
-      (str) => str,
-    );
+
     mocker.spyOnPrototypeWithImplementation(DebugLogger, "log", () => {});
 
     // Resolve OpenRouterAPI from the container

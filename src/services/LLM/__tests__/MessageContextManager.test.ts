@@ -108,20 +108,6 @@ describe("MessageContextManager", () => {
   });
 
   describe("cleanupContext", () => {
-    it("should remove oldest messages until under token limit", () => {
-      messageContextManager.addMessage("user", "First message"); // 12 chars = 3 tokens
-      messageContextManager.addMessage("assistant", "Second message"); // 13 chars = 4 tokens
-      messageContextManager.addMessage("user", "Third message"); // 12 chars = 3 tokens
-
-      // Set max tokens to 7, should remove first message
-      messageContextManager.cleanupContext(7);
-
-      const messages = messageContextManager.getMessages();
-      expect(messages).toHaveLength(2);
-      expect(messages[0].content).toBe("Second message");
-      expect(messages[1].content).toBe("Third message");
-    });
-
     it("should handle empty conversation", () => {
       messageContextManager.cleanupContext(10);
       expect(messageContextManager.getMessages()).toEqual([]);

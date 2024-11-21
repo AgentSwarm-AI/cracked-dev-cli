@@ -5,7 +5,7 @@ interface IModelConfig {
   description?: string;
 }
 
-export const MODEL_SCALE_THRESHOLD = 2;
+export const MODEL_SCALE_THRESHOLD = 1;
 
 export const modelConfigs: IModelConfig[] = [
   {
@@ -15,13 +15,13 @@ export const modelConfigs: IModelConfig[] = [
     description: "Base model for initial attempts",
   },
   {
-    id: "openai/gpt-4o-2024-11-20",
+    id: "anthropic/claude-3.5-sonnet:beta",
     priority: 2,
     active: true,
     description: "Scaled model for retry attempts",
   },
   {
-    id: "anthropic/claude-3.5-sonnet:beta",
+    id: "openai/gpt-4o-2024-11-20",
     priority: 3,
     active: true,
     description: "Scaled model for retry attempts",
@@ -38,15 +38,15 @@ export const getModelForTryCount = (tryCount: string | null): string => {
   if (!tryCount) return modelConfigs[0].id;
 
   const tries = parseInt(tryCount, 10);
-  // Scale up when tries >= threshold (not after threshold)
-  const scaleLevel = tries >= MODEL_SCALE_THRESHOLD ? 1 : 0;
+  // Calculate scale level based on try count and threshold
+  const scaleLevel = Math.floor(tries / MODEL_SCALE_THRESHOLD);
 
   // Find active models
   const activeModels = modelConfigs
     .filter((model) => model.active)
     .sort((a, b) => a.priority - b.priority);
 
-  // Use modulus to cycle through active models based on scale level
+  // Use min to prevent exceeding available models
   const modelIndex = Math.min(scaleLevel, activeModels.length - 1);
   return activeModels[modelIndex].id;
 };
