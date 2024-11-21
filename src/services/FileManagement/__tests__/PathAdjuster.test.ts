@@ -1,50 +1,76 @@
+// PathAdjuster.test.ts
 import { PathAdjuster } from "@services/FileManagement/PathAdjuster";
+import { UnitTestMocker } from "@tests/mocks/UnitTestMocker";
 import fg from "fast-glob";
 import * as fs from "fs-extra";
 
 jest.mock("fs-extra");
-jest.mock("fast-glob", () => ({
-  sync: jest
-    .fn()
-    .mockImplementation(() => [
-      "/home/joao/projects/cracked-dev-cli/src/file1.ts",
-      "/home/joao/projects/cracked-dev-cli/src/components/file2.tsx",
-      "/home/joao/projects/cracked-dev-cli/package.json",
-    ]),
-}));
+jest.mock("fast-glob");
 
 describe("PathAdjuster", () => {
   let pathAdjuster: PathAdjuster;
+  let mocker: UnitTestMocker;
+
   const mockFiles = [
     "/home/joao/projects/cracked-dev-cli/src/file1.ts",
     "/home/joao/projects/cracked-dev-cli/src/components/file2.tsx",
     "/home/joao/projects/cracked-dev-cli/package.json",
   ];
 
+  beforeAll(() => {
+    mocker = new UnitTestMocker();
+
+    // Mock fast-glob sync method
+    mocker.spyOnModuleFunction(fg, "sync", mockFiles);
+
+    // Mock fs-extra methods
+    mocker.spyOnModuleFunction(fs, "pathExistsSync", true);
+    mocker.spyOnModuleFunction(fs, "lstatSync", { isFile: () => true });
+  });
+
+  afterAll(async () => {
+    await pathAdjuster.cleanup();
+    mocker.clearAllMocks();
+    jest.resetAllMocks();
+  });
+
   beforeEach(() => {
-    jest.clearAllMocks();
+    mocker.clearAllMocks();
+
+    // Reset mocks to default behavior before each test
+    (fg.sync as jest.Mock).mockReturnValue(mockFiles);
     (fs.pathExistsSync as jest.Mock).mockReturnValue(true);
     (fs.lstatSync as jest.Mock).mockReturnValue({ isFile: () => true });
+
+    // Instantiate PathAdjuster after setting up mocks
     pathAdjuster = new PathAdjuster();
   });
 
   afterEach(async () => {
     await pathAdjuster.cleanup();
+    mocker.clearAllMocks();
+    jest.resetAllMocks();
   });
 
   describe("initialization", () => {
     it("should initialize successfully", async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0)); // Wait for async constructor
+      // Wait for async constructor
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
       expect(pathAdjuster.isInitialized()).toBe(true);
       expect(pathAdjuster.getInitializationError()).toBeNull();
     });
 
     it("should handle initialization errors", async () => {
+      // Mock fast-glob to throw an error
       (fg.sync as jest.Mock).mockImplementationOnce(() => {
         throw new Error("Mock error");
       });
+
+      // Re-instantiate PathAdjuster to apply new mock
       pathAdjuster = new PathAdjuster();
       await new Promise((resolve) => setTimeout(resolve, 0));
+
       expect(pathAdjuster.isInitialized()).toBe(false);
       expect(pathAdjuster.getInitializationError()).toBeTruthy();
     });
@@ -68,8 +94,13 @@ describe("PathAdjuster", () => {
     });
 
     it("should throw error if not initialized", () => {
-      pathAdjuster = new PathAdjuster();
-      expect(() => pathAdjuster.findClosestMatch("any/path")).toThrow();
+      // Mock PathAdjuster's initialized state
+      (pathAdjuster as any).initialized = false;
+      (pathAdjuster as any).initializationError = new Error("Not initialized");
+
+      expect(() => pathAdjuster.findClosestMatch("any/path")).toThrow(
+        "PathAdjuster not initialized. Check initialization status with isInitialized()",
+      );
     });
   });
 
@@ -132,9 +163,8 @@ describe("PathAdjuster", () => {
 
   describe("refreshFilePaths", () => {
     it("should refresh file paths successfully", async () => {
-      (fg.sync as jest.Mock).mockImplementationOnce(() => [
-        "/home/joao/projects/cracked-dev-cli/new/file.ts",
-      ]);
+      const newMockFiles = ["/home/joao/projects/cracked-dev-cli/new/file.ts"];
+      (fg.sync as jest.Mock).mockReturnValueOnce(newMockFiles);
       await pathAdjuster.refreshFilePaths();
       const result = await pathAdjuster.adjustPath(
         "/home/joao/projects/cracked-dev-cli/new/file.ts",
@@ -146,7 +176,9 @@ describe("PathAdjuster", () => {
       (fg.sync as jest.Mock).mockImplementationOnce(() => {
         throw new Error("Refresh error");
       });
-      await expect(pathAdjuster.refreshFilePaths()).rejects.toThrow();
+      await expect(pathAdjuster.refreshFilePaths()).rejects.toThrow(
+        "Refresh error",
+      );
     });
   });
 });
