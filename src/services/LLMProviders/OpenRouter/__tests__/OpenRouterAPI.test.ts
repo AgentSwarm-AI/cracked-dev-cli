@@ -54,15 +54,6 @@ describe("OpenRouterAPI", () => {
     );
     mocker.spyOnPrototypeWithImplementation(DebugLogger, "log", () => {});
 
-    // Register dependencies in the container
-    container.register(MessageContextManager, {
-      useClass: MessageContextManager,
-    });
-    container.register(ModelScaler, { useClass: ModelScaler });
-    container.register(HtmlEntityDecoder, { useClass: HtmlEntityDecoder });
-    container.register(DebugLogger, { useClass: DebugLogger });
-    container.register(OpenRouterAPI, { useClass: OpenRouterAPI });
-
     // Resolve OpenRouterAPI from the container
     openRouterAPI = container.resolve(OpenRouterAPI);
   });

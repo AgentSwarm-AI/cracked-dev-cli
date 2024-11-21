@@ -1,12 +1,8 @@
 // src/services/LLM/__tests__/LLMProvider.test.ts
-import { ConversationContext } from "@services/LLM/ConversationContext";
 import { ILLMProvider } from "@services/LLM/ILLMProvider";
 import { LLMProvider, LLMProviderType } from "@services/LLM/LLMProvider";
 import { MessageContextManager } from "@services/LLM/MessageContextManager";
-import { ModelScaler } from "@services/LLM/ModelScaler";
 import { OpenRouterAPI } from "@services/LLMProviders/OpenRouter/OpenRouterAPI";
-import { DebugLogger } from "@services/logging/DebugLogger";
-import { HtmlEntityDecoder } from "@services/text/HTMLEntityDecoder";
 import { UnitTestMocker } from "@tests/mocks/UnitTestMocker";
 import { container } from "tsyringe";
 
@@ -73,17 +69,6 @@ describe("LLMProvider", () => {
       "setSystemInstructions",
       undefined,
     );
-
-    // Register dependencies in the container
-    container.register(MessageContextManager, {
-      useClass: MessageContextManager,
-    });
-    container.register(ConversationContext, { useClass: ConversationContext });
-    container.register(HtmlEntityDecoder, { useClass: HtmlEntityDecoder });
-    container.register(ModelScaler, { useClass: ModelScaler });
-    container.register(DebugLogger, { useClass: DebugLogger });
-    container.register(OpenRouterAPI, { useClass: OpenRouterAPI });
-    container.register(LLMProvider, { useClass: LLMProvider });
 
     // Resolve LLMProvider from the container
     provider = container.resolve(LLMProvider);

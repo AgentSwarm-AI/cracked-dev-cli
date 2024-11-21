@@ -5,9 +5,6 @@ describe("MessageContextManager", () => {
   let messageContextManager: MessageContextManager;
 
   beforeEach(() => {
-    container.register(MessageContextManager, {
-      useClass: MessageContextManager,
-    });
     messageContextManager = container.resolve(MessageContextManager);
   });
 

@@ -30,12 +30,6 @@ describe("ConversationContext", () => {
     );
     mocker.spyOnPrototype(MessageContextManager, "setCurrentModel", jest.fn());
 
-    // Register dependencies in the container
-    container.register(MessageContextManager, {
-      useClass: MessageContextManager,
-    });
-    container.register(ConversationContext, { useClass: ConversationContext });
-
     // Resolve ConversationContext from the container
     conversationContext = container.resolve(ConversationContext);
   });
@@ -87,7 +81,9 @@ describe("ConversationContext", () => {
         { role: "user", content: "Hello" },
         { role: "assistant", content: "Hi there!" },
       ];
-      (MessageContextManager.prototype.getMessages as jest.Mock).mockReturnValue(messages);
+      (
+        MessageContextManager.prototype.getMessages as jest.Mock
+      ).mockReturnValue(messages);
 
       const result = conversationContext.getMessages();
       expect(result).toEqual(messages);
@@ -114,7 +110,9 @@ describe("ConversationContext", () => {
   describe("getSystemInstructions", () => {
     it("should return system instructions when set", () => {
       const instructions = "Be helpful";
-      (MessageContextManager.prototype.getSystemInstructions as jest.Mock).mockReturnValue(instructions);
+      (
+        MessageContextManager.prototype.getSystemInstructions as jest.Mock
+      ).mockReturnValue(instructions);
 
       const result = conversationContext.getSystemInstructions();
       expect(result).toBe(instructions);
@@ -125,7 +123,9 @@ describe("ConversationContext", () => {
 
     it("should return null when no system instructions are set", () => {
       // Ensure the mock explicitly returns null
-      (MessageContextManager.prototype.getSystemInstructions as jest.Mock).mockReturnValue(null);
+      (
+        MessageContextManager.prototype.getSystemInstructions as jest.Mock
+      ).mockReturnValue(null);
 
       const result = conversationContext.getSystemInstructions();
       expect(result).toBeNull();
