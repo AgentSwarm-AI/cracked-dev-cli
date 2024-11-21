@@ -33,6 +33,28 @@ describe("TagsExtractor", () => {
         "<read_file><path>test.txt</path></read_file><write_file><path>out.txt</path><content>data</content></write_file>";
       expect(actionTagsExtractor.validateStructure(content)).toBe("");
     });
+
+    it("should ignore tags within write_file content", () => {
+      const content = `
+        <write_file>
+          <path>test.txt</path>
+          <content>
+            <some_tag>This should be ignored</some_tag>
+            <another_tag>Also ignored</another_tag>
+          </content>
+        </write_file>`;
+      expect(actionTagsExtractor.validateStructure(content)).toBe("");
+    });
+
+    it("should ignore tags within read_file content", () => {
+      const content = `
+        <read_file>
+          <path>
+            <some_tag>This should be ignored</some_tag>
+          </path>
+        </read_file>`;
+      expect(actionTagsExtractor.validateStructure(content)).toBe("");
+    });
   });
 
   describe("extractTag", () => {
@@ -54,6 +76,20 @@ describe("TagsExtractor", () => {
       const content = "<test>Hello World</test>";
       expect(actionTagsExtractor.extractTag(content, "nonexistent")).toBeNull();
     });
+
+    it("should preserve tags within write_file content", () => {
+      const content = `
+        <write_file>
+          <path>test.txt</path>
+          <content>
+            <preserved_tag>This should remain intact</preserved_tag>
+          </content>
+        </write_file>`;
+      const extracted = actionTagsExtractor.extractTag(content, "write_file");
+      expect(extracted).toContain(
+        "<preserved_tag>This should remain intact</preserved_tag>",
+      );
+    });
   });
 
   describe("extractTags", () => {
@@ -69,6 +105,21 @@ describe("TagsExtractor", () => {
     it("should return empty array when no tags found", () => {
       const content = "<other>Skip</other>";
       expect(actionTagsExtractor.extractTags(content, "test")).toEqual([]);
+    });
+
+    it("should preserve nested tags in write_file content", () => {
+      const content = `
+        <write_file>
+          <path>test1.txt</path>
+          <content><nested>Keep this</nested></content>
+        </write_file>
+        <write_file>
+          <path>test2.txt</path>
+          <content><nested>And this</nested></content>
+        </write_file>`;
+      const results = actionTagsExtractor.extractTags(content, "write_file");
+      expect(results[0]).toContain("<nested>Keep this</nested>");
+      expect(results[1]).toContain("<nested>And this</nested>");
     });
   });
 
@@ -116,6 +167,26 @@ describe("TagsExtractor", () => {
       expect(
         actionTagsExtractor.extractNestedTags(content, "parent", "child"),
       ).toEqual([]);
+    });
+
+    it("should preserve nested tags in write_file content blocks", () => {
+      const content = `
+        <parent>
+          <write_file>
+            <path>test.txt</path>
+            <content>
+              <preserved>This should stay intact</preserved>
+            </content>
+          </write_file>
+        </parent>`;
+      const result = actionTagsExtractor.extractNestedTags(
+        content,
+        "parent",
+        "write_file",
+      );
+      expect(result[0]).toContain(
+        "<preserved>This should stay intact</preserved>",
+      );
     });
   });
 });

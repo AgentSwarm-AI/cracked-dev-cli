@@ -2,12 +2,47 @@ import { autoInjectable } from "tsyringe";
 
 @autoInjectable()
 export class ActionTagsExtractor {
+  private replaceContentBlocks(content: string): {
+    processedContent: string;
+    replacements: { placeholder: string; original: string }[];
+  } {
+    const replacements: { placeholder: string; original: string }[] = [];
+    let processedContent = content;
+
+    // Extract write_file and read_file blocks and replace with placeholders
+    const contentBlockRegex = /<(write_file|read_file)>[\s\S]*?<\/\1>/g;
+    let match;
+    let counter = 0;
+
+    while ((match = contentBlockRegex.exec(content)) !== null) {
+      const placeholder = `__CONTENT_BLOCK_${counter}__`;
+      replacements.push({ placeholder, original: match[0] });
+      processedContent = processedContent.replace(match[0], placeholder);
+      counter++;
+    }
+
+    return { processedContent, replacements };
+  }
+
+  private restoreContentBlocks(
+    content: string,
+    replacements: { placeholder: string; original: string }[],
+  ): string {
+    let restoredContent = content;
+    for (const { placeholder, original } of replacements) {
+      restoredContent = restoredContent.replace(placeholder, original);
+    }
+    return restoredContent;
+  }
+
   /**
    * Validates if a tag has proper XML structure
    * @param content Full text content to validate
    * @returns Message indicating if structure is valid or what's wrong
    */
   validateStructure(content: string): string {
+    const { processedContent } = this.replaceContentBlocks(content);
+
     const actionTags = [
       "read_file",
       "write_file",
@@ -24,10 +59,12 @@ export class ActionTagsExtractor {
     ];
 
     for (const tag of actionTags) {
-      const openCount = (content.match(new RegExp(`<${tag}>`, "g")) || [])
-        .length;
-      const closeCount = (content.match(new RegExp(`</${tag}>`, "g")) || [])
-        .length;
+      const openCount = (
+        processedContent.match(new RegExp(`<${tag}>`, "g")) || []
+      ).length;
+      const closeCount = (
+        processedContent.match(new RegExp(`</${tag}>`, "g")) || []
+      ).length;
 
       if (openCount !== closeCount) {
         return `We need to use proper tag structure, try again. Missing ${openCount > closeCount ? "closing" : "opening"} tag for <${tag}>.`;
@@ -44,9 +81,13 @@ export class ActionTagsExtractor {
    * @returns The content within the tag or null if not found
    */
   extractTag(content: string, tagName: string): string | null {
+    const { processedContent, replacements } =
+      this.replaceContentBlocks(content);
     const regex = new RegExp(`<${tagName}>([\\s\\S]*?)<\\/${tagName}>`);
-    const match = content.match(regex);
-    return match ? match[1].trim() : null;
+    const match = processedContent.match(regex);
+    if (!match) return null;
+
+    return this.restoreContentBlocks(match[1], replacements).trim();
   }
 
   /**
@@ -56,9 +97,13 @@ export class ActionTagsExtractor {
    * @returns Array of content within each instance of the tag
    */
   extractTags(content: string, tagName: string): string[] {
+    const { processedContent, replacements } =
+      this.replaceContentBlocks(content);
     const regex = new RegExp(`<${tagName}>([\\s\\S]*?)<\\/${tagName}>`, "g");
-    const matches = content.matchAll(regex);
-    return Array.from(matches).map((match) => match[1].trim());
+    const matches = processedContent.matchAll(regex);
+    return Array.from(matches).map((match) =>
+      this.restoreContentBlocks(match[1], replacements).trim(),
+    );
   }
 
   /**
@@ -89,10 +134,15 @@ export class ActionTagsExtractor {
     parentTag: string,
     childTag: string,
   ): string[] {
-    const parentContent = this.extractTag(content, parentTag);
+    const { processedContent, replacements } =
+      this.replaceContentBlocks(content);
+    const parentContent = this.extractTag(processedContent, parentTag);
     if (!parentContent) return [];
 
-    return this.extractTags(parentContent, childTag);
+    return this.extractTags(
+      this.restoreContentBlocks(parentContent, replacements),
+      childTag,
+    );
   }
 
   /**
@@ -102,8 +152,14 @@ export class ActionTagsExtractor {
    * @returns Array of complete tag contents including nested tags
    */
   extractAllTagsWithContent(content: string, tagName: string): string[] {
+    const { processedContent, replacements } =
+      this.replaceContentBlocks(content);
     const regex = new RegExp(`<${tagName}>[\\s\\S]*?<\\/${tagName}>`, "g");
-    const matches = content.match(regex);
-    return matches ? matches.map((match) => match.trim()) : [];
+    const matches = processedContent.match(regex);
+    return matches
+      ? matches.map((match) =>
+          this.restoreContentBlocks(match, replacements).trim(),
+        )
+      : [];
   }
 }

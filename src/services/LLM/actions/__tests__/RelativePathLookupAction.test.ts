@@ -1,15 +1,22 @@
 import { PathAdjuster } from "@services/FileManagement/PathAdjuster";
 import { RelativePathLookupAction } from "@services/LLM/actions/RelativePathLookupAction";
+import { UnitTestMocker } from "../../../../jest/mocks/UnitTestMocker"; // Corrected path
 
 jest.mock("@services/FileManagement/PathAdjuster");
 
 describe("RelativePathLookupAction", () => {
   let relativePathLookupAction: RelativePathLookupAction;
+  let mocker: UnitTestMocker;
   let mockPathAdjuster: jest.Mocked<PathAdjuster>;
 
   beforeEach(() => {
+    mocker = new UnitTestMocker();
     mockPathAdjuster = new PathAdjuster() as jest.Mocked<PathAdjuster>;
     relativePathLookupAction = new RelativePathLookupAction(mockPathAdjuster);
+  });
+
+  afterEach(() => {
+    mocker.clearAllMocks();
   });
 
   it("should handle successful path lookup", async () => {

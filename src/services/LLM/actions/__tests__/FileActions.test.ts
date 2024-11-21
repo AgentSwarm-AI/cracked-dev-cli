@@ -4,6 +4,8 @@ import { IFileOperationResult } from "@services/FileManagement/types/FileManagem
 import { ActionTagsExtractor } from "@services/LLM/actions/ActionTagsExtractor";
 import { FileActions } from "@services/LLM/actions/FileActions";
 import { DebugLogger } from "@services/logging/DebugLogger";
+import { UnitTestMocker } from "@tests/mocks/UnitTestMocker";
+import { container } from "tsyringe";
 
 jest.mock("@services/FileManagement/FileOperations");
 jest.mock("@services/LLM/actions/ActionTagsExtractor");
@@ -14,8 +16,16 @@ describe("FileActions", () => {
   let mockActionTagsExtractor: jest.Mocked<ActionTagsExtractor>;
   let mockDebugLogger: jest.Mocked<DebugLogger>;
   let mockPathAdjuster: jest.Mocked<PathAdjuster>;
+  let mocker: UnitTestMocker;
+
+  beforeAll(() => {
+    mockDebugLogger = new DebugLogger() as jest.Mocked<DebugLogger>;
+    mockPathAdjuster = new PathAdjuster() as jest.Mocked<PathAdjuster>; // Fixed: Removed argument
+  });
 
   beforeEach(() => {
+    mocker = new UnitTestMocker();
+
     mockFileOperations = new FileOperations(
       mockPathAdjuster,
       mockDebugLogger,
@@ -28,6 +38,13 @@ describe("FileActions", () => {
     // Setup default mock implementations
     mockActionTagsExtractor.extractTags.mockImplementation(() => []);
     mockActionTagsExtractor.extractTag.mockImplementation(() => null);
+
+    // Setup spies on prototype methods of dependencies
+    mocker.spyOnPrototype(DebugLogger, "log", jest.fn());
+  });
+
+  afterEach(() => {
+    mocker.clearAllMocks();
   });
 
   describe("handleReadFile", () => {
