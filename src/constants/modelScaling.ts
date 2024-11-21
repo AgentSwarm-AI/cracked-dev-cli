@@ -5,7 +5,7 @@ interface IModelConfig {
   description?: string;
 }
 
-export const MODEL_SCALE_THRESHOLD = 4;
+export const MODEL_SCALE_THRESHOLD = 3;
 
 export const modelConfigs: IModelConfig[] = [
   {

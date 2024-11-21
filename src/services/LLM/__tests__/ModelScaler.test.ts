@@ -1,16 +1,28 @@
 import { ModelScaler } from "@services/LLM/ModelScaler";
 import { DebugLogger } from "@services/logging/DebugLogger";
-
-jest.mock("@services/logging/DebugLogger");
+import { UnitTestMocker } from "@tests/mocks/UnitTestMocker";
+import { container } from "tsyringe";
 
 describe("ModelScaler", () => {
   let modelScaler: ModelScaler;
-  let mockDebugLogger: jest.Mocked<DebugLogger>;
+  let mocker: UnitTestMocker;
+
+  beforeAll(() => {
+    container.register("DebugLogger", { useValue: DebugLogger });
+  });
 
   beforeEach(() => {
-    mockDebugLogger = new DebugLogger() as jest.Mocked<DebugLogger>;
-    mockDebugLogger.log.mockImplementation(() => {});
-    modelScaler = new ModelScaler(mockDebugLogger);
+    mocker = new UnitTestMocker();
+
+    // Setup spies on prototype methods of dependencies
+    mocker.spyOnPrototype(DebugLogger, "log", jest.fn());
+
+    // Instantiate ModelScaler after setting up mocks
+    modelScaler = container.resolve(ModelScaler);
+  });
+
+  afterEach(() => {
+    mocker.clearAllMocks();
   });
 
   it("should scale models based on try count", () => {
