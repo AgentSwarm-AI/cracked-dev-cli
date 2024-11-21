@@ -53,7 +53,7 @@ export class WriteFileAction {
 
     const result = await this.fileOperations.write(
       filePath,
-      this.htmlEntityDecoder.decode(fileContent, { uneescape: true }),
+      this.htmlEntityDecoder.decode(fileContent),
     );
 
     if (!result.success) {

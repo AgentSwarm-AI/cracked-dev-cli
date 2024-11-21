@@ -22,6 +22,8 @@ class LLMError extends Error {
 export class OpenRouterAPI implements ILLMProvider {
   private readonly httpClient: typeof openRouterClient;
   private streamBuffer: string = "";
+  private maxRetries: number = 3;
+  private retryDelay: number = 1000;
 
   constructor(
     private messageContextManager: MessageContextManager,
@@ -111,6 +113,7 @@ export class OpenRouterAPI implements ILLMProvider {
 
       const assistantMessage = response.data.choices[0].message.content;
 
+      // Only add messages if they're not duplicates
       this.messageContextManager.addMessage("user", message);
       this.messageContextManager.addMessage("assistant", assistantMessage);
 
@@ -177,12 +180,14 @@ export class OpenRouterAPI implements ILLMProvider {
 
   private async retryStreamOperation<T>(
     operation: () => Promise<T>,
+    retries: number = this.maxRetries,
   ): Promise<T> {
     try {
       return await operation();
     } catch (error) {
-      if (this.isRetryableError(error)) {
-        return await operation();
+      if (retries > 0 && this.isRetryableError(error)) {
+        await new Promise((resolve) => setTimeout(resolve, this.retryDelay));
+        return this.retryStreamOperation(operation, retries - 1);
       }
 
       if (error instanceof LLMError) {
@@ -194,7 +199,11 @@ export class OpenRouterAPI implements ILLMProvider {
 
   private isRetryableError(error: any): boolean {
     if (error instanceof LLMError) {
-      return error.type === "NETWORK_ERROR";
+      return (
+        error.type === "NETWORK_ERROR" ||
+        error.type === "CONTEXT_LENGTH_EXCEEDED" ||
+        error.type === "RATE_LIMIT_EXCEEDED"
+      );
     }
     return (
       error.code === "ECONNRESET" ||
@@ -230,9 +239,7 @@ export class OpenRouterAPI implements ILLMProvider {
         return { content: "" };
       }
 
-      const unescapedContent =
-        this.htmlEntityDecoder.unescapeString(deltaContent);
-      const decodedContent = this.htmlEntityDecoder.decode(unescapedContent);
+      const decodedContent = this.htmlEntityDecoder.decode(deltaContent);
 
       return { content: decodedContent };
     } catch (e) {
@@ -257,6 +264,33 @@ export class OpenRouterAPI implements ILLMProvider {
     }
 
     return { content, error };
+  }
+
+  private async handleStreamError(
+    error: LLMError,
+    message: string,
+    callback: (chunk: string, error?: LLMError) => void,
+  ): Promise<void> {
+    this.debugLogger.log("Model", "Stream error", {
+      error: error.type,
+      message,
+    });
+    if (error.type === "CONTEXT_LENGTH_EXCEEDED") {
+      // Clean up context and retry
+      const cleaned = this.messageContextManager.cleanupContext(
+        error.details.maxLength,
+      );
+      if (cleaned) {
+        await this.streamMessage(
+          this.modelScaler.getCurrentModel() || "",
+          message,
+          callback,
+        );
+        return;
+      }
+    }
+
+    callback("", error);
   }
 
   async streamMessage(
@@ -298,7 +332,7 @@ export class OpenRouterAPI implements ILLMProvider {
               "STREAM_ERROR",
               error,
             );
-            callback("", llmError);
+            await this.handleStreamError(llmError, message, callback);
           }
 
           if (content) {
@@ -318,7 +352,7 @@ export class OpenRouterAPI implements ILLMProvider {
               "STREAM_ERROR",
               error,
             );
-            callback("", llmError);
+            await this.handleStreamError(llmError, message, callback);
           }
           if (content) {
             assistantMessage += content;
@@ -330,6 +364,7 @@ export class OpenRouterAPI implements ILLMProvider {
       }
 
       if (assistantMessage) {
+        // Only add messages if they're not duplicates
         this.messageContextManager.addMessage("user", message);
         this.messageContextManager.addMessage("assistant", assistantMessage);
       }
@@ -340,9 +375,10 @@ export class OpenRouterAPI implements ILLMProvider {
     } catch (error) {
       const llmError =
         error instanceof LLMError ? error : this.handleLLMError(error);
-      callback("", llmError);
+      await this.handleStreamError(llmError, message, callback);
 
       if (assistantMessage) {
+        // Only add messages if they're not duplicates
         this.messageContextManager.addMessage("user", message);
         this.messageContextManager.addMessage("assistant", assistantMessage);
       }

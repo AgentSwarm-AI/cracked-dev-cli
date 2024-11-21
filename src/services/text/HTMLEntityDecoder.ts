@@ -34,7 +34,7 @@ export class HtmlEntityDecoder {
    * @param str The string with escaped characters.
    * @returns The unescaped string.
    */
-  public unescapeString(str: string): string {
+  private unescapeString(str: string): string {
     return str.replace(/\\(["'\\/bfnrt]|u[0-9a-fA-F]{4})/g, (match, p1) => {
       switch (p1) {
         case '"':
