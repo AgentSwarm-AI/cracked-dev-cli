@@ -9,17 +9,20 @@ export class ActionTagsExtractor {
     const replacements: { placeholder: string; original: string }[] = [];
     let processedContent = content;
 
-    // Extract write_file and read_file blocks and replace with placeholders
-    const contentBlockRegex = /<(write_file|read_file)>[\s\S]*?<\/\1>/g;
-    let match;
-    let counter = 0;
+    // Only replace content blocks that are not within write_file tags
+    const writeFileBlocks =
+      processedContent.match(/<write_file>[\s\S]*?<\/write_file>/g) || [];
+    const readFileBlocks =
+      processedContent.match(/<read_file>[\s\S]*?<\/read_file>/g) || [];
 
-    while ((match = contentBlockRegex.exec(content)) !== null) {
+    // Preserve write_file and read_file blocks by temporarily replacing them
+    let counter = 0;
+    [...writeFileBlocks, ...readFileBlocks].forEach((block) => {
       const placeholder = `__CONTENT_BLOCK_${counter}__`;
-      replacements.push({ placeholder, original: match[0] });
-      processedContent = processedContent.replace(match[0], placeholder);
+      replacements.push({ placeholder, original: block });
+      processedContent = processedContent.replace(block, placeholder);
       counter++;
-    }
+    });
 
     return { processedContent, replacements };
   }
@@ -81,6 +84,12 @@ export class ActionTagsExtractor {
    * @returns The content within the tag or null if not found
    */
   extractTag(content: string, tagName: string): string | null {
+    if (tagName === "write_file") {
+      const regex = new RegExp(`<${tagName}>([\\s\\S]*?)<\\/${tagName}>`);
+      const match = content.match(regex);
+      return match ? match[1].trim() : null;
+    }
+
     const { processedContent, replacements } =
       this.replaceContentBlocks(content);
     const regex = new RegExp(`<${tagName}>([\\s\\S]*?)<\\/${tagName}>`);
@@ -97,6 +106,12 @@ export class ActionTagsExtractor {
    * @returns Array of content within each instance of the tag
    */
   extractTags(content: string, tagName: string): string[] {
+    if (tagName === "write_file") {
+      const regex = new RegExp(`<${tagName}>([\\s\\S]*?)<\\/${tagName}>`, "g");
+      const matches = content.matchAll(regex);
+      return Array.from(matches).map((match) => match[1].trim());
+    }
+
     const { processedContent, replacements } =
       this.replaceContentBlocks(content);
     const regex = new RegExp(`<${tagName}>([\\s\\S]*?)<\\/${tagName}>`, "g");
@@ -126,7 +141,7 @@ export class ActionTagsExtractor {
    * Extracts nested tags from within a parent tag
    * @param content Full text content
    * @param parentTag Parent tag name
-   * @param childTag Child tag name
+   * @param childTag string
    * @returns Array of content within child tags, found within the parent tag
    */
   extractNestedTags(
@@ -134,6 +149,18 @@ export class ActionTagsExtractor {
     parentTag: string,
     childTag: string,
   ): string[] {
+    if (childTag === "write_file") {
+      const parentContent = this.extractTag(content, parentTag);
+      if (!parentContent) return [];
+
+      const regex = new RegExp(
+        `<${childTag}>([\\s\\S]*?)<\\/${childTag}>`,
+        "g",
+      );
+      const matches = parentContent.matchAll(regex);
+      return Array.from(matches).map((match) => match[1].trim());
+    }
+
     const { processedContent, replacements } =
       this.replaceContentBlocks(content);
     const parentContent = this.extractTag(processedContent, parentTag);
@@ -152,6 +179,12 @@ export class ActionTagsExtractor {
    * @returns Array of complete tag contents including nested tags
    */
   extractAllTagsWithContent(content: string, tagName: string): string[] {
+    if (tagName === "write_file") {
+      const regex = new RegExp(`<${tagName}>[\\s\\S]*?<\\/${tagName}>`, "g");
+      const matches = content.match(regex);
+      return matches ? matches.map((match) => match.trim()) : [];
+    }
+
     const { processedContent, replacements } =
       this.replaceContentBlocks(content);
     const regex = new RegExp(`<${tagName}>[\\s\\S]*?<\\/${tagName}>`, "g");
