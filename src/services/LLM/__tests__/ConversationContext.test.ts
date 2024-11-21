@@ -1,23 +1,43 @@
-import { PathAdjuster } from "@services/FileManagement/PathAdjuster";
-import { RelativePathLookupAction } from "@services/LLM/actions/RelativePathLookupAction";
+import { ConversationContext } from "@services/LLM/ConversationContext";
+import { MessageContextManager } from "@services/LLM/MessageContextManager";
 import { UnitTestMocker } from "@tests/mocks/UnitTestMocker";
-import path from "path";
 import { container } from "tsyringe";
 
-jest.mock("@services/FileManagement/PathAdjuster");
-
-describe("RelativePathLookupAction", () => {
-  let relativePathLookupAction: RelativePathLookupAction;
+describe("ConversationContext", () => {
+  let conversationContext: ConversationContext;
   let mocker: UnitTestMocker;
 
   beforeEach(() => {
     mocker = new UnitTestMocker();
 
-    // Setup spies on prototype methods of dependencies before instantiating RelativePathLookupAction
-    mocker.spyOnPrototype(PathAdjuster, "adjustPath", jest.fn());
+    // Spy on MessageContextManager methods
+    mocker.spyOnPrototype(
+      MessageContextManager,
+      "getMessages",
+      jest.fn().mockReturnValue([]),
+    );
+    mocker.spyOnPrototype(MessageContextManager, "addMessage", jest.fn());
+    mocker.spyOnPrototype(MessageContextManager, "clear", jest.fn());
+    mocker.spyOnPrototype(
+      MessageContextManager,
+      "setSystemInstructions",
+      jest.fn(),
+    );
+    mocker.spyOnPrototype(
+      MessageContextManager,
+      "getSystemInstructions",
+      jest.fn().mockReturnValue(null), // Ensure it returns null by default
+    );
+    mocker.spyOnPrototype(MessageContextManager, "setCurrentModel", jest.fn());
 
-    // Instantiate RelativePathLookupAction after setting up mocks
-    relativePathLookupAction = container.resolve(RelativePathLookupAction);
+    // Register dependencies in the container
+    container.register(MessageContextManager, {
+      useClass: MessageContextManager,
+    });
+    container.register(ConversationContext, { useClass: ConversationContext });
+
+    // Resolve ConversationContext from the container
+    conversationContext = container.resolve(ConversationContext);
   });
 
   afterEach(() => {
@@ -26,201 +46,92 @@ describe("RelativePathLookupAction", () => {
     jest.clearAllMocks();
   });
 
-  describe("execute", () => {
-    it("should handle successful path lookup", async () => {
-      const sourcePath = "/home/user/project/src/components/test.ts";
-      const relativePath = "../utils/helper.ts";
-      const content = `
-        <relative_path_lookup>
-          <source_path>${sourcePath}</source_path>
-          <path>${relativePath}</path>
-        </relative_path_lookup>
-      `;
-      const expectedAbsolutePath = "/home/user/project/src/utils/helper.ts";
+  describe("setCurrentModel", () => {
+    it("should set the current model", async () => {
+      await conversationContext.setCurrentModel("gpt-4");
+      expect(
+        MessageContextManager.prototype.setCurrentModel,
+      ).toHaveBeenCalledWith("gpt-4");
+    });
+  });
 
-      const fullImportPath = path.resolve(
-        path.dirname(sourcePath),
-        relativePath,
-      );
-      // Mock adjustPath to resolve with expectedAbsolutePath
-      (PathAdjuster.prototype.adjustPath as jest.Mock).mockResolvedValueOnce(
-        expectedAbsolutePath,
-      );
-
-      const result = await relativePathLookupAction.execute(content);
-
-      expect(result.success).toBe(true);
-      expect(result.data).toEqual({
-        originalPath: relativePath,
-        newPath: relativePath,
-        absolutePath: expectedAbsolutePath,
-      });
-      expect(PathAdjuster.prototype.adjustPath).toHaveBeenCalledWith(
-        fullImportPath,
-        0.6,
+  describe("addMessage", () => {
+    it("should add a user message", async () => {
+      await conversationContext.addMessage("user", "Hello");
+      expect(MessageContextManager.prototype.addMessage).toHaveBeenCalledWith(
+        "user",
+        "Hello",
       );
     });
 
-    it("should handle path lookup with custom threshold", async () => {
-      const sourcePath = "/home/user/project/src/components/test.ts";
-      const relativePath = "../utils/helper.ts";
-      const content = `
-        <relative_path_lookup>
-          <source_path>${sourcePath}</source_path>
-          <path>${relativePath}</path>
-          <threshold>0.8</threshold>
-        </relative_path_lookup>
-      `;
-      const expectedAbsolutePath = "/home/user/project/src/utils/helper.ts";
-
-      const fullImportPath = path.resolve(
-        path.dirname(sourcePath),
-        relativePath,
-      );
-      // Mock adjustPath to resolve with expectedAbsolutePath
-      (PathAdjuster.prototype.adjustPath as jest.Mock).mockResolvedValueOnce(
-        expectedAbsolutePath,
-      );
-
-      const result = await relativePathLookupAction.execute(content);
-
-      expect(result.success).toBe(true);
-      expect(result.data).toEqual({
-        originalPath: relativePath,
-        newPath: relativePath,
-        absolutePath: expectedAbsolutePath,
-      });
-      expect(PathAdjuster.prototype.adjustPath).toHaveBeenCalledWith(
-        fullImportPath,
-        0.8,
+    it("should add an assistant message", async () => {
+      await conversationContext.addMessage("assistant", "Hi there!");
+      expect(MessageContextManager.prototype.addMessage).toHaveBeenCalledWith(
+        "assistant",
+        "Hi there!",
       );
     });
 
-    it("should handle missing source_path tag", async () => {
-      const relativePath = "../utils/helper.ts";
-      const content = `
-        <relative_path_lookup>
-          <path>${relativePath}</path>
-        </relative_path_lookup>
-      `;
-
-      const result = await relativePathLookupAction.execute(content);
-
-      expect(result.success).toBe(false);
-      expect(result.error?.message).toBe(
-        "No source_path provided in relative_path_lookup action",
-      );
-      expect(PathAdjuster.prototype.adjustPath).not.toHaveBeenCalled();
-    });
-
-    it("should handle missing path tag", async () => {
-      const sourcePath = "/home/user/project/src/components/test.ts";
-      const content = `
-        <relative_path_lookup>
-          <source_path>${sourcePath}</source_path>
-        </relative_path_lookup>
-      `;
-
-      const result = await relativePathLookupAction.execute(content);
-
-      expect(result.success).toBe(false);
-      expect(result.error?.message).toBe(
-        "No path provided in relative_path_lookup action",
-      );
-      expect(PathAdjuster.prototype.adjustPath).not.toHaveBeenCalled();
-    });
-
-    it("should handle path not found", async () => {
-      const sourcePath = "/home/user/project/src/components/test.ts";
-      const relativePath = "../nonexistent/file.ts";
-      const content = `
-        <relative_path_lookup>
-          <source_path>${sourcePath}</source_path>
-          <path>${relativePath}</path>
-        </relative_path_lookup>
-      `;
-
-      const fullImportPath = path.resolve(
-        path.dirname(sourcePath),
-        relativePath,
-      );
-      // Mock adjustPath to resolve with null indicating path not found
-      (PathAdjuster.prototype.adjustPath as jest.Mock).mockResolvedValueOnce(
-        null,
-      );
-
-      const result = await relativePathLookupAction.execute(content);
-
-      expect(result.success).toBe(true);
-      expect(result.data).toBeNull();
-      expect(PathAdjuster.prototype.adjustPath).toHaveBeenCalledWith(
-        fullImportPath,
-        0.6,
+    it("should add a system message", async () => {
+      await conversationContext.addMessage("system", "System instruction");
+      expect(MessageContextManager.prototype.addMessage).toHaveBeenCalledWith(
+        "system",
+        "System instruction",
       );
     });
+  });
 
-    it("should handle PathAdjuster errors", async () => {
-      const sourcePath = "/home/user/project/src/components/test.ts";
-      const relativePath = "../utils/helper.ts";
-      const content = `
-        <relative_path_lookup>
-          <source_path>${sourcePath}</source_path>
-          <path>${relativePath}</path>
-        </relative_path_lookup>
-      `;
-      const error = new Error("PathAdjuster error");
+  describe("getMessages", () => {
+    it("should return conversation messages", () => {
+      const messages = [
+        { role: "user", content: "Hello" },
+        { role: "assistant", content: "Hi there!" },
+      ];
+      (MessageContextManager.prototype.getMessages as jest.Mock).mockReturnValue(messages);
 
-      const fullImportPath = path.resolve(
-        path.dirname(sourcePath),
-        relativePath,
-      );
-      // Mock adjustPath to reject with an error
-      (PathAdjuster.prototype.adjustPath as jest.Mock).mockRejectedValueOnce(
-        error,
-      );
+      const result = conversationContext.getMessages();
+      expect(result).toEqual(messages);
+      expect(MessageContextManager.prototype.getMessages).toHaveBeenCalled();
+    });
+  });
 
-      const result = await relativePathLookupAction.execute(content);
+  describe("clear", () => {
+    it("should clear the conversation context", () => {
+      conversationContext.clear();
+      expect(MessageContextManager.prototype.clear).toHaveBeenCalled();
+    });
+  });
 
-      expect(result.success).toBe(false);
-      expect(result.error).toBe(error);
-      expect(PathAdjuster.prototype.adjustPath).toHaveBeenCalledWith(
-        fullImportPath,
-        0.6,
-      );
+  describe("setSystemInstructions", () => {
+    it("should set system instructions", async () => {
+      await conversationContext.setSystemInstructions("Be helpful");
+      expect(
+        MessageContextManager.prototype.setSystemInstructions,
+      ).toHaveBeenCalledWith("Be helpful");
+    });
+  });
+
+  describe("getSystemInstructions", () => {
+    it("should return system instructions when set", () => {
+      const instructions = "Be helpful";
+      (MessageContextManager.prototype.getSystemInstructions as jest.Mock).mockReturnValue(instructions);
+
+      const result = conversationContext.getSystemInstructions();
+      expect(result).toBe(instructions);
+      expect(
+        MessageContextManager.prototype.getSystemInstructions,
+      ).toHaveBeenCalled();
     });
 
-    it("should convert absolute path to proper relative path", async () => {
-      const sourcePath = "/home/user/project/src/components/test.ts";
-      const relativePath = "../utils/helper.ts";
-      const content = `
-        <relative_path_lookup>
-          <source_path>${sourcePath}</source_path>
-          <path>${relativePath}</path>
-        </relative_path_lookup>
-      `;
-      const adjustedPath = "/home/user/project/src/lib/utils/helper.ts";
+    it("should return null when no system instructions are set", () => {
+      // Ensure the mock explicitly returns null
+      (MessageContextManager.prototype.getSystemInstructions as jest.Mock).mockReturnValue(null);
 
-      const fullImportPath = path.resolve(
-        path.dirname(sourcePath),
-        relativePath,
-      );
-      // Mock adjustPath to resolve with the adjusted absolute path
-      (PathAdjuster.prototype.adjustPath as jest.Mock).mockResolvedValueOnce(
-        adjustedPath,
-      );
-
-      const result = await relativePathLookupAction.execute(content);
-
-      expect(result.success).toBe(true);
-      expect(result.data).toEqual({
-        originalPath: relativePath,
-        newPath: "../lib/utils/helper.ts",
-        absolutePath: adjustedPath,
-      });
-      expect(PathAdjuster.prototype.adjustPath).toHaveBeenCalledWith(
-        fullImportPath,
-        0.6,
-      );
+      const result = conversationContext.getSystemInstructions();
+      expect(result).toBeNull();
+      expect(
+        MessageContextManager.prototype.getSystemInstructions,
+      ).toHaveBeenCalled();
     });
   });
 });
