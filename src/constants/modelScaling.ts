@@ -5,7 +5,7 @@ interface IModelConfig {
   description?: string;
 }
 
-export const MODEL_SCALE_THRESHOLD = 3;
+export const MODEL_SCALE_THRESHOLD = 2;
 
 export const modelConfigs: IModelConfig[] = [
   {
@@ -29,7 +29,7 @@ export const modelConfigs: IModelConfig[] = [
   {
     id: "openai/o1-mini",
     priority: 4,
-    active: false,
+    active: true,
     description: "Final model for complex cases (currently inactive)",
   },
 ];
