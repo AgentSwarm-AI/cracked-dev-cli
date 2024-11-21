@@ -1,10 +1,10 @@
+import { DirectoryScanner } from "@services/FileManagement/DirectoryScanner";
+import { ActionExecutor } from "@services/LLM/actions/ActionExecutor";
+import { LLMContextCreator } from "@services/LLM/LLMContextCreator";
+import { ProjectInfo } from "@services/LLM/utils/ProjectInfo";
 import { container } from "tsyringe";
-import { DirectoryScanner } from "../../FileManagement/DirectoryScanner";
-import { ActionExecutor } from "../actions/ActionExecutor";
-import { LLMContextCreator } from "../LLMContextCreator";
-import { ProjectInfo } from "../utils/ProjectInfo";
 
-jest.mock("../../FileManagement/DirectoryScanner");
+jest.mock("@services/FileManagement/DirectoryScanner");
 jest.mock("../actions/ActionExecutor");
 jest.mock("../utils/ProjectInfo");
 

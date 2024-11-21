@@ -1,5 +1,5 @@
+import { ActionTagsExtractor } from "@services/LLM/actions/ActionTagsExtractor";
 import { container } from "tsyringe";
-import { ActionTagsExtractor } from "../ActionTagsExtractor";
 
 describe("TagsExtractor", () => {
   let actionTagsExtractor: ActionTagsExtractor;

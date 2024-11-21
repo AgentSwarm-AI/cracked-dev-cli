@@ -1,5 +1,5 @@
+import { CommandAction } from "@services/LLM/actions/CommandAction";
 import { container } from "tsyringe";
-import { CommandAction } from "../CommandAction";
 
 describe("CommandAction", () => {
   let commandAction: CommandAction;

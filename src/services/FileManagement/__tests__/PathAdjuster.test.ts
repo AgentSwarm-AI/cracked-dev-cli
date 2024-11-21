@@ -1,6 +1,6 @@
+import { PathAdjuster } from "@services/FileManagement/PathAdjuster";
 import fg from "fast-glob";
 import * as fs from "fs-extra";
-import { PathAdjuster } from "../PathAdjuster";
 
 jest.mock("fs-extra");
 jest.mock("fast-glob", () => ({

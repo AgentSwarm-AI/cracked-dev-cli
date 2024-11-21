@@ -1,8 +1,8 @@
+import { DirectoryScanner } from "@services/FileManagement/DirectoryScanner";
+import { ActionExecutor } from "@services/LLM/actions/ActionExecutor";
+import { IActionResult } from "@services/LLM/actions/types/ActionTypes";
+import { ProjectInfo } from "@services/LLM/utils/ProjectInfo";
 import { autoInjectable } from "tsyringe";
-import { DirectoryScanner } from "../FileManagement/DirectoryScanner";
-import { ActionExecutor } from "./actions/ActionExecutor";
-import { IActionResult } from "./actions/types/ActionTypes";
-import { ProjectInfo } from "./utils/ProjectInfo";
 
 interface MessageContext {
   message: string;
@@ -208,6 +208,7 @@ DO NOT RUN write_file if import issues are not resolved! Use relative_path_looku
     <!-- ALWAYS output FULL CODE. No skips or partial code -->
     <!-- Use raw text only -->
     <!-- CRITICAL: If presented with import errors, USE IMMEDIATELY <relative_path_lookup> to find the correct path. -->
+    <!-- If available, use path alias on imports -->
   </content>
 </write_file>
 

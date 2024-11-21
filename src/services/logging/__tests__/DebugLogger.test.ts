@@ -1,5 +1,5 @@
+import { DebugLogger } from "@services/logging/DebugLogger";
 import { container } from "tsyringe";
-import { DebugLogger } from "../DebugLogger";
 
 describe("DebugLogger", () => {
   let logger: DebugLogger;

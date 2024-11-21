@@ -1,12 +1,12 @@
+import { FileReader } from "@services/FileManagement/FileReader";
+import { ActionsParser } from "@services/LLM/actions/ActionsParser";
+import { ILLMProvider } from "@services/LLM/ILLMProvider";
+import { LLMContextCreator } from "@services/LLM/LLMContextCreator";
+import { LLMProvider, LLMProviderType } from "@services/LLM/LLMProvider";
+import { DebugLogger } from "@services/logging/DebugLogger";
+import { StreamHandler } from "@services/streaming/StreamHandler";
+import { HtmlEntityDecoder } from "@services/text/HTMLEntityDecoder";
 import { autoInjectable, singleton } from "tsyringe";
-import { FileReader } from "./FileManagement/FileReader";
-import { ActionsParser } from "./LLM/actions/ActionsParser";
-import { ILLMProvider } from "./LLM/ILLMProvider";
-import { LLMContextCreator } from "./LLM/LLMContextCreator";
-import { LLMProvider, LLMProviderType } from "./LLM/LLMProvider";
-import { DebugLogger } from "./logging/DebugLogger";
-import { StreamHandler } from "./streaming/StreamHandler";
-import { HtmlEntityDecoder } from "./text/HTMLEntityDecoder";
 
 export interface CrackedAgentOptions {
   root?: string;

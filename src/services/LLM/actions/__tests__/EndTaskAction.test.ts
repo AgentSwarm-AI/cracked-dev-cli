@@ -1,5 +1,5 @@
-import { ActionTagsExtractor } from "../ActionTagsExtractor";
-import { EndTaskAction } from "../EndTaskAction";
+import { ActionTagsExtractor } from "@services/LLM/actions/ActionTagsExtractor";
+import { EndTaskAction } from "@services/LLM/actions/EndTaskAction";
 
 describe("EndTaskAction", () => {
   let endTaskAction: EndTaskAction;

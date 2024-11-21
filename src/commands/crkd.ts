@@ -1,8 +1,8 @@
 import { Args, Command, Flags } from "@oclif/core";
+import { CrackedAgent } from "@services/CrackedAgent";
+import { LLMProviderType } from "@services/LLM/LLMProvider";
 import * as readline from "readline";
 import { container } from "tsyringe";
-import { CrackedAgent } from "../services/CrackedAgent";
-import { LLMProviderType } from "../services/LLM/LLMProvider";
 
 export class Crkd extends Command {
   static description = "AI agent for performing operations on local projects";

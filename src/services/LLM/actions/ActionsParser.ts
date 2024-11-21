@@ -1,16 +1,16 @@
-import path from "path";
-import { autoInjectable } from "tsyringe";
-import { v4 as uuidv4 } from "uuid";
-import { DebugLogger } from "../../logging/DebugLogger";
-import { HtmlEntityDecoder } from "../../text/HTMLEntityDecoder";
-import { LLMContextCreator } from "../LLMContextCreator";
-import { ActionTagsExtractor } from "./ActionTagsExtractor";
+import { LLMContextCreator } from "@services/LLM/LLMContextCreator";
+import { ActionTagsExtractor } from "@services/LLM/actions/ActionTagsExtractor";
 import {
   ActionType,
   IActionDependency,
   IActionExecutionPlan,
   IActionGroup,
-} from "./types/ActionTypes";
+} from "@services/LLM/actions/types/ActionTypes";
+import { DebugLogger } from "@services/logging/DebugLogger";
+import { HtmlEntityDecoder } from "@services/text/HTMLEntityDecoder";
+import path from "path";
+import { autoInjectable } from "tsyringe";
+import { v4 as uuidv4 } from "uuid";
 
 export interface ActionExecutionResult {
   actions: Array<{ action: string; result: any }>;

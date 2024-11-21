@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
+import { FileSearch } from "@services/FileManagement/FileSearch";
+import { IFileSearchResult } from "@services/FileManagement/types/FileManagementTypes";
 import path from "path";
-import { FileSearch } from "../FileSearch";
-import { IFileSearchResult } from "../types/FileManagementTypes";
 
 jest.mock("fast-glob");
 jest.mock("fs-extra");

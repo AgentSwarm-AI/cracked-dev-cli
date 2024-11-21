@@ -1,13 +1,13 @@
-import { FileOperations } from "../../../FileManagement/FileOperations";
-import { HtmlEntityDecoder } from "../../../text/HTMLEntityDecoder";
-import { ModelScaler } from "../../ModelScaler";
-import { ActionTagsExtractor } from "../ActionTagsExtractor";
-import { WriteFileAction } from "../WriteFileAction";
+import { FileOperations } from "@services/FileManagement/FileOperations";
+import { ActionTagsExtractor } from "@services/LLM/actions/ActionTagsExtractor";
+import { WriteFileAction } from "@services/LLM/actions/WriteFileAction";
+import { ModelScaler } from "@services/LLM/ModelScaler";
+import { HtmlEntityDecoder } from "@services/text/HTMLEntityDecoder";
 
-jest.mock("../../../FileManagement/FileOperations");
-jest.mock("../ActionTagsExtractor");
-jest.mock("../../../text/HTMLEntityDecoder");
-jest.mock("../../ModelScaler");
+jest.mock("@services/FileManagement/FileOperations");
+jest.mock("@services/LLM/actions/ActionTagsExtractor");
+jest.mock("@services/text/HTMLEntityDecoder");
+jest.mock("@services/LLM/ModelScaler");
 
 describe("WriteFileAction", () => {
   let writeFileAction: WriteFileAction;

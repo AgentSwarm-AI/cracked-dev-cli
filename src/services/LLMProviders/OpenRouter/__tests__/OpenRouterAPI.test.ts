@@ -1,16 +1,16 @@
-import { openRouterClient } from "../../../../constants/openRouterClient";
-import { ConversationContext } from "../../../LLM/ConversationContext";
-import { HtmlEntityDecoder } from "../../../text/HTMLEntityDecoder";
-import { ModelScaler } from "../../../LLM/ModelScaler";
-import { DebugLogger } from "../../../logging/DebugLogger";
-import { OpenRouterAPI } from "../OpenRouterAPI";
-import { IOpenRouterModelInfo } from "../types/OpenRouterAPITypes";
+import { openRouterClient } from "@constants/openRouterClient";
+import { ConversationContext } from "@services/LLM/ConversationContext";
+import { ModelScaler } from "@services/LLM/ModelScaler";
+import { OpenRouterAPI } from "@services/LLMProviders/OpenRouter/OpenRouterAPI";
+import { IOpenRouterModelInfo } from "@services/LLMProviders/OpenRouter/types/OpenRouterAPITypes";
+import { DebugLogger } from "@services/logging/DebugLogger";
+import { HtmlEntityDecoder } from "@services/text/HTMLEntityDecoder";
 
-jest.mock("../../../../constants/openRouterClient");
-jest.mock("../../../LLM/ConversationContext");
-jest.mock("../../../text/HTMLEntityDecoder");
-jest.mock("../../../LLM/ModelScaler");
-jest.mock("../../../logging/DebugLogger");
+jest.mock("@constants/openRouterClient");
+jest.mock("@services/LLM/ConversationContext");
+jest.mock("@services/text/HTMLEntityDecoder");
+jest.mock("@services/LLM/ModelScaler");
+jest.mock("@services/logging/DebugLogger");
 
 describe("OpenRouterAPI", () => {
   let openRouterAPI: OpenRouterAPI;
@@ -37,7 +37,12 @@ describe("OpenRouterAPI", () => {
     htmlEntityDecoder.unescapeString.mockImplementation((str) => str);
     htmlEntityDecoder.decode.mockImplementation((str) => str);
 
-    openRouterAPI = new OpenRouterAPI(conversationContext, htmlEntityDecoder, modelScaler, debugLogger);
+    openRouterAPI = new OpenRouterAPI(
+      conversationContext,
+      htmlEntityDecoder,
+      modelScaler,
+      debugLogger,
+    );
   });
 
   describe("sendMessage", () => {

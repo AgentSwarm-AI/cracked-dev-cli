@@ -1,7 +1,7 @@
-import { PathAdjuster } from "../../../FileManagement/PathAdjuster";
-import { RelativePathLookupAction } from "../RelativePathLookupAction";
+import { PathAdjuster } from "@services/FileManagement/PathAdjuster";
+import { RelativePathLookupAction } from "@services/LLM/actions/RelativePathLookupAction";
 
-jest.mock("../../../FileManagement/PathAdjuster");
+jest.mock("@services/FileManagement/PathAdjuster");
 
 describe("RelativePathLookupAction", () => {
   let relativePathLookupAction: RelativePathLookupAction;

@@ -1,12 +1,12 @@
-import { FileOperations } from "../../../FileManagement/FileOperations";
-import { PathAdjuster } from "../../../FileManagement/PathAdjuster";
-import { IFileOperationResult } from "../../../FileManagement/types/FileManagementTypes";
-import { DebugLogger } from "../../../logging/DebugLogger";
-import { ActionTagsExtractor } from "../ActionTagsExtractor";
-import { FileActions } from "../FileActions";
+import { FileOperations } from "@services/FileManagement/FileOperations";
+import { PathAdjuster } from "@services/FileManagement/PathAdjuster";
+import { IFileOperationResult } from "@services/FileManagement/types/FileManagementTypes";
+import { ActionTagsExtractor } from "@services/LLM/actions/ActionTagsExtractor";
+import { FileActions } from "@services/LLM/actions/FileActions";
+import { DebugLogger } from "@services/logging/DebugLogger";
 
-jest.mock("../../../FileManagement/FileOperations");
-jest.mock("../ActionTagsExtractor");
+jest.mock("@services/FileManagement/FileOperations");
+jest.mock("@services/LLM/actions/ActionTagsExtractor");
 
 describe("FileActions", () => {
   let fileActions: FileActions;
@@ -93,8 +93,8 @@ describe("FileActions", () => {
       const mockReadResult: IFileOperationResult = {
         success: true,
         data: {
-          "file1": "file1 content",
-          "file2": "file2 content",
+          file1: "file1 content",
+          file2: "file2 content",
         },
         error: undefined,
       };
@@ -112,8 +112,8 @@ describe("FileActions", () => {
 
       expect(result.success).toBe(true);
       expect(result.data).toEqual({
-        "file1": "file1 content",
-        "file2": "file2 content",
+        file1: "file1 content",
+        file2: "file2 content",
       });
       expect(mockFileOperations.readMultiple).toHaveBeenCalledWith([
         "path1",

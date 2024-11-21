@@ -1,7 +1,7 @@
-import { DebugLogger } from "../../logging/DebugLogger";
-import { ModelScaler } from "../ModelScaler";
+import { ModelScaler } from "@services/LLM/ModelScaler";
+import { DebugLogger } from "@services/logging/DebugLogger";
 
-jest.mock("../../logging/DebugLogger");
+jest.mock("@services/logging/DebugLogger");
 
 describe("ModelScaler", () => {
   let modelScaler: ModelScaler;

@@ -1,8 +1,8 @@
+import { FileOperations } from "@services/FileManagement/FileOperations";
+import { PathAdjuster } from "@services/FileManagement/PathAdjuster";
 import fs from "fs-extra";
 import path from "path";
 import { container } from "tsyringe";
-import { FileOperations } from "../FileOperations";
-import { PathAdjuster } from "../PathAdjuster";
 
 const testDir = path.join(__dirname, "testDir");
 const testFile = path.join(testDir, "testFile.txt");

@@ -1,6 +1,6 @@
+import { IMessage } from "@services/LLM/ILLMProvider";
+import { LLMProvider, LLMProviderType } from "@services/LLM/LLMProvider";
 import { autoInjectable, singleton } from "tsyringe";
-import { IMessage } from "./ILLMProvider";
-import { LLMProvider, LLMProviderType } from "./LLMProvider";
 
 @singleton()
 @autoInjectable()

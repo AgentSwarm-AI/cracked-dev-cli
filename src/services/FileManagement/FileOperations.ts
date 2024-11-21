@@ -1,13 +1,13 @@
-import fs from "fs-extra";
-import path from "path";
-import { autoInjectable } from "tsyringe";
-import { DebugLogger } from "../logging/DebugLogger";
-import { PathAdjuster } from "./PathAdjuster";
+import { PathAdjuster } from "@services/FileManagement/PathAdjuster";
 import {
   IFileOperationResult,
   IFileOperations,
   IFileStats,
-} from "./types/FileManagementTypes";
+} from "@services/FileManagement/types/FileManagementTypes";
+import { DebugLogger } from "@services/logging/DebugLogger";
+import fs from "fs-extra";
+import path from "path";
+import { autoInjectable } from "tsyringe";
 
 @autoInjectable()
 export class FileOperations implements IFileOperations {
@@ -112,7 +112,7 @@ export class FileOperations implements IFileOperations {
         return {
           success: false,
           error: new Error(
-            `Failed to read files: ${errors.join(", ")}  - Try using a <search_file> to find the correct file path.`,
+            `Failed to read files: ${errors.join(", ")}  - Try using a search_file to find the correct file path.`,
           ),
         };
       }

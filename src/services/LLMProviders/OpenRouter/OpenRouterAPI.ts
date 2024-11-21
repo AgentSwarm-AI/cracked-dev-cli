@@ -1,11 +1,11 @@
+import { openRouterClient } from "@constants/openRouterClient";
+import { ConversationContext } from "@services/LLM/ConversationContext";
+import { ILLMProvider, IMessage } from "@services/LLM/ILLMProvider";
+import { ModelScaler } from "@services/LLM/ModelScaler";
+import { IOpenRouterModelInfo } from "@services/LLMProviders/OpenRouter/types/OpenRouterAPITypes";
+import { DebugLogger } from "@services/logging/DebugLogger";
+import { HtmlEntityDecoder } from "@services/text/HTMLEntityDecoder";
 import { autoInjectable, inject } from "tsyringe";
-import { openRouterClient } from "../../../constants/openRouterClient";
-import { ConversationContext } from "../../LLM/ConversationContext";
-import { ILLMProvider, IMessage } from "../../LLM/ILLMProvider";
-import { ModelScaler } from "../../LLM/ModelScaler";
-import { DebugLogger } from "../../logging/DebugLogger";
-import { HtmlEntityDecoder } from "../../text/HTMLEntityDecoder";
-import { IOpenRouterModelInfo } from "./types/OpenRouterAPITypes";
 
 class LLMError extends Error {
   constructor(

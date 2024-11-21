@@ -1,7 +1,7 @@
 import "reflect-metadata";
 
+import { PathAdjuster } from "@services/FileManagement/PathAdjuster";
 import { container } from "tsyringe";
-import { PathAdjuster } from "./services/FileManagement/PathAdjuster";
 
 const pathAdjuster = container.resolve(PathAdjuster);
 

@@ -1,16 +1,16 @@
+import { ConversationContext } from "@services/LLM/ConversationContext";
+import { ILLMProvider } from "@services/LLM/ILLMProvider";
+import { LLMProvider, LLMProviderType } from "@services/LLM/LLMProvider";
+import { ModelScaler } from "@services/LLM/ModelScaler";
+import { OpenRouterAPI } from "@services/LLMProviders/OpenRouter/OpenRouterAPI";
+import { DebugLogger } from "@services/logging/DebugLogger";
+import { HtmlEntityDecoder } from "@services/text/HTMLEntityDecoder";
 import { container } from "tsyringe";
-import { OpenRouterAPI } from "../../LLMProviders/OpenRouter/OpenRouterAPI";
-import { HtmlEntityDecoder } from "../../text/HTMLEntityDecoder";
-import { ConversationContext } from "../ConversationContext";
-import { ILLMProvider } from "../ILLMProvider";
-import { LLMProvider, LLMProviderType } from "../LLMProvider";
-import { ModelScaler } from "../ModelScaler";
-import { DebugLogger } from "../../logging/DebugLogger";
 
 jest.mock("../../LLMProviders/OpenRouter/OpenRouterAPI");
 jest.mock("../ConversationContext");
 jest.mock("../ModelScaler");
-jest.mock("../../logging/DebugLogger");
+jest.mock("@services/logging/DebugLogger");
 
 describe("LLMProvider", () => {
   let provider: ILLMProvider;
@@ -39,7 +39,9 @@ describe("LLMProvider", () => {
     mockDebugLogger = new DebugLogger() as jest.Mocked<DebugLogger>;
     jest.spyOn(mockDebugLogger, "log").mockImplementation();
 
-    mockModelScaler = new ModelScaler(mockDebugLogger) as jest.Mocked<ModelScaler>;
+    mockModelScaler = new ModelScaler(
+      mockDebugLogger,
+    ) as jest.Mocked<ModelScaler>;
     jest.spyOn(mockModelScaler, "getCurrentModel").mockReturnValue("model1");
     jest.spyOn(mockModelScaler, "reset").mockImplementation();
 

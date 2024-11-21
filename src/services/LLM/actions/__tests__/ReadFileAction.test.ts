@@ -1,14 +1,14 @@
-import { FileOperations } from "../../../FileManagement/FileOperations";
-import { FileSearch } from "../../../FileManagement/FileSearch";
-import { PathAdjuster } from "../../../FileManagement/PathAdjuster";
-import { DebugLogger } from "../../../logging/DebugLogger";
-import { ActionTagsExtractor } from "../ActionTagsExtractor";
+import { FileOperations } from "@services/FileManagement/FileOperations";
+import { FileSearch } from "@services/FileManagement/FileSearch";
+import { PathAdjuster } from "@services/FileManagement/PathAdjuster";
+import { ActionTagsExtractor } from "@services/LLM/actions/ActionTagsExtractor";
+import { DebugLogger } from "@services/logging/DebugLogger";
 import { ReadFileAction } from "../ReadFileAction";
 
-jest.mock("../../../FileManagement/FileOperations");
-jest.mock("../../../FileManagement/FileSearch");
-jest.mock("../ActionTagsExtractor");
-jest.mock("../../../logging/DebugLogger");
+jest.mock("@services/FileManagement/FileOperations");
+jest.mock("@services/FileManagement/FileSearch");
+jest.mock("@services/LLM/actions/ActionTagsExtractor");
+jest.mock("@services/logging/DebugLogger");
 
 describe("ReadFileAction", () => {
   let readFileAction: ReadFileAction;

@@ -1,4 +1,4 @@
-import { HtmlEntityDecoder } from "../HTMLEntityDecoder";
+import { HtmlEntityDecoder } from "@services/text/HTMLEntityDecoder";
 
 describe("HtmlEntityDecoder", () => {
   let decoder: HtmlEntityDecoder;

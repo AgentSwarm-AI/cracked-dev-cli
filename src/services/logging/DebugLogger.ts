@@ -1,5 +1,5 @@
+import { Colors } from "@constants/colors";
 import { autoInjectable, singleton } from "tsyringe";
-import { Colors } from "../../constants/colors";
 
 @singleton()
 @autoInjectable()

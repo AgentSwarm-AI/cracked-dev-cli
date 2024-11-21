@@ -1,11 +1,11 @@
+import { FileOperations } from "@services/FileManagement/FileOperations";
+import { FileSearch } from "@services/FileManagement/FileSearch";
+import { IFileOperationResult } from "@services/FileManagement/types/FileManagementTypes";
+import { ActionTagsExtractor } from "@services/LLM/actions/ActionTagsExtractor";
+import { IActionResult } from "@services/LLM/actions/types/ActionTypes";
+import { DebugLogger } from "@services/logging/DebugLogger";
 import path from "path";
 import { autoInjectable } from "tsyringe";
-import { FileOperations } from "../../FileManagement/FileOperations";
-import { FileSearch } from "../../FileManagement/FileSearch";
-import { IFileOperationResult } from "../../FileManagement/types/FileManagementTypes";
-import { DebugLogger } from "../../logging/DebugLogger";
-import { ActionTagsExtractor } from "./ActionTagsExtractor";
-import { IActionResult } from "./types/ActionTypes";
 
 @autoInjectable()
 export class ReadFileAction {

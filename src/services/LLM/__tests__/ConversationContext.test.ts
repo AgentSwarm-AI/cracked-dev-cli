@@ -1,6 +1,6 @@
-import { ConversationContext } from "../ConversationContext";
-import { IMessage } from "../ILLMProvider";
-import { LLMProvider } from "../LLMProvider";
+import { ConversationContext } from "@services/LLM/ConversationContext";
+import { IMessage } from "@services/LLM/ILLMProvider";
+import { LLMProvider } from "@services/LLM/LLMProvider";
 
 // Mock LLMProvider
 jest.mock("../LLMProvider", () => ({

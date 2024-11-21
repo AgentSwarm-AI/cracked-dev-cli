@@ -1,7 +1,7 @@
+import { PathAdjuster } from "@services/FileManagement/PathAdjuster";
+import { IActionResult } from "@services/LLM/actions/types/ActionTypes";
 import path from "path";
 import { autoInjectable } from "tsyringe";
-import { PathAdjuster } from "../../FileManagement/PathAdjuster";
-import { IActionResult } from "./types/ActionTypes";
 
 @autoInjectable()
 export class RelativePathLookupAction {

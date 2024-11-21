@@ -1,10 +1,10 @@
 /**
  * StreamHandler manages and processes streaming data chunks, handles errors, and triggers action execution based on the parsed content.
  * It ensures that the stream is handled efficiently and that any actions within the stream are executed correctly.
- */ import { autoInjectable } from "tsyringe";
+ */ import { ActionsParser } from "@services/LLM/actions/ActionsParser";
+import { DebugLogger } from "@services/logging/DebugLogger";
+import { autoInjectable } from "tsyringe";
 import { WriteStream } from "tty";
-import { ActionsParser } from "../LLM/actions/ActionsParser";
-import { DebugLogger } from "../logging/DebugLogger";
 
 export interface StreamCallback {
   (message: string): Promise<string>;

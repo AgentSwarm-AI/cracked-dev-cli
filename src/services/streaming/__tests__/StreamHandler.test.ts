@@ -1,11 +1,11 @@
+import { ActionsParser } from "@services/LLM/actions/ActionsParser";
+import { DebugLogger } from "@services/logging/DebugLogger";
+import { StreamHandler } from "@services/streaming/StreamHandler";
 import { container } from "tsyringe";
-import { ActionsParser } from "../../LLM/actions/ActionsParser";
-import { DebugLogger } from "../../logging/DebugLogger";
-import { StreamHandler } from "../StreamHandler";
 
-jest.mock("../../logging/DebugLogger");
-jest.mock("../../LLM/actions/ActionsParser");
-jest.mock("../../text/HTMLEntityDecoder");
+jest.mock("@services/logging/DebugLogger");
+jest.mock("@services/LLM/actions/ActionsParser");
+jest.mock("@services/text/HTMLEntityDecoder");
 
 describe("StreamHandler", () => {
   let streamHandler: StreamHandler;

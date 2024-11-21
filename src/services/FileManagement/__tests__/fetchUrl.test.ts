@@ -1,5 +1,5 @@
+import { fetch_url } from "@services/FileManagement/FetchUtil";
 import axios from "axios";
-import { fetch_url } from "../FetchUtil";
 
 jest.mock("axios");
 

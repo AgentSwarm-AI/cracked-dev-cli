@@ -1,10 +1,10 @@
+import { BLOCK_WRITE_IF_CONTENT_REMOVAL_THRESHOLD } from "@constants/writeConstants";
+import { FileOperations } from "@services/FileManagement/FileOperations";
+import { ActionTagsExtractor } from "@services/LLM/actions/ActionTagsExtractor";
+import { IActionResult } from "@services/LLM/actions/types/ActionTypes";
+import { ModelScaler } from "@services/LLM/ModelScaler";
+import { HtmlEntityDecoder } from "@services/text/HTMLEntityDecoder";
 import { autoInjectable } from "tsyringe";
-import { BLOCK_WRITE_IF_CONTENT_REMOVAL_THRESHOLD } from "../../../constants/writeConstants";
-import { FileOperations } from "../../FileManagement/FileOperations";
-import { HtmlEntityDecoder } from "../../text/HTMLEntityDecoder";
-import { ModelScaler } from "../ModelScaler";
-import { ActionTagsExtractor } from "./ActionTagsExtractor";
-import { IActionResult } from "./types/ActionTypes";
 
 @autoInjectable()
 export class WriteFileAction {

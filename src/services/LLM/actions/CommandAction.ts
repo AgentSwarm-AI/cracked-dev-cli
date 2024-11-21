@@ -1,9 +1,9 @@
+import { IActionResult } from "@services/LLM/actions/types/ActionTypes";
+import { DebugLogger } from "@services/logging/DebugLogger";
+import { AnsiStripper } from "@services/text/AnsiStripper";
 import chalk from "chalk";
 import { spawn, SpawnOptionsWithoutStdio } from "child_process";
 import { autoInjectable } from "tsyringe";
-import { DebugLogger } from "../../logging/DebugLogger";
-import { AnsiStripper } from "../../text/AnsiStripper";
-import { IActionResult } from "./types/ActionTypes";
 
 @autoInjectable()
 export class CommandAction {

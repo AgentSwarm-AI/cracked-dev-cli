@@ -1,13 +1,13 @@
+import { LLMContextCreator } from "@services/LLM/LLMContextCreator";
+import { ActionTagsExtractor } from "@services/LLM/actions/ActionTagsExtractor";
+import { ActionsParser } from "@services/LLM/actions/ActionsParser";
+import { DebugLogger } from "@services/logging/DebugLogger";
+import { HtmlEntityDecoder } from "@services/text/HTMLEntityDecoder";
 import { container } from "tsyringe";
-import { DebugLogger } from "../../../logging/DebugLogger";
-import { HtmlEntityDecoder } from "../../../text/HTMLEntityDecoder";
-import { LLMContextCreator } from "../../LLMContextCreator";
-import { ActionsParser } from "../ActionsParser";
-import { ActionTagsExtractor } from "../ActionTagsExtractor";
 
-jest.mock("../../../logging/DebugLogger");
-jest.mock("../../LLMContextCreator");
-jest.mock("../ActionTagsExtractor");
+jest.mock("@services/logging/DebugLogger");
+jest.mock("@services/LLM/LLMContextCreator");
+jest.mock("@services/LLM/actions/ActionTagsExtractor");
 
 describe("ActionsParser", () => {
   let actionsParser: ActionsParser;

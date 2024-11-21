@@ -1,12 +1,11 @@
+import { CommandAction } from "@services/LLM/actions/CommandAction";
+import { EndTaskAction } from "@services/LLM/actions/EndTaskAction";
+import { FileActions } from "@services/LLM/actions/FileActions";
+import { RelativePathLookupAction } from "@services/LLM/actions/RelativePathLookupAction";
+import { SearchAction } from "@services/LLM/actions/SearchAction";
+import { IActionResult } from "@services/LLM/actions/types/ActionTypes";
+import { WriteFileAction } from "@services/LLM/actions/WriteFileAction";
 import { autoInjectable } from "tsyringe";
-import { CommandAction } from "./CommandAction";
-import { EndTaskAction } from "./EndTaskAction";
-import { FileActions } from "./FileActions";
-import { RelativePathLookupAction } from "./RelativePathLookupAction";
-import { SearchAction } from "./SearchAction";
-import { IActionResult } from "./types/ActionTypes";
-import { WriteFileAction } from "./WriteFileAction";
-
 interface IPendingAction {
   type: string;
   content: string;

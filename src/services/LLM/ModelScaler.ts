@@ -1,6 +1,6 @@
 import { getModelForTryCount } from "@constants/modelScaling";
+import { DebugLogger } from "@services/logging/DebugLogger";
 import { singleton } from "tsyringe";
-import { DebugLogger } from "../logging/DebugLogger";
 
 @singleton()
 export class ModelScaler {
