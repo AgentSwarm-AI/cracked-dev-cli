@@ -1,21 +1,18 @@
 import { IMessage } from "@services/LLM/ILLMProvider";
-import { LLMProvider, LLMProviderType } from "@services/LLM/LLMProvider";
+import { MessageContextManager } from "@services/LLM/MessageContextManager";
 import { autoInjectable, singleton } from "tsyringe";
 
 @singleton()
 @autoInjectable()
 export class ConversationContext {
-  private conversationHistory: IMessage[] = [];
-  private systemInstructions: string | null = null;
-  private currentModel: string | null = null;
+  constructor(private messageContextManager: MessageContextManager) {}
 
   /**
    * Sets the current model being used. This is required for context window management.
    * @param model - The model identifier
    */
   async setCurrentModel(model: string): Promise<void> {
-    this.currentModel = model;
-    await this.cleanupContextIfNeeded();
+    this.messageContextManager.setCurrentModel(model);
   }
 
   /**
@@ -29,14 +26,7 @@ export class ConversationContext {
     role: "user" | "assistant" | "system",
     content: string,
   ): Promise<void> {
-    if (!["user", "assistant", "system"].includes(role)) {
-      throw new Error(`Invalid role: ${role}`);
-    }
-    if (content.trim() === "") {
-      throw new Error("Content cannot be empty");
-    }
-    this.conversationHistory.push({ role, content });
-    await this.cleanupContextIfNeeded();
+    this.messageContextManager.addMessage(role, content);
   }
 
   /**
@@ -44,21 +34,14 @@ export class ConversationContext {
    * @returns An array of messages with system instructions first, if applicable.
    */
   getMessages(): IMessage[] {
-    if (this.systemInstructions) {
-      return [
-        { role: "system", content: this.systemInstructions },
-        ...this.conversationHistory,
-      ];
-    }
-    return this.conversationHistory.slice();
+    return this.messageContextManager.getMessages();
   }
 
   /**
    * Clears the conversation history and system instructions.
    */
   clear(): void {
-    this.conversationHistory = [];
-    this.systemInstructions = null;
+    this.messageContextManager.clear();
   }
 
   /**
@@ -66,8 +49,7 @@ export class ConversationContext {
    * @param instructions - The system instructions to set.
    */
   async setSystemInstructions(instructions: string): Promise<void> {
-    this.systemInstructions = instructions;
-    await this.cleanupContextIfNeeded();
+    this.messageContextManager.setSystemInstructions(instructions);
   }
 
   /**
@@ -75,69 +57,20 @@ export class ConversationContext {
    * @returns The system instructions or null if not set.
    */
   getSystemInstructions(): string | null {
-    return this.systemInstructions;
-  }
-
-  /**
-   * Estimates the number of tokens in a string using a simple heuristic.
-   * This is a rough approximation - actual token count may vary by model.
-   * @param text - The text to estimate tokens for
-   * @returns Estimated number of tokens
-   */
-  private estimateTokenCount(text: string): number {
-    // Simple heuristic: ~4 characters per token on average
-    return Math.ceil(text.length / 4);
-  }
-
-  /**
-   * Gets the total estimated token count for all messages
-   * @returns Estimated total tokens
-   */
-  private getTotalTokenCount(): number {
-    let total = 0;
-
-    // Count system instructions if present
-    if (this.systemInstructions) {
-      total += this.estimateTokenCount(this.systemInstructions);
-    }
-
-    // Count conversation history
-    for (const message of this.conversationHistory) {
-      total += this.estimateTokenCount(message.content);
-    }
-
-    return total;
+    return this.messageContextManager.getSystemInstructions();
   }
 
   /**
    * Cleans up old messages if the context window is exceeded
    */
-  private async cleanupContextIfNeeded(): Promise<void> {
-    if (!this.currentModel) {
-      return; // Can't cleanup without knowing the model
+  private async cleanupContextIfNeeded(contextLength: number): Promise<void> {
+    const currentModel = this.messageContextManager.getCurrentModel();
+    if (!currentModel || !contextLength) {
+      return;
     }
 
-    try {
-      const llmProvider = LLMProvider.getInstance(LLMProviderType.OpenRouter);
-      const modelInfo = await llmProvider.getModelInfo(this.currentModel);
-      const contextLength = modelInfo.context_length as number;
-
-      if (!contextLength) {
-        return; // Can't cleanup without context length
-      }
-
-      // Reserve 20% of context window for new messages
-      const maxTokens = Math.floor(contextLength * 0.8);
-
-      while (
-        this.getTotalTokenCount() > maxTokens &&
-        this.conversationHistory.length > 0
-      ) {
-        // Remove oldest message first, preserving most recent context
-        this.conversationHistory.shift();
-      }
-    } catch (error) {
-      console.warn("Failed to cleanup context:", error);
-    }
+    // Reserve 20% of context window for new messages
+    const maxTokens = Math.floor(contextLength * 0.8);
+    this.messageContextManager.cleanupContext(maxTokens);
   }
 }
