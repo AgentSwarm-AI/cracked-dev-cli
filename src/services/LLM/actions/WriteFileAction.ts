@@ -18,7 +18,6 @@ export class WriteFileAction {
   async execute(content: string): Promise<IActionResult> {
     const filePath = this.actionTagsExtractor.extractTag(content, "path");
     const fileContent = this.actionTagsExtractor.extractTag(content, "content");
-    const tryCount = this.actionTagsExtractor.extractTag(content, "try");
 
     if (!filePath || !fileContent) {
       if (!filePath) {
@@ -38,11 +37,10 @@ export class WriteFileAction {
 
     console.log(`📁 File path: ${filePath}`);
 
-    // Update model scaler with try count if provided
-    if (tryCount) {
-      const count = parseInt(tryCount, 10);
-      console.log(`🔄 Try count: ${count}`);
-      this.modelScaler.setTryCount(filePath, count);
+    // Check if file exists and increment try count if it does
+    const exists = await this.fileOperations.exists(filePath);
+    if (exists) {
+      this.modelScaler.incrementTryCount(filePath);
     }
 
     // Check for large content removal if file exists

@@ -46,11 +46,10 @@ describe("WriteFileAction", () => {
     );
   });
 
-  it("should handle try count and model scaling", async () => {
+  it("should increment try count for existing files", async () => {
     // Setup
     const filePath = "/test/file.ts";
     const content = "test content";
-    const tryCount = "2";
 
     mockActionTagsExtractor.extractTag.mockImplementation((_, tag) => {
       switch (tag) {
@@ -58,15 +57,17 @@ describe("WriteFileAction", () => {
           return filePath;
         case "content":
           return content;
-        case "try":
-          return tryCount;
         default:
           return null;
       }
     });
 
     mockModelScaler.getCurrentModel.mockReturnValue("test-model");
-    mockFileOperations.exists.mockResolvedValue(false);
+    mockFileOperations.exists.mockResolvedValue(true); // File exists
+    mockFileOperations.read.mockResolvedValue({
+      success: true,
+      data: "existing content",
+    }); // Mock read operation
     mockFileOperations.write.mockResolvedValue({ success: true });
     mockHtmlEntityDecoder.decode.mockReturnValue(content);
 
@@ -77,11 +78,11 @@ describe("WriteFileAction", () => {
 
     // Verify
     expect(result.success).toBe(true);
-    expect(mockModelScaler.setTryCount).toHaveBeenCalledWith(filePath, 2);
+    expect(mockModelScaler.incrementTryCount).toHaveBeenCalledWith(filePath);
     expect(mockFileOperations.write).toHaveBeenCalledWith(filePath, content);
   });
 
-  it("should not set try count when no try tag is present", async () => {
+  it("should not modify try count for new files", async () => {
     // Setup
     const filePath = "/test/file.ts";
     const content = "test content";
@@ -98,7 +99,7 @@ describe("WriteFileAction", () => {
     });
 
     mockModelScaler.getCurrentModel.mockReturnValue("test-model");
-    mockFileOperations.exists.mockResolvedValue(false);
+    mockFileOperations.exists.mockResolvedValue(false); // New file
     mockFileOperations.write.mockResolvedValue({ success: true });
     mockHtmlEntityDecoder.decode.mockReturnValue(content);
 
@@ -109,6 +110,7 @@ describe("WriteFileAction", () => {
 
     // Verify
     expect(result.success).toBe(true);
+    expect(mockModelScaler.incrementTryCount).not.toHaveBeenCalled();
     expect(mockModelScaler.setTryCount).not.toHaveBeenCalled();
     expect(mockFileOperations.write).toHaveBeenCalledWith(filePath, content);
   });

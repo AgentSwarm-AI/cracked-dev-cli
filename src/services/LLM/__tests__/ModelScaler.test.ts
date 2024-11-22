@@ -6,23 +6,25 @@ import { container } from "tsyringe";
 describe("ModelScaler", () => {
   let modelScaler: ModelScaler;
   let mocker: UnitTestMocker;
-
-  beforeAll(() => {
-    container.register("DebugLogger", { useValue: DebugLogger });
-  });
+  let mockDebugLogger: jest.Mocked<DebugLogger>;
 
   beforeEach(() => {
-    mocker = new UnitTestMocker();
+    // Create mock DebugLogger
+    mockDebugLogger = {
+      log: jest.fn(),
+    } as unknown as jest.Mocked<DebugLogger>;
 
-    // Setup spies on prototype methods of dependencies
-    mocker.spyOnPrototype(DebugLogger, "log", jest.fn());
+    // Register mock DebugLogger with container
+    container.registerInstance(DebugLogger, mockDebugLogger);
 
-    // Instantiate ModelScaler after setting up mocks
+    mocker = container.resolve(UnitTestMocker);
     modelScaler = container.resolve(ModelScaler);
   });
 
   afterEach(() => {
     mocker.clearAllMocks();
+    container.clearInstances();
+    jest.clearAllMocks();
   });
 
   it("should scale models based on try count", () => {
@@ -80,5 +82,53 @@ describe("ModelScaler", () => {
       "qwen/qwen-2.5-coder-32b-instruct",
     );
     expect(modelScaler.getTryCount("file1.ts")).toBe(0);
+  });
+
+  it("should increment try count correctly", () => {
+    // Initial try count
+    expect(modelScaler.getTryCount("file1.ts")).toBe(0);
+
+    // Increment try count
+    modelScaler.incrementTryCount("file1.ts");
+    expect(modelScaler.getTryCount("file1.ts")).toBe(1);
+
+    // Increment again
+    modelScaler.incrementTryCount("file1.ts");
+    expect(modelScaler.getTryCount("file1.ts")).toBe(2);
+  });
+
+  it("should log correctly on initialization", () => {
+    expect(mockDebugLogger.log).toHaveBeenCalledWith(
+      "Model",
+      "Initialized model scaler",
+      {
+        model: "qwen/qwen-2.5-coder-32b-instruct",
+      },
+    );
+  });
+
+  it("should log correctly on model update", () => {
+    modelScaler.setTryCount("file1.ts", 2);
+    expect(mockDebugLogger.log).toHaveBeenCalledWith(
+      "Model",
+      "Updated model based on file try count",
+      {
+        filePath: "file1.ts",
+        tryCount: 2,
+        maxTries: 2,
+        model: "anthropic/claude-3.5-sonnet:beta",
+      },
+    );
+  });
+
+  it("should log correctly on reset", () => {
+    modelScaler.reset();
+    expect(mockDebugLogger.log).toHaveBeenCalledWith(
+      "Model",
+      "Reset model scaling",
+      {
+        model: "qwen/qwen-2.5-coder-32b-instruct",
+      },
+    );
   });
 });
