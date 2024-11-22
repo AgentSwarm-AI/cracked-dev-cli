@@ -166,7 +166,6 @@ export class Crkd extends Command {
       // Handle auto-scaler warning
       if (flags.autoScaler && flags.model !== DEFAULT_INITIAL_MODEL) {
         const availableModels = autoScaleAvailableModels
-          .filter((model) => model.active)
           .map((model) => model.id)
           .join(", ");
 

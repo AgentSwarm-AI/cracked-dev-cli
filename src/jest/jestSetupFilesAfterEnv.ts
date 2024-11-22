@@ -6,13 +6,9 @@ jest.mock("@constants/modelScaling", () => ({
   autoScaleAvailableModels: [
     {
       id: "qwen/qwen-2.5-coder-32b-instruct",
-      priority: 1,
-      active: true,
     },
     {
       id: "anthropic/claude-3.5-sonnet:beta",
-      priority: 2,
-      active: true,
     },
   ],
   getModelForTryCount: (tryCount: string | null): string => {
