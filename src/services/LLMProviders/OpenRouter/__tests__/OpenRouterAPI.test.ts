@@ -1,4 +1,5 @@
 import { MessageContextManager } from "@services/LLM/MessageContextManager";
+import { ModelInfo } from "@services/LLM/ModelInfo";
 import { ModelScaler } from "@services/LLM/ModelScaler";
 import { OpenRouterAPI } from "@services/LLMProviders/OpenRouter/OpenRouterAPI";
 import { DebugLogger } from "@services/logging/DebugLogger";
@@ -33,6 +34,28 @@ describe("OpenRouterAPI", () => {
       MessageContextManager,
       "setSystemInstructions",
       () => {},
+    );
+
+    // Spy on ModelInfo methods
+    mocker.spyOnPrototypeWithImplementation(
+      ModelInfo,
+      "initialize",
+      async () => {},
+    );
+    mocker.spyOnPrototypeWithImplementation(
+      ModelInfo,
+      "setCurrentModel",
+      async () => {},
+    );
+    mocker.spyOnPrototypeWithImplementation(
+      ModelInfo,
+      "isModelAvailable",
+      async () => true,
+    );
+    mocker.spyOnPrototypeWithImplementation(
+      ModelInfo,
+      "getAllModels",
+      async () => ["gpt-4"],
     );
 
     // Spy on other dependencies
@@ -178,46 +201,22 @@ describe("OpenRouterAPI", () => {
 
   describe("model management", () => {
     it("should get available models", async () => {
-      const mockResponse = {
-        data: {
-          data: [{ id: "model1" }, { id: "model2" }],
-        },
-      };
-
-      jest
-        .spyOn(openRouterAPI["httpClient"], "get")
-        .mockResolvedValueOnce(mockResponse);
-
       const models = await openRouterAPI.getAvailableModels();
-      expect(models).toEqual(["model1", "model2"]);
+      expect(models).toEqual(["gpt-4"]);
     });
 
     it("should validate model", async () => {
-      const mockResponse = {
-        data: {
-          data: [{ id: "gpt-4" }, { id: "gpt-3.5-turbo" }],
-        },
-      };
-
-      jest
-        .spyOn(openRouterAPI["httpClient"], "get")
-        .mockResolvedValueOnce(mockResponse);
-
       const isValid = await openRouterAPI.validateModel("gpt-4");
       expect(isValid).toBe(true);
     });
 
     it("should get model info", async () => {
       const mockModelInfo = { id: "gpt-4", context_length: 8192 };
-      const mockResponse = {
-        data: {
-          data: [mockModelInfo],
-        },
-      };
-
-      jest
-        .spyOn(openRouterAPI["httpClient"], "get")
-        .mockResolvedValueOnce(mockResponse);
+      mocker.spyOnPrototypeWithImplementation(
+        ModelInfo,
+        "getModelInfo",
+        async () => mockModelInfo,
+      );
 
       const modelInfo = await openRouterAPI.getModelInfo("gpt-4");
       expect(modelInfo).toEqual(mockModelInfo);

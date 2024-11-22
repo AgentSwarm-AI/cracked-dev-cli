@@ -245,7 +245,7 @@ export class ActionsParser {
       const output = this.htmlEntityDecoder.decode(
         JSON.stringify(result.data),
         {
-          uneescape: true,
+          unescape: true,
         },
       );
       if (typeof result.data === "string" && result.data.includes("# File:")) {
@@ -266,7 +266,7 @@ export class ActionsParser {
       return `Found matching path: ${JSON.stringify(result.data)}`;
     }
 
-    return `[Action Result] ${actionType}: ${JSON.stringify(result)} ${result.success && "Proceed to next step."}`;
+    return `[Action Result] ${actionType}: ${JSON.stringify(result)} ${result.success && "Proceed to next previously planned step."}`;
   }
 
   async parseAndExecuteActions(

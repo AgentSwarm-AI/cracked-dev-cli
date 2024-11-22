@@ -1,11 +1,15 @@
 import { IMessage } from "@services/LLM/ILLMProvider";
 import { MessageContextManager } from "@services/LLM/MessageContextManager";
+import { DebugLogger } from "@services/logging/DebugLogger";
 import { autoInjectable, singleton } from "tsyringe";
 
 @singleton()
 @autoInjectable()
 export class ConversationContext {
-  constructor(private messageContextManager: MessageContextManager) {}
+  constructor(
+    private messageContextManager: MessageContextManager,
+    private debugLogger: DebugLogger,
+  ) {}
 
   /**
    * Sets the current model being used. This is required for context window management.
@@ -13,6 +17,9 @@ export class ConversationContext {
    */
   async setCurrentModel(model: string): Promise<void> {
     this.messageContextManager.setCurrentModel(model);
+    this.debugLogger.log("Context", "Model set in conversation context", {
+      model,
+    });
   }
 
   /**
@@ -38,10 +45,25 @@ export class ConversationContext {
   }
 
   /**
-   * Clears the conversation history and system instructions.
+   * Clears the conversation history but preserves system instructions.
    */
   clear(): void {
+    const systemInstructions =
+      this.messageContextManager.getSystemInstructions();
+    this.debugLogger.log("Context", "Clearing conversation context", {
+      hasSystemInstructions: !!systemInstructions,
+    });
+
     this.messageContextManager.clear();
+
+    // Restore system instructions if they existed
+    if (systemInstructions) {
+      this.messageContextManager.setSystemInstructions(systemInstructions);
+      this.debugLogger.log(
+        "Context",
+        "Restored system instructions after clear",
+      );
+    }
   }
 
   /**
@@ -61,16 +83,37 @@ export class ConversationContext {
   }
 
   /**
-   * Cleans up old messages if the context window is exceeded
+   * Gets the total token count for the current context
+   * @returns The total number of tokens in the context
    */
-  private async cleanupContextIfNeeded(contextLength: number): Promise<void> {
-    const currentModel = this.messageContextManager.getCurrentModel();
-    if (!currentModel || !contextLength) {
-      return;
+  getTotalTokenCount(): number {
+    return this.messageContextManager.getTotalTokenCount();
+  }
+
+  /**
+   * Cleans up old messages if the context window is exceeded while preserving system instructions
+   * @param maxTokens - Maximum number of tokens allowed
+   * @returns true if cleanup was performed, false otherwise
+   */
+  cleanupContext(maxTokens: number): boolean {
+    this.debugLogger.log("Context", "Initiating context cleanup", {
+      maxTokens,
+      currentTokens: this.getTotalTokenCount(),
+    });
+
+    const wasCleanupPerformed =
+      this.messageContextManager.cleanupContext(maxTokens);
+
+    if (wasCleanupPerformed) {
+      this.debugLogger.log("Context", "Context cleanup completed", {
+        newTokenCount: this.getTotalTokenCount(),
+      });
+    } else {
+      this.debugLogger.log("Context", "No cleanup needed", {
+        currentTokens: this.getTotalTokenCount(),
+      });
     }
 
-    // Reserve 20% of context window for new messages
-    const maxTokens = Math.floor(contextLength * 0.8);
-    this.messageContextManager.cleanupContext(maxTokens);
+    return wasCleanupPerformed;
   }
 }

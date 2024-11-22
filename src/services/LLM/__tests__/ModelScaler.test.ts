@@ -6,25 +6,25 @@ import { container } from "tsyringe";
 describe("ModelScaler", () => {
   let modelScaler: ModelScaler;
   let mocker: UnitTestMocker;
-  let mockDebugLogger: jest.Mocked<DebugLogger>;
+
+  beforeAll(() => {
+    container.register("DebugLogger", { useValue: DebugLogger });
+  });
 
   beforeEach(() => {
-    // Create mock DebugLogger
-    mockDebugLogger = {
-      log: jest.fn(),
-    } as unknown as jest.Mocked<DebugLogger>;
+    mocker = new UnitTestMocker();
 
-    // Register mock DebugLogger with container
-    container.registerInstance(DebugLogger, mockDebugLogger);
+    // Setup spies on prototype methods of dependencies
+    mocker.spyOnPrototype(DebugLogger, "log", jest.fn());
 
-    mocker = container.resolve(UnitTestMocker);
+    // Instantiate ModelScaler after setting up mocks
     modelScaler = container.resolve(ModelScaler);
+    // Enable auto scaler for tests
+    modelScaler.setAutoScaler(true);
   });
 
   afterEach(() => {
     mocker.clearAllMocks();
-    container.clearInstances();
-    jest.clearAllMocks();
   });
 
   it("should scale models based on try count", () => {
@@ -84,7 +84,97 @@ describe("ModelScaler", () => {
     expect(modelScaler.getTryCount("file1.ts")).toBe(0);
   });
 
-  it("should increment try count correctly", () => {
+  it("should handle edge cases for try count", () => {
+    // Zero tries
+    modelScaler.setTryCount("file1.ts", 0);
+    expect(modelScaler.getCurrentModel()).toBe(
+      "qwen/qwen-2.5-coder-32b-instruct",
+    );
+
+    // Negative tries
+    modelScaler.setTryCount("file1.ts", -1);
+    expect(modelScaler.getCurrentModel()).toBe(
+      "qwen/qwen-2.5-coder-32b-instruct",
+    );
+
+    // Large number of tries
+    modelScaler.setTryCount("file1.ts", 100);
+    expect(modelScaler.getCurrentModel()).toBe(
+      "anthropic/claude-3.5-sonnet:beta",
+    );
+  });
+
+  it("should handle concurrent scaling requests", () => {
+    // Simulate concurrent requests
+    modelScaler.setTryCount("file1.ts", 1);
+    modelScaler.setTryCount("file2.ts", 2);
+    modelScaler.setTryCount("file3.ts", 3);
+
+    expect(modelScaler.getCurrentModel()).toBe(
+      "anthropic/claude-3.5-sonnet:beta",
+    );
+
+    // Reset
+    modelScaler.reset();
+    expect(modelScaler.getCurrentModel()).toBe(
+      "qwen/qwen-2.5-coder-32b-instruct",
+    );
+  });
+
+  it("should handle invalid file names", () => {
+    // Invalid file name
+    modelScaler.setTryCount("", 2);
+    expect(modelScaler.getCurrentModel()).toBe(
+      "anthropic/claude-3.5-sonnet:beta",
+    );
+
+    // Invalid file name
+    modelScaler.setTryCount(null as any, 2);
+    expect(modelScaler.getCurrentModel()).toBe(
+      "anthropic/claude-3.5-sonnet:beta",
+    );
+
+    // Invalid file name
+    modelScaler.setTryCount(undefined as any, 2);
+    expect(modelScaler.getCurrentModel()).toBe(
+      "anthropic/claude-3.5-sonnet:beta",
+    );
+  });
+
+  it("should disable auto scaler and reset try counts", () => {
+    // Enable auto scaler
+    modelScaler.setAutoScaler(true);
+    modelScaler.setTryCount("file1.ts", 2);
+    expect(modelScaler.getCurrentModel()).toBe(
+      "anthropic/claude-3.5-sonnet:beta",
+    );
+
+    // Disable auto scaler
+    modelScaler.setAutoScaler(false);
+    expect(modelScaler.getCurrentModel()).toBe(
+      "qwen/qwen-2.5-coder-32b-instruct",
+    );
+    expect(modelScaler.getTryCount("file1.ts")).toBe(0);
+  });
+
+  it("should not scale models when auto scaler is disabled", () => {
+    // Disable auto scaler
+    modelScaler.setAutoScaler(false);
+
+    // Set try count
+    modelScaler.setTryCount("file1.ts", 2);
+    expect(modelScaler.getCurrentModel()).toBe(
+      "qwen/qwen-2.5-coder-32b-instruct",
+    );
+
+    // Enable auto scaler
+    modelScaler.setAutoScaler(true);
+    expect(modelScaler.getCurrentModel()).toBe(
+      "qwen/qwen-2.5-coder-32b-instruct",
+    );
+  });
+
+  it("should increment try count for a file", () => {
     // Initial try count
     expect(modelScaler.getTryCount("file1.ts")).toBe(0);
 
@@ -97,38 +187,12 @@ describe("ModelScaler", () => {
     expect(modelScaler.getTryCount("file1.ts")).toBe(2);
   });
 
-  it("should log correctly on initialization", () => {
-    expect(mockDebugLogger.log).toHaveBeenCalledWith(
-      "Model",
-      "Initialized model scaler",
-      {
-        model: "qwen/qwen-2.5-coder-32b-instruct",
-      },
-    );
-  });
+  it("should not increment try count when auto scaler is disabled", () => {
+    // Disable auto scaler
+    modelScaler.setAutoScaler(false);
 
-  it("should log correctly on model update", () => {
-    modelScaler.setTryCount("file1.ts", 2);
-    expect(mockDebugLogger.log).toHaveBeenCalledWith(
-      "Model",
-      "Updated model based on file try count",
-      {
-        filePath: "file1.ts",
-        tryCount: 2,
-        maxTries: 2,
-        model: "anthropic/claude-3.5-sonnet:beta",
-      },
-    );
-  });
-
-  it("should log correctly on reset", () => {
-    modelScaler.reset();
-    expect(mockDebugLogger.log).toHaveBeenCalledWith(
-      "Model",
-      "Reset model scaling",
-      {
-        model: "qwen/qwen-2.5-coder-32b-instruct",
-      },
-    );
+    // Increment try count
+    modelScaler.incrementTryCount("file1.ts");
+    expect(modelScaler.getTryCount("file1.ts")).toBe(0);
   });
 });

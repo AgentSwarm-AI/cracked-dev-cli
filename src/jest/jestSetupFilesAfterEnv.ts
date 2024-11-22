@@ -2,8 +2,8 @@ import "reflect-metadata";
 
 // Mock modelScaling module
 jest.mock("@constants/modelScaling", () => ({
-  MODEL_SCALE_THRESHOLD: 2,
-  modelConfigs: [
+  AUTO_SCALER_MAX_TRY_PER_MODEL: 2,
+  autoScaleAvailableModels: [
     {
       id: "qwen/qwen-2.5-coder-32b-instruct",
       priority: 1,

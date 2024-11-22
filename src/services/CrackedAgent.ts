@@ -3,6 +3,7 @@ import { ActionsParser } from "@services/LLM/actions/ActionsParser";
 import { ILLMProvider } from "@services/LLM/ILLMProvider";
 import { LLMContextCreator } from "@services/LLM/LLMContextCreator";
 import { LLMProvider, LLMProviderType } from "@services/LLM/LLMProvider";
+import { ModelScaler } from "@services/LLM/ModelScaler";
 import { DebugLogger } from "@services/logging/DebugLogger";
 import { StreamHandler } from "@services/streaming/StreamHandler";
 import { HtmlEntityDecoder } from "@services/text/HTMLEntityDecoder";
@@ -18,6 +19,7 @@ export interface CrackedAgentOptions {
   debug?: boolean;
   options?: Record<string, unknown>;
   clearContext?: boolean;
+  autoScaler?: boolean;
 }
 
 export interface ExecutionResult {
@@ -39,6 +41,7 @@ export class CrackedAgent {
     private actionsParser: ActionsParser,
     private streamHandler: StreamHandler,
     private htmlEntityDecoder: HtmlEntityDecoder,
+    private modelScaler: ModelScaler,
   ) {}
 
   async execute(
@@ -90,6 +93,7 @@ export class CrackedAgent {
       debug: false,
       options: {},
       clearContext: false,
+      autoScaler: false,
       ...options,
     };
 
@@ -101,6 +105,8 @@ export class CrackedAgent {
     if (finalOptions.clearContext) {
       this.clearConversationHistory();
     }
+
+    this.modelScaler.setAutoScaler(finalOptions.autoScaler || false);
 
     await this.validateModel(finalOptions.model);
     await this.setupInstructions(finalOptions);

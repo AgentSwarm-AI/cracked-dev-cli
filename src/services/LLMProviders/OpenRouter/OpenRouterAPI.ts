@@ -1,8 +1,8 @@
 import { openRouterClient } from "@constants/openRouterClient";
 import { ILLMProvider, IMessage } from "@services/LLM/ILLMProvider";
 import { MessageContextManager } from "@services/LLM/MessageContextManager";
+import { ModelInfo } from "@services/LLM/ModelInfo";
 import { ModelScaler } from "@services/LLM/ModelScaler";
-import { IOpenRouterModelInfo } from "@services/LLMProviders/OpenRouter/types/OpenRouterAPITypes";
 import { DebugLogger } from "@services/logging/DebugLogger";
 import { HtmlEntityDecoder } from "@services/text/HTMLEntityDecoder";
 import { autoInjectable } from "tsyringe";
@@ -29,68 +29,51 @@ export class OpenRouterAPI implements ILLMProvider {
     private messageContextManager: MessageContextManager,
     private htmlEntityDecoder: HtmlEntityDecoder,
     private modelScaler: ModelScaler,
+    private modelInfo: ModelInfo,
     private debugLogger: DebugLogger,
   ) {
     this.httpClient = openRouterClient;
+    this.initializeModelInfo();
   }
 
-  private handleLLMError(error: any): LLMError {
+  private async initializeModelInfo(): Promise<void> {
+    try {
+      await this.modelInfo.initialize();
+    } catch (error) {
+      this.debugLogger.log("Model", "Failed to initialize model info", {
+        error,
+      });
+    }
+  }
+
+  private async handleLLMError(error: any): Promise<LLMError> {
     if (error?.response?.data) {
       const data = error.response.data;
 
-      if (data.error?.message?.includes("context length")) {
+      if (data.error?.message) {
+        return new LLMError(data.error.message, "API_ERROR", data.error);
+      }
+
+      if (data.error?.includes("context length")) {
+        const model = this.modelScaler.getCurrentModel();
+        const contextLimit = await this.modelInfo.getModelContextLength(model);
         return new LLMError(
           "Maximum context length exceeded",
           "CONTEXT_LENGTH_EXCEEDED",
           {
-            maxLength: data.error.max_tokens,
-            currentLength: data.error.current_tokens,
+            maxLength: contextLimit,
+            currentLength: this.messageContextManager.getTotalTokenCount(),
           },
         );
       }
-
-      if (
-        data.error?.type === "rate_limit_exceeded" ||
-        data.error?.code === 429
-      ) {
-        return new LLMError(
-          "Rate limit exceeded - continuing with partial response",
-          "RATE_LIMIT_EXCEEDED",
-          { retryAfter: data.error.retry_after },
-        );
-      }
-
-      if (data.error?.message?.includes("model")) {
-        return new LLMError(
-          "Model error occurred - continuing with partial response",
-          "MODEL_ERROR",
-          { modelId: data.error.model },
-        );
-      }
-
-      if (data.error?.code === "insufficient_quota") {
-        return new LLMError(
-          "Insufficient token budget - continuing with partial response",
-          "INSUFFICIENT_QUOTA",
-          { required: data.error.required, available: data.error.available },
-        );
-      }
-
-      if (data.error?.message) {
-        return new LLMError(data.error.message, "SERVER_ERROR", error);
-      }
     }
 
-    if (error.code === "ECONNRESET" || error.code === "ETIMEDOUT") {
-      return new LLMError(
-        "Network connection error - continuing with partial response",
-        "NETWORK_ERROR",
-        { code: error.code },
-      );
+    if (error instanceof LLMError) {
+      return error;
     }
 
     return new LLMError(
-      "An unknown error occurred - continuing with partial response",
+      error?.message || "An unknown error occurred",
       "UNKNOWN_ERROR",
       error,
     );
@@ -105,25 +88,27 @@ export class OpenRouterAPI implements ILLMProvider {
     messages.push({ role: "user", content: message });
 
     try {
+      const currentModel = this.modelScaler.getCurrentModel() || model;
+      await this.modelInfo.setCurrentModel(currentModel);
+
       const response = await this.httpClient.post("/chat/completions", {
-        model: this.modelScaler?.getCurrentModel() || model,
+        model: currentModel,
         messages,
         ...options,
       });
 
       const assistantMessage = response.data.choices[0].message.content;
 
-      // Only add messages if they're not duplicates
       this.messageContextManager.addMessage("user", message);
       this.messageContextManager.addMessage("assistant", assistantMessage);
 
-      this.debugLogger?.log("Model", "Using model", {
-        model: this.modelScaler?.getCurrentModel(),
-      });
+      await this.modelInfo.logCurrentModelUsage(
+        this.messageContextManager.getTotalTokenCount(),
+      );
 
       return assistantMessage;
     } catch (error) {
-      throw this.handleLLMError(error);
+      throw await this.handleLLMError(error);
     }
   }
 
@@ -150,32 +135,52 @@ export class OpenRouterAPI implements ILLMProvider {
 
   addSystemInstructions(instructions: string): void {
     this.messageContextManager.setSystemInstructions(instructions);
+    this.modelInfo.logCurrentModelUsage(
+      this.messageContextManager.getTotalTokenCount(),
+    );
   }
 
   async getAvailableModels(): Promise<string[]> {
     try {
-      const response = await this.httpClient.get("/models");
-      return response.data.data.map((model: IOpenRouterModelInfo) => model.id);
+      await this.modelInfo.initialize();
+      return this.modelInfo.getAllModels();
     } catch (error) {
-      throw this.handleLLMError(error);
+      throw await this.handleLLMError(error);
     }
   }
 
   async validateModel(model: string): Promise<boolean> {
-    const availableModels = await this.getAvailableModels();
-    return availableModels.includes(model);
+    return this.modelInfo.isModelAvailable(model);
   }
 
   async getModelInfo(model: string): Promise<Record<string, unknown>> {
-    try {
-      const response = await this.httpClient.get("/models");
-      const modelInfo = response.data.data.find(
-        (m: IOpenRouterModelInfo) => m.id === model,
-      );
-      return modelInfo || {};
-    } catch (error) {
-      throw this.handleLLMError(error);
+    const info = await this.modelInfo.getModelInfo(model);
+    return info ? ({ ...info } as Record<string, unknown>) : {};
+  }
+
+  private async handleStreamError(
+    error: LLMError,
+    message: string,
+    callback: (chunk: string, error?: LLMError) => void,
+  ): Promise<void> {
+    this.debugLogger.log("Model", "Stream error", {
+      error: error.type,
+      message,
+    });
+
+    if (error.type === "CONTEXT_LENGTH_EXCEEDED") {
+      const currentModel = this.modelScaler.getCurrentModel();
+      const maxTokens =
+        await this.modelInfo.getModelContextLength(currentModel);
+
+      const cleaned = this.messageContextManager.cleanupContext(maxTokens);
+      if (cleaned) {
+        await this.streamMessage(currentModel, message, callback);
+        return;
+      }
     }
+
+    callback("", error);
   }
 
   private async retryStreamOperation<T>(
@@ -254,7 +259,6 @@ export class OpenRouterAPI implements ILLMProvider {
     let error;
 
     const messages = this.streamBuffer.split("\n");
-
     this.streamBuffer = messages.pop() || "";
 
     for (const message of messages) {
@@ -264,33 +268,6 @@ export class OpenRouterAPI implements ILLMProvider {
     }
 
     return { content, error };
-  }
-
-  private async handleStreamError(
-    error: LLMError,
-    message: string,
-    callback: (chunk: string, error?: LLMError) => void,
-  ): Promise<void> {
-    this.debugLogger.log("Model", "Stream error", {
-      error: error.type,
-      message,
-    });
-    if (error.type === "CONTEXT_LENGTH_EXCEEDED") {
-      // Clean up context and retry
-      const cleaned = this.messageContextManager.cleanupContext(
-        error.details.maxLength,
-      );
-      if (cleaned) {
-        await this.streamMessage(
-          this.modelScaler.getCurrentModel() || "",
-          message,
-          callback,
-        );
-        return;
-      }
-    }
-
-    callback("", error);
   }
 
   async streamMessage(
@@ -303,84 +280,90 @@ export class OpenRouterAPI implements ILLMProvider {
     messages.push({ role: "user", content: message });
 
     let assistantMessage = "";
-
     this.streamBuffer = "";
 
-    const streamOperation = async () => {
-      const response = await this.httpClient.post(
-        "/chat/completions",
-        {
-          model: this.modelScaler.getCurrentModel() || model,
-          messages,
-          stream: true,
-          ...options,
-        },
-        {
-          responseType: "stream",
-          timeout: 0,
-        },
-      );
-
-      try {
-        for await (const chunk of response.data) {
-          const { content, error } = this.parseStreamChunk(chunk.toString());
-
-          if (error) {
-            const llmError = new LLMError(
-              error.message ||
-                "Stream error - continuing with partial response",
-              "STREAM_ERROR",
-              error,
-            );
-            await this.handleStreamError(llmError, message, callback);
-          }
-
-          if (content) {
-            assistantMessage += content;
-            callback(content);
-          }
-        }
-
-        if (this.streamBuffer) {
-          const { content, error } = this.processCompleteMessage(
-            this.streamBuffer,
-          );
-          if (error) {
-            const llmError = new LLMError(
-              error.message ||
-                "Stream error - continuing with partial response",
-              "STREAM_ERROR",
-              error,
-            );
-            await this.handleStreamError(llmError, message, callback);
-          }
-          if (content) {
-            assistantMessage += content;
-            callback(content);
-          }
-        }
-      } finally {
-        this.streamBuffer = "";
-      }
-
-      if (assistantMessage) {
-        // Only add messages if they're not duplicates
-        this.messageContextManager.addMessage("user", message);
-        this.messageContextManager.addMessage("assistant", assistantMessage);
-      }
-    };
-
     try {
+      const currentModel = this.modelScaler.getCurrentModel() || model;
+      await this.modelInfo.setCurrentModel(currentModel);
+
+      const streamOperation = async () => {
+        const response = await this.httpClient.post(
+          "/chat/completions",
+          {
+            model: currentModel,
+            messages,
+            stream: true,
+            ...options,
+          },
+          {
+            responseType: "stream",
+            timeout: 0,
+          },
+        );
+
+        try {
+          for await (const chunk of response.data) {
+            const { content, error } = this.parseStreamChunk(chunk.toString());
+
+            if (error) {
+              const llmError = new LLMError(
+                error.message || "Stream error",
+                "STREAM_ERROR",
+                error,
+              );
+              await this.handleStreamError(llmError, message, callback);
+            }
+
+            if (content) {
+              assistantMessage += content;
+              callback(content);
+            }
+          }
+
+          if (this.streamBuffer) {
+            const { content, error } = this.processCompleteMessage(
+              this.streamBuffer,
+            );
+            if (error) {
+              const llmError = new LLMError(
+                error.message || "Stream error",
+                "STREAM_ERROR",
+                error,
+              );
+              await this.handleStreamError(llmError, message, callback);
+            }
+            if (content) {
+              assistantMessage += content;
+              callback(content);
+            }
+          }
+        } finally {
+          this.streamBuffer = "";
+        }
+
+        if (assistantMessage) {
+          this.messageContextManager.addMessage("user", message);
+          this.messageContextManager.addMessage("assistant", assistantMessage);
+
+          await this.modelInfo.logCurrentModelUsage(
+            this.messageContextManager.getTotalTokenCount(),
+          );
+        }
+      };
+
       await this.retryStreamOperation(streamOperation);
     } catch (error) {
       const llmError =
-        error instanceof LLMError ? error : this.handleLLMError(error);
+        error instanceof LLMError ? error : await this.handleLLMError(error);
       await this.handleStreamError(llmError, message, callback);
 
       if (assistantMessage) {
-        // Only add messages if they're not duplicates
         this.messageContextManager.addMessage("user", message);
         this.messageContextManager.addMessage("assistant", assistantMessage);
+
+        await this.modelInfo.logCurrentModelUsage(
+          this.messageContextManager.getTotalTokenCount(),
+        );
       }
     }
   }

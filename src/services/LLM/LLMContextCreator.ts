@@ -151,6 +151,7 @@ To achieve this goal, I'll:
 - Provide full implementations; no empty comments.
 - If wrong import paths are are found, use <relative_path_lookup> to find the correct path.
 - CRITICAL: When struggling with path imports, STOP write_file WITH THE SAME IMPORT PATH. Use <relative_path_lookup> or <search_file> to find the correct path.
+- CRITICAL: If stuck in a problem, try to use read_file to get more context and come up with a new strategy.
 
 #### After Coding
 - After changes, if applicable:
@@ -165,6 +166,7 @@ To achieve this goal, I'll:
 - When adding tests, read target and related files.
 - Ensure added tests pass.
 - If i'm asking to write tests, no need to try to read the test file, because it wasn't created yet (obviously)!
+- When writing tests, write ALL OF THEM AT ONCE, in one prompt, even though they're in separate steps (goals). This would avoid wasting tokens.
 
 ### Commands Writing Instructions
 - Use the project's package manager.
@@ -193,6 +195,7 @@ To achieve this goal, I'll:
 <!-- Don't output // or <!-- comments -->
 <read_file>
   <path>path/here</path>
+  <!-- CRITICAL: DO NOT READ THE SAME FILES MULTIPLE TIMES, UNLESS THERES A CHANGE!!! -->
   <!-- Critical: Make sure <read_file> tag format is correct! -->
   <!-- Read up to 4 files -->
   <!-- Multiple <path> tags allowed -->

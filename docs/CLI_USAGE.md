@@ -13,6 +13,7 @@ The Cracked Dev CLI provides a powerful interface to interact with Large Languag
 - `-d, --debug`: Enables debug mode, providing detailed logs for troubleshooting.
 - `-o, --options`: Custom LLM options in `key=value` format. Customize model behavior and response generation.
 - `-i, --interactive`: Enables interactive mode for continuous conversation.
+- `--auto-scaler`: Enables auto-scaling of the model based on the number of tries. When enabled, the model will scale up or down based on the try count.
 
 ## Best Practices
 
@@ -71,6 +72,16 @@ yarn dev:cli crkd --interactive -m gpt-4 -p open-router
 ```
 
 This command starts the CLI in interactive mode, allowing you to continuously send messages to the AI and receive responses. Type "exit" or press Ctrl+C to quit.
+
+### Auto-Scaler Mode
+
+To enable auto-scaling of the model based on the number of tries:
+
+```bash
+yarn dev:cli crkd --auto-scaler --provider "open-router" --model "gpt-4" "Create component"
+```
+
+This command enables auto-scaling, which will adjust the model based on the number of tries, using the `gpt-4` model from `open-router`, and creates a component.
 
 ## Available Options
 

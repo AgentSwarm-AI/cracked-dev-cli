@@ -1,3 +1,5 @@
+import { DEFAULT_INITIAL_MODEL } from "@/constants/models";
+import { autoScaleAvailableModels } from "@constants/modelScaling";
 import { Args, Command, Flags } from "@oclif/core";
 import { CrackedAgent } from "@services/CrackedAgent";
 import { LLMProviderType } from "@services/LLM/LLMProvider";
@@ -35,7 +37,7 @@ export class Crkd extends Command {
       char: "m",
       description: "AI model to use",
       required: true,
-      default: "gpt-4",
+      default: DEFAULT_INITIAL_MODEL,
     }),
     provider: Flags.string({
       char: "p",
@@ -62,6 +64,11 @@ export class Crkd extends Command {
     interactive: Flags.boolean({
       char: "i",
       description: "Enable interactive mode for continuous conversation",
+      default: false,
+    }),
+    autoScaler: Flags.boolean({
+      description:
+        "Enable auto-scaling of the model based on the number of tries",
       default: false,
     }),
   };
@@ -155,6 +162,19 @@ export class Crkd extends Command {
 
     try {
       const agent = container.resolve(CrackedAgent);
+
+      // Handle auto-scaler warning
+      if (flags.autoScaler && flags.model !== DEFAULT_INITIAL_MODEL) {
+        const availableModels = autoScaleAvailableModels
+          .filter((model) => model.active)
+          .map((model) => model.id)
+          .join(", ");
+
+        this
+          .warn(`Warning: --auto-scaler flag is enabled. The specified model '${flags.model}' will be ignored.
+Auto-scaler will use the following models in order: ${availableModels}`);
+      }
+
       const options = {
         root: flags.root,
         instructionsPath: flags.instructionsPath,
@@ -164,6 +184,7 @@ export class Crkd extends Command {
         stream: flags.stream,
         debug: flags.debug,
         options: this.parseOptions(flags.options || ""),
+        autoScaler: flags.autoScaler,
       };
 
       if (flags.interactive) {

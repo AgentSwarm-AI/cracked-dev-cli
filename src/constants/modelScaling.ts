@@ -5,9 +5,9 @@ interface IModelConfig {
   description?: string;
 }
 
-export const MODEL_SCALE_THRESHOLD = 2;
+export const AUTO_SCALER_MAX_TRY_PER_MODEL = 2;
 
-export const modelConfigs: IModelConfig[] = [
+export const autoScaleAvailableModels: IModelConfig[] = [
   {
     id: "qwen/qwen-2.5-coder-32b-instruct",
     priority: 1,
@@ -35,14 +35,14 @@ export const modelConfigs: IModelConfig[] = [
 ];
 
 export const getModelForTryCount = (tryCount: string | null): string => {
-  if (!tryCount) return modelConfigs[0].id;
+  if (!tryCount) return autoScaleAvailableModels[0].id;
 
   const tries = parseInt(tryCount, 10);
   // Calculate scale level based on try count and threshold
-  const scaleLevel = Math.floor(tries / MODEL_SCALE_THRESHOLD);
+  const scaleLevel = Math.floor(tries / AUTO_SCALER_MAX_TRY_PER_MODEL);
 
   // Find active models
-  const activeModels = modelConfigs
+  const activeModels = autoScaleAvailableModels
     .filter((model) => model.active)
     .sort((a, b) => a.priority - b.priority);
 

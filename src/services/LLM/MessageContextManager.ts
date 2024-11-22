@@ -1,4 +1,5 @@
 import { IMessage } from "@services/LLM/ILLMProvider";
+import { DebugLogger } from "@services/logging/DebugLogger";
 import { autoInjectable, singleton } from "tsyringe";
 
 @singleton()
@@ -8,14 +9,11 @@ export class MessageContextManager {
   private systemInstructions: string | null = null;
   private currentModel: string | null = null;
 
+  constructor(private debugLogger: DebugLogger) {}
+
   setCurrentModel(model: string): void {
     this.currentModel = model;
-  }
-
-  private isDuplicate(role: string, content: string): boolean {
-    return this.conversationHistory.some(
-      (msg) => msg.role === role && msg.content.trim() === content.trim(),
-    );
+    this.debugLogger.log("Context", "Model updated", { model });
   }
 
   addMessage(role: "user" | "assistant" | "system", content: string): boolean {
@@ -26,11 +24,8 @@ export class MessageContextManager {
       throw new Error("Content cannot be empty");
     }
 
-    if (this.isDuplicate(role, content)) {
-      return false;
-    }
-
     this.conversationHistory.push({ role, content });
+
     return true;
   }
 
@@ -45,12 +40,25 @@ export class MessageContextManager {
   }
 
   clear(): void {
+    const hadMessages = this.conversationHistory.length > 0;
+    const hadInstructions = this.systemInstructions !== null;
+
     this.conversationHistory = [];
     this.systemInstructions = null;
+
+    this.debugLogger.log("Context", "Context cleared", {
+      clearedMessages: hadMessages,
+      clearedInstructions: hadInstructions,
+    });
   }
 
   setSystemInstructions(instructions: string): void {
+    const hadPreviousInstructions = this.systemInstructions !== null;
     this.systemInstructions = instructions;
+    this.debugLogger.log("Context", "System instructions updated", {
+      hadPreviousInstructions,
+      instructionsLength: instructions.length,
+    });
   }
 
   getSystemInstructions(): string | null {
@@ -101,12 +109,25 @@ export class MessageContextManager {
       return false;
     }
 
-    while (conversationTokens > availableTokens) {
+    const initialMessageCount = this.conversationHistory.length;
+    while (
+      conversationTokens > availableTokens &&
+      this.conversationHistory.length > 0
+    ) {
       const oldestMessage = this.conversationHistory[0];
       const oldestTokens = this.estimateTokenCount(oldestMessage.content);
       this.conversationHistory.shift();
       conversationTokens -= oldestTokens;
     }
+
+    const removedCount = initialMessageCount - this.conversationHistory.length;
+    this.debugLogger.log("Context", "Context cleanup performed", {
+      maxTokens,
+      systemTokens,
+      initialMessageCount,
+      remainingMessages: this.conversationHistory.length,
+      removedMessages: removedCount,
+    });
 
     return true;
   }
