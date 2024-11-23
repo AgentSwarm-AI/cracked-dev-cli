@@ -1,4 +1,4 @@
-import { DEFAULT_INITIAL_MODEL } from "@/constants/models";
+import { DEFAULT_INITIAL_MODEL } from "@constants/models";
 import { autoScaleAvailableModels } from "@constants/modelScaling";
 import { Args, Command, Flags } from "@oclif/core";
 import { CrackedAgent } from "@services/CrackedAgent";
@@ -186,11 +186,14 @@ Auto-scaler will use the following models in order: ${availableModels}`);
         autoScaler: flags.autoScaler,
       };
 
+      // The modelScaler is now properly initialized in setupExecution with the autoScaler flag
+      // No need for additional initialization here as it's handled in the agent's execute method
+
       if (flags.interactive) {
         await this.startInteractiveMode(agent, options);
       } else {
         const result = await agent.execute(args.message!, options);
-        if (!flags.stream && result) {
+        if (!options.stream && result) {
           this.log(result.response);
           if (result.actions?.length) {
             this.log("\nExecuted Actions:");
