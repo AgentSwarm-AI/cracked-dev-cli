@@ -2,8 +2,19 @@
 
 The Cracked Dev CLI provides a powerful interface to interact with Large Language Models (LLMs) for code-based tasks. Below are the available flags and their usage.
 
+## Getting Started
+
+To initialize the CLI configuration:
+
+```bash
+yarn dev:cli crkd --init
+```
+
+This will create a default `crkdrc.json` configuration file in your project root. You should then adjust the configuration with your preferred settings and API keys.
+
 ## Flags
 
+- `--init`: Initialize a default crkdrc.json configuration file. This flag must be used alone.
 - `-r, --root`: Specifies the root path of the codebase to operate on. If not provided, the current directory is used.
 - `--instructions-path`: Path to a custom instructions file. This file provides additional context and instructions to the LLM.
 - `--instructions`: A raw string containing custom instructions for the LLM. Useful for quick inline instructions without a file.
@@ -14,6 +25,8 @@ The Cracked Dev CLI provides a powerful interface to interact with Large Languag
 - `-o, --options`: Custom LLM options in `key=value` format. Customize model behavior and response generation.
 - `-i, --interactive`: Enables interactive mode for continuous conversation.
 - `--auto-scaler`: Enables auto-scaling of the model based on the number of tries. When enabled, the model will scale up or down based on the try count.
+
+All flags except `--init` can be configured in `crkdrc.json`. Command-line flags will override the configuration file values.
 
 ## Best Practices
 

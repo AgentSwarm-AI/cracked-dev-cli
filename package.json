@@ -37,7 +37,8 @@
     "format": "prettier --write . --loglevel silent",
     "prepack": "yarn build",
     "dev:cli": "node bin/run.js",
-    "playground": "ts-node ./src/playground.ts"
+    "playground": "ts-node ./src/playground.ts",
+    "cli:init": "node ./bin/run.js init"
   },
   "oclif": {
     "bin": "crkd",

@@ -5,6 +5,7 @@ import { CrackedAgent } from "@services/CrackedAgent";
 import { LLMProviderType } from "@services/LLM/LLMProvider";
 import * as readline from "readline";
 import { container } from "tsyringe";
+import { ConfigService } from "../services/ConfigService";
 
 export class Crkd extends Command {
   static description = "AI agent for performing operations on local projects";
@@ -14,62 +15,88 @@ export class Crkd extends Command {
     '$ crkd -r ./my-project --instructions "Follow clean code" -m gpt-4 "Create component"',
     '$ crkd --instructions "Use TypeScript" -m gpt-4 --options "temperature=0.7,max_tokens=2000,top_p=0.9" "Create new component"',
     "$ crkd --interactive -m gpt-4 # Start interactive mode",
+    "$ crkd --init --openRouterApiKey YOUR_API_KEY # Initialize configuration with API key",
   ];
 
   static flags = {
+    init: Flags.boolean({
+      description: "Initialize a default crkdrc.json configuration file",
+      exclusive: [
+        "root",
+        "customInstructionsFilePath",
+        "customInstructions",
+        "model",
+        "provider",
+        "stream",
+        "debug",
+        "options",
+        "interactive",
+        "autoScaler",
+      ],
+    }),
+    openRouterApiKey: Flags.string({
+      description: "OpenRouter API key to use for initialization",
+      dependsOn: ["init"],
+      required: false,
+    }),
     root: Flags.string({
       char: "r",
       description: "Root path of the codebase to operate on",
       required: false,
       default: process.cwd(),
     }),
-    instructionsPath: Flags.string({
+    customInstructionsFilePath: Flags.string({
       description: "Path to custom instructions file",
       required: false,
-      exclusive: ["instructions"],
+      exclusive: ["customInstructions"],
     }),
-    instructions: Flags.string({
+    customInstructions: Flags.string({
       description: "Raw custom instructions string",
       required: false,
-      exclusive: ["instructionsPath"],
+      exclusive: ["customInstructionsFilePath"],
+      default: () =>
+        ConfigService.loadConfig().instructions ||
+        "Follow clean code principles",
     }),
     model: Flags.string({
       char: "m",
       description: "AI model to use",
-      required: false, // Changed to false since we have a default
-      default: DEFAULT_INITIAL_MODEL,
+      default: () => ConfigService.loadConfig().model || DEFAULT_INITIAL_MODEL,
+      required: false,
     }),
     provider: Flags.string({
       char: "p",
       description: "LLM provider to use",
-      options: Object.values(LLMProviderType),
-      required: true,
+      default: () =>
+        ConfigService.loadConfig().provider || LLMProviderType.OpenRouter,
+      required: false,
     }),
     stream: Flags.boolean({
       char: "s",
       description: "Stream the AI response",
-      default: false,
+      default: () => ConfigService.loadConfig().stream || false,
     }),
     debug: Flags.boolean({
       char: "d",
       description: "Enable debug mode",
-      default: false,
+      default: () => ConfigService.loadConfig().debug || false,
     }),
     options: Flags.string({
       char: "o",
       description:
         'LLM options in key=value format (e.g., "temperature=0.7,max_tokens=2000,top_p=0.9")',
       required: false,
+      default: () => ConfigService.loadConfig().options || "",
     }),
     interactive: Flags.boolean({
       char: "i",
       description: "Enable interactive mode for continuous conversation",
-      default: false,
+      default: () => ConfigService.loadConfig().debug || true,
     }),
     autoScaler: Flags.boolean({
       description:
         "Enable auto-scaling of the model based on the number of tries",
-      default: false,
+      default: () => ConfigService.loadConfig().autoScaler || false,
     }),
   };
 
@@ -150,18 +177,22 @@ export class Crkd extends Command {
   async run(): Promise<void> {
     const { args, flags } = await this.parse(Crkd);
 
+    if (flags.init) {
+      ConfigService.createDefaultConfig(flags.openRouterApiKey);
+      return;
+    }
+
     if (flags.interactive && args.message) {
       this.error("Cannot provide both interactive mode and message argument");
-      return;
     }
 
     if (!flags.interactive && !args.message) {
       this.error("Must provide either interactive mode or message argument");
-      return;
     }
 
     try {
-      const agent = container.resolve(CrackedAgent);
+      // Load configuration
+      const config = ConfigService.loadConfig();
 
       // Handle auto-scaler warning
       if (flags.autoScaler && flags.model !== DEFAULT_INITIAL_MODEL) {
@@ -175,16 +206,23 @@ Auto-scaler will use the following models in order: ${availableModels}`);
       }
 
       const options = {
-        root: flags.root,
-        instructionsPath: flags.instructionsPath,
-        instructions: flags.instructions,
-        model: flags.model,
-        provider: flags.provider as LLMProviderType,
-        stream: flags.stream,
-        debug: flags.debug,
+        ...config,
+        ...flags,
         options: this.parseOptions(flags.options || ""),
+        provider: flags.provider as LLMProviderType,
         autoScaler: flags.autoScaler,
       };
+
+      // Validate provider
+      if (!Object.values(LLMProviderType).includes(options.provider)) {
+        throw new Error(`Invalid provider: ${options.provider}`);
+      }
+
+      console.log(
+        `Using ${options.provider} provider and model: ${options.model}`,
+      );
+
+      const agent = container.resolve(CrackedAgent);
 
       if (flags.interactive) {
         await this.startInteractiveMode(agent, options);

@@ -3,35 +3,35 @@ import {
   FileReadError,
   InvalidFileError,
 } from "@services/FileManagement/Errors";
-import fs from "fs/promises";
+import { readFile, stat } from "fs/promises";
 import { autoInjectable } from "tsyringe";
 
 @autoInjectable()
 export class FileReader {
-  public async readInstructionsFile(path: string): Promise<string> {
+  public async readInstructionsFile(filePath: string): Promise<string> {
     try {
-      await this.validateFilePath(path);
-      return await this.readFileContent(path);
+      await this.validateFilePath(filePath);
+      return await this.readFileContent(filePath);
     } catch (error) {
       if (
         error instanceof FileNotFoundError ||
         error instanceof FileReadError ||
         error instanceof InvalidFileError
       ) {
-        throw new FileReadError(path, error.message);
+        throw new FileReadError(filePath, error.message);
       }
       throw error;
     }
   }
 
-  private async validateFilePath(path: string): Promise<void> {
-    const stats = await fs.stat(path);
+  private async validateFilePath(filePath: string): Promise<void> {
+    const stats = await stat(filePath);
     if (!stats.isFile()) {
-      throw new InvalidFileError(path);
+      throw new Error(`Provided path ${filePath} is not a file`);
     }
   }
 
-  private async readFileContent(path: string): Promise<string> {
-    return await fs.readFile(path, "utf-8");
+  private async readFileContent(filePath: string): Promise<string> {
+    return readFile(filePath, "utf-8");
   }
 }

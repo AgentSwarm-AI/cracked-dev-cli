@@ -2,6 +2,8 @@
 
 An AI agent CLI tool for performing operations on local projects through natural language. This tool enables developers to make codebase changes, add features, and fix issues using natural language commands.
 
+⚠️ **Security Warning:** Make sure `crkdrc.json` is included in your `.gitignore` file to prevent accidentally committing your API keys. The file contains sensitive information that should never be pushed to version control.
+
 ## Features
 
 - Natural language interaction with your codebase
@@ -30,25 +32,95 @@ yarn install
 
 ### Setting Up Your Environment
 
-This project requires a `.env` file for environment-specific configurations. Use the provided `.env.example` as a template. You need to copy it to `.env` and replace the placeholder values with your actual configuration.
+1. Copy the example environment file:
 
 ```bash
 cp .env.example .env
 ```
 
-Edit the `.env` file with your preferred text editor:
+2. Edit the `.env` file with your OpenRouter API key and other configurations:
 
-**Ensure that you replace the placeholder values with your actual API key, application URL, and application name.**
-
-## Development Workflow
-
-1. Start the TypeScript compiler in watch mode. This is ONLY the auto compilation of TypeScript files. You still have to run the command below.
-
-```bash
-yarn dev
+```
+OPENROUTER_API_KEY=your_api_key_here
+APP_URL=your_app_url
+APP_NAME=your_app_name
 ```
 
-1. Check on [CLI USAGE](./docs/CLI_USAGE.md) for available options and examples of how to run the CLI
+3. Initialize the CLI configuration:
+
+```bash
+# Initialize with API key from command line
+yarn dev:cli crkd --init --openRouterApiKey your_api_key_here
+
+# Or initialize using API key from .env
+yarn dev:cli crkd --init
+```
+
+This will create a `crkdrc.json` configuration file with your settings. The OpenRouter API key will be taken from the command line argument if provided, otherwise it will use the key from your `.env` file.
+
+## CLI Usage
+
+### Available Flags
+
+- `--init`: Initialize a default crkdrc.json configuration file
+- `--openRouterApiKey`: Provide OpenRouter API key during initialization (optional, can use .env instead)
+- `-r, --root`: Root path of the codebase (default: current directory)
+- `--instructions-path`: Path to custom instructions file
+- `--instructions`: Raw custom instructions string
+- `-m, --model`: AI model to use (default: gpt-4)
+- `-p, --provider`: LLM provider to use
+- `-s, --stream`: Stream the AI response
+- `-d, --debug`: Enable debug mode
+- `-o, --options`: LLM options in key=value format
+- `-i, --interactive`: Enable interactive mode
+- `--auto-scaler`: Enable model auto-scaling based on tries
+
+### Example Commands
+
+Basic usage:
+
+```bash
+yarn dev:cli crkd --provider "open-router" --model "gpt-4" "Add error handling"
+```
+
+With custom instructions:
+
+```bash
+yarn dev:cli crkd --instructions "Follow clean code" --model "gpt-4" --options "temperature=0.7" "Create component"
+```
+
+Interactive mode:
+
+```bash
+yarn dev:cli crkd --interactive -m gpt-4 -p open-router
+```
+
+Auto-scaling mode:
+
+```bash
+yarn dev:cli crkd --auto-scaler --provider "open-router" --model "gpt-4" "Create component"
+```
+
+### LLM Options
+
+Customize model behavior using these options in format `key=value,key2=value2`:
+
+- `temperature` (0.0-2.0): Controls randomness
+- `max_tokens` (1+): Maximum tokens to generate
+- `top_p` (0.0-1.0): Controls diversity via nucleus sampling
+- `frequency_penalty` (-2.0-2.0): Penalize frequent tokens
+- `presence_penalty` (-2.0-2.0): Penalize repeated tokens
+- `repetition_penalty` (0.0-2.0): Reduce token repetition
+- `top_k` (0+): Limit token choices
+- `min_p` (0.0-1.0): Minimum probability threshold
+- `top_a` (0.0-1.0): Dynamic probability threshold
+- `seed` (integer): For deterministic outputs
+
+Example:
+
+```bash
+yarn dev:cli crkd --options "temperature=0.7,max_tokens=2000,top_p=0.9"
+```
 
 ## Project Structure
 
@@ -69,86 +141,27 @@ cracked-dev-cli/
 └── tests/                 # Test files
 ```
 
-## Usage
+## Development
 
-Basic command structure:
-
-```bash
-crkd [options] <message>
-```
-
-Required options:
-
-- `--root, -r <path>` - Specify the root path of the codebase to operate on
-- `--instructions, -i <path>` - Path to custom instructions file for the AI agent
-- `--model, -m <model>` - AI model to use (e.g., gpt-4, gpt-3.5-turbo)
-
-Example:
+Start the TypeScript compiler in watch mode:
 
 ```bash
-crkd --root ./my-project --instructions ./instructions.md --model gpt-4 "Add error handling to the user service"
+yarn dev
 ```
-
-## Configuration
-
-Create a `.crkdrc` file in your project:
-
-```json
-{
-  "root": "./",
-  "instructions": "./dev-instructions.md",
-  "model": "gpt-4"
-}
-```
-
-## Custom Instructions
-
-Create a markdown file with your project guidelines:
-
-```markdown
-# Project Guidelines
-
-- Use TypeScript for all new files
-- Follow SOLID principles
-- Use styled-components for styling
-
-# Code Style
-
-- Named exports only
-- Interface names prefixed with 'I'
-- Tests required for new components
-```
-
-## Development Setup
-
-1. Clone the repository
-2. Install dependencies: `yarn install`
-3. Start TypeScript compiler: `yarn dev`
-4. Run tests: `yarn test`
 
 ### Testing
 
-Run the test suite:
-
 ```bash
+# Run tests
 yarn test
-```
 
-Run type checking:
-
-```bash
+# Type checking
 yarn tsc
-```
 
-Run linting:
-
-```bash
+# Linting
 yarn lint
-```
 
-Format code:
-
-```bash
+# Format code
 yarn format
 ```
 
