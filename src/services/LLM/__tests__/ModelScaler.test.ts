@@ -99,9 +99,7 @@ describe("ModelScaler", () => {
 
     // Large number of tries
     modelScaler.setTryCount("file1.ts", 100);
-    expect(modelScaler.getCurrentModel()).toBe(
-      "anthropic/claude-3.5-sonnet:beta",
-    );
+    expect(modelScaler.getCurrentModel()).toBe("openai/o1-mini");
   });
 
   it("should handle concurrent scaling requests", () => {
