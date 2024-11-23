@@ -1,20 +1,30 @@
-import fs from "fs/promises";
+import { readFile, stat } from "fs/promises";
 import { autoInjectable } from "tsyringe";
 
 @autoInjectable()
 export class FileReader {
-  public async readInstructionsFile(path: string): Promise<string> {
+  public async readInstructionsFile(filePath: string): Promise<string> {
     try {
-      const stats = await fs.stat(path);
-      if (!stats.isFile()) {
-        throw new Error("Instructions path must be a file");
-      }
-      return await fs.readFile(path, "utf-8");
+      await this.validateFilePath(filePath);
+      return await this.readFileContent(filePath);
     } catch (error) {
       if (error instanceof Error) {
-        throw new Error(`Failed to read instructions file: ${error.message}`);
+        throw new Error(
+          `Failed to read instructions file at ${filePath}: ${error.message}`,
+        );
       }
       throw error;
     }
+  }
+
+  private async validateFilePath(filePath: string): Promise<void> {
+    const stats = await stat(filePath);
+    if (!stats.isFile()) {
+      throw new Error(`Provided path ${filePath} is not a file`);
+    }
+  }
+
+  private async readFileContent(filePath: string): Promise<string> {
+    return readFile(filePath, "utf-8");
   }
 }

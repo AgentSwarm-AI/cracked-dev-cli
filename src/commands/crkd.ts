@@ -1,6 +1,7 @@
 import { Args, Command, Flags } from "@oclif/core";
 import * as readline from "readline";
 import { container } from "tsyringe";
+import { ConfigService } from "../services/ConfigService";
 import { CrackedAgent } from "../services/CrackedAgent";
 import { LLMProviderType } from "../services/LLM/LLMProvider";
 
@@ -30,39 +31,44 @@ export class Crkd extends Command {
       description: "Raw custom instructions string",
       required: false,
       exclusive: ["instructionsPath"],
+      default: () =>
+        ConfigService.loadConfig().instructions ||
+        "Follow clean code principles",
     }),
     model: Flags.string({
       char: "m",
       description: "AI model to use",
-      required: true,
-      default: "gpt-4",
+      required: false,
+      default: () => ConfigService.loadConfig().model || "chatgpt-4",
     }),
     provider: Flags.string({
       char: "p",
       description: "LLM provider to use",
-      options: Object.values(LLMProviderType),
-      required: true,
+      default: () =>
+        ConfigService.loadConfig().provider || LLMProviderType.OpenRouter,
+      required: false,
     }),
     stream: Flags.boolean({
       char: "s",
       description: "Stream the AI response",
-      default: false,
+      default: () => ConfigService.loadConfig().stream || false,
     }),
     debug: Flags.boolean({
       char: "d",
       description: "Enable debug mode",
-      default: false,
+      default: () => ConfigService.loadConfig().debug || false,
     }),
     options: Flags.string({
       char: "o",
       description:
         'LLM options in key=value format (e.g., "temperature=0.7,max_tokens=2000,top_p=0.9")',
       required: false,
+      default: () => ConfigService.loadConfig().options || "",
     }),
     interactive: Flags.boolean({
       char: "i",
       description: "Enable interactive mode for continuous conversation",
-      default: false,
+      default: () => ConfigService.loadConfig().debug || true,
     }),
   };
 
@@ -145,26 +151,36 @@ export class Crkd extends Command {
 
     if (flags.interactive && args.message) {
       this.error("Cannot provide both interactive mode and message argument");
-      return;
     }
 
     if (!flags.interactive && !args.message) {
       this.error("Must provide either interactive mode or message argument");
-      return;
     }
 
     try {
-      const agent = container.resolve(CrackedAgent);
+      // Create default config if not exists
+      ConfigService.createDefaultConfig();
+
+      // Load configuration
+      const config = ConfigService.loadConfig();
+
       const options = {
-        root: flags.root,
-        instructionsPath: flags.instructionsPath,
-        instructions: flags.instructions,
-        model: flags.model,
-        provider: flags.provider as LLMProviderType,
-        stream: flags.stream,
-        debug: flags.debug,
+        ...config,
+        ...flags,
         options: this.parseOptions(flags.options || ""),
+        provider: flags.provider as LLMProviderType,
       };
+
+      // Validate provider
+      if (!Object.values(LLMProviderType).includes(options.provider)) {
+        throw new Error(`Invalid provider: ${options.provider}`);
+      }
+
+      console.log(
+        `Using ${options.provider} provider and model: ${options.model}`,
+      );
+
+      const agent = container.resolve(CrackedAgent);
 
       if (flags.interactive) {
         await this.startInteractiveMode(agent, options);
