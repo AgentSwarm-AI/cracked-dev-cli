@@ -88,11 +88,11 @@ export class OpenRouterAPI implements ILLMProvider {
     messages.push({ role: "user", content: message });
 
     try {
-      const currentModel = this.modelScaler.getCurrentModel() || model;
-      await this.modelInfo.setCurrentModel(currentModel);
+      // Use the provided model directly, don't check modelScaler
+      await this.modelInfo.setCurrentModel(model);
 
       const response = await this.httpClient.post("/chat/completions", {
-        model: currentModel,
+        model: model,
         messages,
         ...options,
       });
@@ -283,14 +283,14 @@ export class OpenRouterAPI implements ILLMProvider {
     this.streamBuffer = "";
 
     try {
-      const currentModel = this.modelScaler.getCurrentModel() || model;
-      await this.modelInfo.setCurrentModel(currentModel);
+      // Use the provided model directly, don't check modelScaler
+      await this.modelInfo.setCurrentModel(model);
 
       const streamOperation = async () => {
         const response = await this.httpClient.post(
           "/chat/completions",
           {
-            model: currentModel,
+            model: model,
             messages,
             stream: true,
             ...options,

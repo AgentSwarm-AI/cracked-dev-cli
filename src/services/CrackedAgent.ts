@@ -106,7 +106,8 @@ export class CrackedAgent {
       this.clearConversationHistory();
     }
 
-    // Pass both autoScaler flag and model to setAutoScaler
+    // Always explicitly set auto-scaler state with the model
+    // If autoScaler is not specified, it defaults to false and uses the provided model
     this.modelScaler.setAutoScaler(
       finalOptions.autoScaler || false,
       finalOptions.model,
