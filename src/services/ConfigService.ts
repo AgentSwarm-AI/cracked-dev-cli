@@ -57,6 +57,10 @@ export class ConfigService {
 
       // Ensure crkdrc.json is in .gitignore
       ConfigService.ensureGitIgnore();
+
+      chalk.green(
+        "CrackedDevCLI config generated. Please, add Provider, Model, and API Key to crkdrc.json.",
+      );
     }
   }
 
