@@ -193,4 +193,43 @@ describe("ModelScaler", () => {
     modelScaler.incrementTryCount("file1.ts");
     expect(modelScaler.getTryCount("file1.ts")).toBe(0);
   });
+
+  it("should increment global try count for any action", () => {
+    // Initial global try count
+    expect(modelScaler["globalTryCount"]).toBe(0);
+
+    // Increment try count for a file
+    modelScaler.incrementTryCount("file1.ts");
+    expect(modelScaler["globalTryCount"]).toBe(1);
+
+    // Increment try count for another file
+    modelScaler.incrementTryCount("file2.ts");
+    expect(modelScaler["globalTryCount"]).toBe(2);
+  });
+
+  it("should scale models based on global try count", () => {
+    // Initial model
+    const initialModel = modelScaler.getCurrentModel();
+    expect(initialModel).toBe("qwen/qwen-2.5-coder-32b-instruct");
+
+    // Increment global try count until it reaches the threshold for the next model
+    for (let i = 0; i < 5; i++) {
+      modelScaler.incrementTryCount(`file${i}.ts`);
+    }
+    expect(modelScaler.getCurrentModel()).toBe(
+      "anthropic/claude-3.5-sonnet:beta",
+    );
+
+    // Increment global try count until it reaches the threshold for the next model
+    for (let i = 5; i < 10; i++) {
+      modelScaler.incrementTryCount(`file${i}.ts`);
+    }
+    expect(modelScaler.getCurrentModel()).toBe("openai/gpt-4o-2024-11-20");
+
+    // Increment global try count until it reaches the threshold for the final model
+    for (let i = 10; i < 15; i++) {
+      modelScaler.incrementTryCount(`file${i}.ts`);
+    }
+    expect(modelScaler.getCurrentModel()).toBe("openai/o1-mini");
+  });
 });
