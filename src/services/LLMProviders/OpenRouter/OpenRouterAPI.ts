@@ -3,6 +3,10 @@ import { ILLMProvider, IMessage } from "@services/LLM/ILLMProvider";
 import { MessageContextManager } from "@services/LLM/MessageContextManager";
 import { ModelInfo } from "@services/LLM/ModelInfo";
 import { ModelScaler } from "@services/LLM/ModelScaler";
+import {
+  formatMessageContent,
+  IMessageContent,
+} from "@services/LLM/utils/ModelUtils";
 import { DebugLogger } from "@services/logging/DebugLogger";
 import { HtmlEntityDecoder } from "@services/text/HTMLEntityDecoder";
 import { autoInjectable } from "tsyringe";
@@ -16,6 +20,11 @@ class LLMError extends Error {
     super(message);
     this.name = "LLMError";
   }
+}
+
+interface IFormattedMessage {
+  role: string;
+  content: string | IMessageContent[];
 }
 
 @autoInjectable()
@@ -79,21 +88,35 @@ export class OpenRouterAPI implements ILLMProvider {
     );
   }
 
+  private formatMessages(
+    messages: IMessage[],
+    model: string,
+  ): IFormattedMessage[] {
+    return messages.map((msg) => ({
+      role: msg.role,
+      content: formatMessageContent(msg.content, model),
+    }));
+  }
+
   async sendMessage(
     model: string,
     message: string,
     options?: Record<string, unknown>,
   ): Promise<string> {
     const messages = this.getConversationContext();
-    messages.push({ role: "user", content: message });
+    const currentModel = this.modelScaler.getCurrentModel() || model;
 
     try {
-      const currentModel = this.modelScaler.getCurrentModel() || model;
       await this.modelInfo.setCurrentModel(currentModel);
+
+      const formattedMessages = this.formatMessages(
+        [...messages, { role: "user", content: message }],
+        currentModel,
+      );
 
       const response = await this.httpClient.post("/chat/completions", {
         model: currentModel,
-        messages,
+        messages: formattedMessages,
         ...options,
       });
 
@@ -277,21 +300,25 @@ export class OpenRouterAPI implements ILLMProvider {
     options?: Record<string, unknown>,
   ): Promise<void> {
     const messages = this.getConversationContext();
-    messages.push({ role: "user", content: message });
+    const currentModel = this.modelScaler.getCurrentModel() || model;
 
     let assistantMessage = "";
     this.streamBuffer = "";
 
     try {
-      const currentModel = this.modelScaler.getCurrentModel() || model;
       await this.modelInfo.setCurrentModel(currentModel);
+
+      const formattedMessages = this.formatMessages(
+        [...messages, { role: "user", content: message }],
+        currentModel,
+      );
 
       const streamOperation = async () => {
         const response = await this.httpClient.post(
           "/chat/completions",
           {
             model: currentModel,
-            messages,
+            messages: formattedMessages,
             stream: true,
             ...options,
           },
@@ -312,6 +339,7 @@ export class OpenRouterAPI implements ILLMProvider {
                 error,
               );
               await this.handleStreamError(llmError, message, callback);
+              return;
             }
 
             if (content) {
@@ -331,6 +359,7 @@ export class OpenRouterAPI implements ILLMProvider {
                 error,
               );
               await this.handleStreamError(llmError, message, callback);
+              return;
             }
             if (content) {
               assistantMessage += content;

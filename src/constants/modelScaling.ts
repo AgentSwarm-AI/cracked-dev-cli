@@ -15,7 +15,7 @@ export const autoScaleAvailableModels: IModelConfig[] = [
   {
     id: "anthropic/claude-3.5-sonnet:beta",
     description: "Scaled model for retry attempts",
-    maxWriteTries: 2,
+    maxWriteTries: 3,
     maxGlobalTries: 10,
   },
   {
@@ -28,11 +28,14 @@ export const autoScaleAvailableModels: IModelConfig[] = [
     id: "openai/o1-mini",
     description: "Final model for complex cases (currently inactive)",
     maxWriteTries: 2,
-    maxGlobalTries: 20,
+    maxGlobalTries: 5,
   },
 ];
 
-export const getModelForTryCount = (tryCount: string | null, globalTries: number): string => {
+export const getModelForTryCount = (
+  tryCount: string | null,
+  globalTries: number,
+): string => {
   if (!tryCount) return autoScaleAvailableModels[0].id;
 
   const tries = parseInt(tryCount, 10);
@@ -46,8 +49,10 @@ export const getModelForTryCount = (tryCount: string | null, globalTries: number
     // Scale up if either condition is met:
     // 1. Current try count exceeds the sum of maxWriteTries up to this model
     // 2. Global try count exceeds maxGlobalTries for this model
-    if (tries >= previousTriesSum + autoScaleAvailableModels[i].maxWriteTries ||
-        globalTries >= autoScaleAvailableModels[i].maxGlobalTries) {
+    if (
+      tries >= previousTriesSum + autoScaleAvailableModels[i].maxWriteTries ||
+      globalTries >= autoScaleAvailableModels[i].maxGlobalTries
+    ) {
       continue; // Move to next model
     }
 
