@@ -36,7 +36,7 @@ export class Crkd extends Command {
     model: Flags.string({
       char: "m",
       description: "AI model to use",
-      required: true,
+      required: false, // Changed to false since we have a default
       default: DEFAULT_INITIAL_MODEL,
     }),
     provider: Flags.string({
@@ -185,9 +185,6 @@ Auto-scaler will use the following models in order: ${availableModels}`);
         options: this.parseOptions(flags.options || ""),
         autoScaler: flags.autoScaler,
       };
-
-      // The modelScaler is now properly initialized in setupExecution with the autoScaler flag
-      // No need for additional initialization here as it's handled in the agent's execute method
 
       if (flags.interactive) {
         await this.startInteractiveMode(agent, options);
