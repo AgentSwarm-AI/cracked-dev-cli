@@ -14,7 +14,7 @@ jest.mock("@constants/modelScaling", () => ({
     {
       id: "anthropic/claude-3.5-sonnet:beta",
       description: "Scaled model for retry attempts",
-      maxWriteTries: 2,
+      maxWriteTries: 3,
       maxGlobalTries: 10,
     },
     {
