@@ -10,7 +10,7 @@ export const autoScaleAvailableModels: IModelConfig[] = [
     id: "qwen/qwen-2.5-coder-32b-instruct",
     description: "Cheap, fast, slightly better than GPT4o-mini",
     maxWriteTries: 2,
-    maxGlobalTries: 5,
+    maxGlobalTries: 10,
   },
   {
     id: "anthropic/claude-3.5-sonnet:beta",
@@ -22,13 +22,13 @@ export const autoScaleAvailableModels: IModelConfig[] = [
     id: "openai/gpt-4o-2024-11-20",
     description: "Scaled model for retry attempts",
     maxWriteTries: 5,
-    maxGlobalTries: 15,
+    maxGlobalTries: 10,
   },
   {
     id: "openai/o1-mini",
     description: "Final model for complex cases (currently inactive)",
     maxWriteTries: 2,
-    maxGlobalTries: 5,
+    maxGlobalTries: 10,
   },
 ];
 
