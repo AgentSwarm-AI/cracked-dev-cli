@@ -1,3 +1,8 @@
+import {
+  FileNotFoundError,
+  FileReadError,
+  InvalidFileError,
+} from "@services/FileManagement/Errors";
 import { readFile, stat } from "fs/promises";
 import { autoInjectable } from "tsyringe";
 
@@ -8,10 +13,12 @@ export class FileReader {
       await this.validateFilePath(filePath);
       return await this.readFileContent(filePath);
     } catch (error) {
-      if (error instanceof Error) {
-        throw new Error(
-          `Failed to read instructions file at ${filePath}: ${error.message}`,
-        );
+      if (
+        error instanceof FileNotFoundError ||
+        error instanceof FileReadError ||
+        error instanceof InvalidFileError
+      ) {
+        throw new FileReadError(filePath, error.message);
       }
       throw error;
     }

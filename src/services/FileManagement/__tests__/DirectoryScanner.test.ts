@@ -1,6 +1,6 @@
+import { DirectoryScanner } from "@services/FileManagement/DirectoryScanner";
 import fs from "fs";
 import { container } from "tsyringe";
-import { DirectoryScanner } from "../DirectoryScanner";
 
 describe("DirectoryScanner.ts", () => {
   let directoryScanner: DirectoryScanner;

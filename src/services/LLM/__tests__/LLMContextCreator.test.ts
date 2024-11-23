@@ -1,10 +1,10 @@
+import { DirectoryScanner } from "@services/FileManagement/DirectoryScanner";
+import { ActionExecutor } from "@services/LLM/actions/ActionExecutor";
+import { LLMContextCreator } from "@services/LLM/LLMContextCreator";
+import { ProjectInfo } from "@services/LLM/utils/ProjectInfo";
 import { container } from "tsyringe";
-import { DirectoryScanner } from "../../FileManagement/DirectoryScanner";
-import { ActionExecutor } from "../actions/ActionExecutor";
-import { LLMContextCreator } from "../LLMContextCreator";
-import { ProjectInfo } from "../utils/ProjectInfo";
 
-jest.mock("../../FileManagement/DirectoryScanner");
+jest.mock("@services/FileManagement/DirectoryScanner");
 jest.mock("../actions/ActionExecutor");
 jest.mock("../utils/ProjectInfo");
 
@@ -53,9 +53,10 @@ describe("LLMContextCreator", () => {
 
       const result = await contextCreator.create(message, root, true);
 
-      expect(result).toContain("<task>");
+      expect(result).toContain("# Your Task");
       expect(result).toContain(message);
-      expect(result).toContain("<environment>");
+      expect(result).toContain("## Important Notes");
+      expect(result).toContain("# Current Working Directory");
       expect(result).toContain(scanResult.data);
       expect(result).toContain("Project Dependencies (from package.json)");
       expect(result).toContain("dep1, dep2");
@@ -82,9 +83,10 @@ describe("LLMContextCreator", () => {
 
       const result = await contextCreator.create(message, root, true);
 
-      expect(result).toContain("<task>");
+      expect(result).toContain("# Your Task");
       expect(result).toContain(message);
-      expect(result).toContain("<environment>");
+      expect(result).toContain("## Important Notes");
+      expect(result).toContain("# Current Working Directory");
       expect(result).toContain(scanResult.data);
       expect(result).not.toContain("Project Dependencies");
       expect(mockDirectoryScanner.scan).toHaveBeenCalledWith(root);

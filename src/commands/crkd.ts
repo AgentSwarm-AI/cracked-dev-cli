@@ -1,9 +1,11 @@
+import { DEFAULT_INITIAL_MODEL } from "@/constants/models";
+import { autoScaleAvailableModels } from "@constants/modelScaling";
 import { Args, Command, Flags } from "@oclif/core";
+import { CrackedAgent } from "@services/CrackedAgent";
+import { LLMProviderType } from "@services/LLM/LLMProvider";
 import * as readline from "readline";
 import { container } from "tsyringe";
 import { ConfigService } from "../services/ConfigService";
-import { CrackedAgent } from "../services/CrackedAgent";
-import { LLMProviderType } from "../services/LLM/LLMProvider";
 
 export class Crkd extends Command {
   static description = "AI agent for performing operations on local projects";
@@ -38,8 +40,8 @@ export class Crkd extends Command {
     model: Flags.string({
       char: "m",
       description: "AI model to use",
-      required: false,
-      default: () => ConfigService.loadConfig().model || "chatgpt-4",
+      default: () => ConfigService.loadConfig().model || DEFAULT_INITIAL_MODEL,
+      required: true,
     }),
     provider: Flags.string({
       char: "p",
@@ -69,6 +71,11 @@ export class Crkd extends Command {
       char: "i",
       description: "Enable interactive mode for continuous conversation",
       default: () => ConfigService.loadConfig().debug || true,
+    }),
+    autoScaler: Flags.boolean({
+      description:
+        "Enable auto-scaling of the model based on the number of tries",
+      default: false,
     }),
   };
 
@@ -164,11 +171,24 @@ export class Crkd extends Command {
       // Load configuration
       const config = ConfigService.loadConfig();
 
+      // Handle auto-scaler warning
+      if (flags.autoScaler && flags.model !== DEFAULT_INITIAL_MODEL) {
+        const availableModels = autoScaleAvailableModels
+          .filter((model) => model.active)
+          .map((model) => model.id)
+          .join(", ");
+
+        this
+          .warn(`Warning: --auto-scaler flag is enabled. The specified model '${flags.model}' will be ignored.
+Auto-scaler will use the following models in order: ${availableModels}`);
+      }
+
       const options = {
         ...config,
         ...flags,
         options: this.parseOptions(flags.options || ""),
         provider: flags.provider as LLMProviderType,
+        autoScaler: flags.autoScaler,
       };
 
       // Validate provider

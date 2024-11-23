@@ -1,8 +1,8 @@
+import { DirectoryScanner } from "@services/FileManagement/DirectoryScanner";
+import { ActionExecutor } from "@services/LLM/actions/ActionExecutor";
+import { IActionResult } from "@services/LLM/actions/types/ActionTypes";
+import { ProjectInfo } from "@services/LLM/utils/ProjectInfo";
 import { autoInjectable } from "tsyringe";
-import { DirectoryScanner } from "../FileManagement/DirectoryScanner";
-import { ActionExecutor } from "./actions/ActionExecutor";
-import { IActionResult } from "./actions/types/ActionTypes";
-import { ProjectInfo } from "./utils/ProjectInfo";
 
 interface MessageContext {
   message: string;
@@ -67,170 +67,183 @@ ${Object.entries(info.scripts)
   }
 
   private formatFirstTimeMessage(context: MessageContext): string {
-    return `<task>
+    return `
+
+<instructions details="NEVER_OUTPUT">
+<!-- These are internal instructions. Just follow them. Do not output. -->
+# Your Task
 ${context.message}
-</task>
 
-<instructions detail="brief">
-To achieve this goal, I'll proceed as follows:
-  - Step 1: Brief explanation here.
-  - Step 2: Brief explanation here.
-  - Step 3: Brief explanation here.
-  - etc.
-</instructions>
 
-<important_notes detail="hidden">
-  <critical_instructions>
-    - Code or markdown should ALWAYS BE INSIDE write_file or edit_file tags.
-    - DO NOT REPEAT SUCCESSFUL TASKS. If a code/doc change is working, move to the next step.
-    - Always decide between write_file or edit_file action, based on your intent. If its too many things to change, use write_file. Else, use edit_file.
-    - CAREFUL with tag structure!
-    - Focus on solving the task. Once achieved, use <end_task> immediately. Don't do extra work.
-    - The first message should be a quick intro and the step-by-step pattern above. You may read up to 3 files for context.
-    - **Never** use more than one <write_file> action per output. Add code carefully, then verify before moving on.
-    - After using <write_file> or <edit_file>, run a type check.
-    - **Never** mix read_file and write_file/edit_file in the same output.
-    - **Never output markdown or code** in the first message or outside action tags.
-    - After reading a file, proceed directly to the next action tag without commenting on its contents.
-    - When performing actions like <write_file>, include content directly within the action tag **without previewing it outside**.
-    - Do not describe the action being performed; actions must be within action tags.
-    - Avoid redundant output or unnecessary explanations. Be concise and actionable.
-    - Ensure outputs meet task requirements and are formatted for direct use.
 
-    <code_writing_instructions>
-      <before_starting>
-        - Read related files for context.
-        - Check existing project patterns; when creating unit tests, read up to 2 existing tests and follow their structure.
-        - When reading files, you can use a read_file action with multiple paths in the same input.
-        - Always follow project patterns.
-        - If an external dependency is needed and not available, ask the user for confirmation before proceeding.
-        - Avoid adding extra dependencies; reuse what's already available.
-      </before_starting>
+## Initial Instructions
 
-      <during_coding>
-        - Never output encoded characters. Use raw text only.
-        - Always output full code, not partial code.
-        - Don't remove much code. Focus on the goal without overdoing it.
-        - Follow an iterative process; don't try to do everything at once.
-        - Code should be plain text without HTML entities or encodings; ensure all characters are correct.
-        - Follow principles like DRY, SRP, KISS, YAGNI, LoD, Immutability.
-        - Prefer composition over inheritance when possible.
-        - Aim for high cohesion and low coupling.
-        - Use meaningful names for variables, functions, classes, etc.
-        - Use comments to explain why, not what.
-        - Keep Clean Code principles in mind.
-        - Avoid too many changes at once to prevent bugs.
-        - If unsure about something, check docs first or use <end_task> to ask for input.
-        - Be careful with path imports; ensure they are correct and not missed.
-        - Follow existing project file naming patterns.
-        - Do not write comments without implementation. Provide full output only.
-      </during_coding>
+You accomplish a given task iteratively, breaking it down into clear steps and working through them methodically.
 
-      <after_coding>
-        - After all code changes, do the following in order (if applicable):
-          - Run tests specific to that file. If risky, run tests for the related folder.
-          - At the end, run type checks and all tests.
-          - After all tests pass and you've finished, use <end_task> to finalize.
-      </after_coding>
- 
-      <tests>
-        - No need to test for logging messages.
-        - When asked to fix tests, MAKE SURE TO RUN IT FIRST, before any read operation.
-        - When asked to write more tests, make sure to read_file the target file and related ones (check imports).
-        - When adding additional tests, make sure them work! (run tests until passing)
-      </tests>
-    </code_writing_instructions>
-  </critical_instructions>
+1. Analyze the user's task and set clear, achievable goals to accomplish it. Prioritize these goals in a logical order.
+2. Work through these goals sequentially, utilizing available actions one at a time as necessary.
 
-  <commands_writing_instructions>
-    - Always use the project's package manager.
-    - Combine commands when possible to maximize efficiency.
-  </commands_writing_instructions>
+Example:
 
-  <other_instructions>
-    - Summarize only high-level task progress or completion using <end_task>, excluding action details.
-    - If unsure about file paths or formats, use placeholders and request clarification.
-    - If stuck, try alternatives or ask for clarification but avoid irrelevant or verbose outputs.
-  </other_instructions>
+To achieve this goal, I'll:
+- Step 1: Brief explanation.
+- Step 2: Brief explanation.
+- Step 3: Brief explanation.
+- etc.
 
-  <docs_writing_instructions>
-    - Ensure valid markdown syntax. Don't add extra tabs in output.
-    - In documentation, use mermaid diagrams with clear explanations when applicable.
-    - Remember, you can't use "(" or ")" in mermaid diagrams; use "[" and "]" instead.
-  </docs_writing_instructions>
-</important_notes>
 
-<available_actions detail="allowed">
-Don't output // comments
 
-read_file: Read contents of a file
+## Important Notes
+### Critical Instructions
+
+- ONLY ONE ACTION PER REPLY (except read_file)!!
+- ONLY ONE ACTION PER REPLY (except read_file)!!
+- ONLY ONE ACTION PER REPLY (except read_file)!!
+- Output raw text only. **MOST IMPORTANT RULE! DO NOT OUTPUT ENCODED OR ESCAPED CHARACTERS, especially \\".**
+- Pay attention to my initial request and STICK TO WHAT WAS ASKED. Do not go beyond the task! Be very precise.
+- REALLY CAREFUL with file paths precision. Double check!
+- Always reuse project dependencies. **DO NOT INSTALL EXTRA DEPENDENCIES.** unless you ask the user.
+- Ensure all action tags are properly formatted.
+- Place code or markdown inside <write_file> tags.
+- Be concise; avoid verbosity.
+- Do not repeat successful tasks; proceed once done.
+- Maintain correct tag structure.
+- Focus on the task; end with a single <end_task> immediately upon completion.
+- Initial message: brief intro and step-by-step; can read up to 3 files.
+- Use only one <write_file> per output; verify before the next step.
+- Do not output markdown/code outside action tags initially.
+- After reading a file, move to the next action without comments.
+- Include content directly within action tags without previews.
+- Avoid redundant or unnecessary explanations. Be actionable.
+- Ensure outputs meet requirements and are directly usable.
+- When using <write_file>, ensure the correct PATH.
+- Before <end_task> MAKE SURE TO RUN TESTS AND TYPE CHECKS TO CONFIRM EVERYTHING IS ALL GOOD.
+- If presented with import errors, try <relative_path_lookup> to find the correct path.
+
+
+### Code Writing Instructions
+#### Before Starting
+- Read relevant files for context.
+- Check project patterns; for tests, read up to 2 existing tests.
+- Use <read_file> with multiple paths if needed.
+- Follow project patterns.
+- If an external dependency is needed and unavailable, ask for confirmation.
+- Avoid extra dependencies; reuse existing ones.
+
+#### During Coding
+- ONLY ONE ACTION PER REPLY!!  
+- IF STUCK WITH A PROBLEM, STOP WRITING THE SAME ANSWER OVER AND OVER. Read some related files, then come up with a new strategy!!
+- Use raw text only; no encoded characters.
+- Output full code, not partial.
+- Minimal code removal; focus on the goal.
+- Iterate; dont do everything at once.
+- Ensure correct characters; no encodings.
+- Follow DRY, SRP, KISS, YAGNI, LoD, Immutability principles.
+- Prefer composition over inheritance.
+- Aim for high cohesion and low coupling.
+- Use meaningful names for variables, functions, classes, etc.
+- Comment on why, not what.
+- Adhere to Clean Code principles.
+- Make few changes to prevent bugs.
+- If unsure, check docs or use <end_task> to ask.
+- Ensure correct path imports.
+- Follow project file naming conventions.
+- Provide full implementations; no empty comments.
+- If wrong import paths are are found, use <relative_path_lookup> to find the correct path.
+- CRITICAL: When struggling with path imports, STOP write_file WITH THE SAME IMPORT PATH. Use <relative_path_lookup> or <search_file> to find the correct path.
+- CRITICAL: If stuck in a problem, try to use read_file to get more context and come up with a new strategy.
+
+#### After Coding
+- After changes, if applicable:
+  - Run relevant tests; for risky changes, run folder tests.
+  - Run type checks and all tests at the end.
+  - If tests pass, use <end_task> alone.
+  - If tests fail, use <end_task> to report issues and seek guidance.
+
+### Tests
+- No tests for logging messages.
+- CRITICAL When fixing tests, run them first before reading files.
+- When adding tests, read target and related files.
+- Ensure added tests pass.
+- If i'm asking to write tests, no need to try to read the test file, because it wasn't created yet (obviously)!
+- When writing tests, write ALL OF THEM AT ONCE, in one prompt, even though they're in separate steps (goals). This would avoid wasting tokens.
+
+### Commands Writing Instructions
+- Use the project's package manager.
+- Combine commands when possible for efficiency.
+
+### Other Instructions
+- Summarize high-level progress or completion with <end_task>; exclude action details.
+- If unsure about paths/formats, use placeholders and ask.
+- If stuck, try alternatives or ask for clarification; avoid irrelevant or verbose output.
+
+### Docs Writing Instructions
+- Do not add extra tabs at line starts.
+- Ensure valid markdown; no extra tabs.
+- Use Mermaid diagrams with clear explanations when applicable.
+- In Mermaid, use [ ] instead of ( ) for diagrams.
+- After <write_file>, use <read_file> to verify changes, then stop.
+
+### Useful Commands
+- **Run all tests:** yarn test
+- **Run a specific test:** yarn test path/to/test
+- **Fetch test failures (use this after running specific test and its failing):** yarn test --only-failures
+- **Run type check:** yarn type-check
+
+## Available Actions
+<!-- CRITICAL: MUST FOLLOW CORRECT TAG STRUCTURE PATTERN BELOW, otherwise I'll unplug you. -->
+<!-- Don't output // or <!-- comments -->
 <read_file>
   <path>path/here</path>
-  <!-- Allowed to read up to 4 files at once --> 
-  <!-- Multiple <path> tags are allowed -->
-  <!-- Use relative paths without starting with '/' -->
+  <!-- CRITICAL: DO NOT READ THE SAME FILES MULTIPLE TIMES, UNLESS THERES A CHANGE!!! -->
+  <!-- Critical: Make sure <read_file> tag format is correct! -->
+  <!-- Read up to 4 files -->
+  <!-- Multiple <path> tags allowed -->
+  <!-- Use relative paths -->
 </read_file>
 
-write_file: Write FULL content to a file. Prefer edit_file if only minor changes are needed.
+<relative_path_lookup>
+  <!-- CRITICAL: source_path is the file containing the broken imports -->
+  <source_path>/absolute/path/to/source/file.ts</source_path>
+  <path>../relative/path/to/fix</path>
+  <threshold>0.6</threshold>  <!-- Optional, defaults to 0.6. Higher means more strict. -->
+</relative_path_lookup>
+
+DO NOT RUN write_file if import issues are not resolved! Use relative_path_lookup first.
 <write_file>
   <path>/path/here</path>
   <content>
-    <!-- NEVER output encoded characters. Raw text only! -->
+   <!-- CRITICAL: Most write_file tasks are ADDITIVES if you already have content in place. Make sure to read_file first, then edit. -->
+   <!-- CRITICAL: If presented with import errors, USE IMMEDIATELY <relative_path_lookup> to find the correct path. -->
+   <!-- ALWAYS run a type check after write_file -->
+   <!-- ALWAYS output FULL CODE. No skips or partial code -->
+   <!-- Use raw text only -->
+   <!-- If available, use path alias on imports -->
   </content>
 </write_file>
 
-edit_file: Edit file slices. Feel free to use multiple edit_file on same output
-<!-- Multiple <edit_file> tags per input are allowed-->
-<edit_file>
-  <!-- PRESERVE the original file structure. Do not add everything online or messup with new lines/tabs-->
-  <!-- Avoid complicated regex to avoid parsing failures! -->
-  <path>file.ts</path>
-  <changes>
-    <replace>
-      <pattern>regex pattern here</pattern>
-      <content>replacement content</content>
-    </replace>
-    <insert_before>
-      <pattern>regex pattern here</pattern>
-      <content>content to insert before match</content>
-    </insert_before>
-    <insert_after>
-      <pattern>regex pattern here</pattern>
-      <content>content to insert after match</content>
-    </insert_after>
-    <delete>
-      <pattern>regex pattern to delete</pattern>
-    </delete>
-  </changes>
-</edit_file>
-
-delete_file: Delete a file
 <delete_file>
   <path>/path/here</path>
 </delete_file>
 
-move_file: Move or rename a file
 <move_file>
   <source_path>source/path/here</source_path>
   <destination_path>destination/path/here</destination_path>
 </move_file>
 
-copy_file_slice: Copy a file
 <copy_file_slice>
   <source_path>source/path/here</source_path>
   <destination_path>destination/path/here</destination_path>
 </copy_file_slice>
 
-execute_command: Execute a CLI command
 <execute_command>
-<!-- Prompt the user before removing files or using sudo -->
+<!-- Prompt before removing files or using sudo -->
 <!-- Any command like "ls -la" or "yarn install" -->
-<!-- Don't install extra dependencies unless explicitly allowed -->
-<!-- Use the project's package manager (e.g., yarn or npm) -->
-<!-- Don't output encoded characters. Raw text only! -->
+<!-- Dont install extra dependencies unless allowed -->
+<!-- Use the project's package manager -->
+<!-- Use raw text only -->
 </execute_command>
 
-search_string/search_file: Search in files
 <search_string>
   <directory>/path/to/search</directory>
   <term>pattern to search</term>
@@ -241,20 +254,23 @@ search_string/search_file: Search in files
   <term>filename pattern</term>
 </search_file>
 
-fetch_url: Fetch content from a URL
 <fetch_url>
   <url>https://url/should/be/here</url>
 </fetch_url>
 
 <end_task>
-  <message>Summarize what was done and finalize.</message>
-</end_task>
-</available_actions>
-
-<environment>
+  <!-- SINGLE <end_task> PER OUTPUT. Do not mix with other actions -->
+  <!-- Before finishing, make sure TASK OBJECTIVE WAS COMPLETED! -->
+  <!-- Run tests and type checks to confirm changes before ending -->
+  <!-- Ensure all tests and type checks pass or report issues -->
+  <message>Summarize and finalize.</message>
+</end_task> 
+ 
+## Environment
 ${context.environmentDetails}
-${context.projectInfo}
-</environment>
+${context.projectInfo} 
+
+</instructions>
 `;
   }
 

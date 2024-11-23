@@ -12,6 +12,14 @@ The Cracked Dev CLI provides a powerful interface to interact with Large Languag
 - `-s, --stream`: Streams the AI response, allowing real-time interaction.
 - `-d, --debug`: Enables debug mode, providing detailed logs for troubleshooting.
 - `-o, --options`: Custom LLM options in `key=value` format. Customize model behavior and response generation.
+- `-i, --interactive`: Enables interactive mode for continuous conversation.
+- `--auto-scaler`: Enables auto-scaling of the model based on the number of tries. When enabled, the model will scale up or down based on the try count.
+
+## Best Practices
+
+- **Typed Language**: The CLI works best in a typed language like TypeScript, which helps catch errors early and improves code quality.
+- **Tests**: Ensure you have a robust suite of tests. The CLI relies on feedback from tests to determine if its actions are moving towards the goal.
+- **Path Aliases**: Configure path aliases to simplify imports and make your codebase more maintainable.
 
 ## Examples
 
@@ -34,6 +42,46 @@ yarn dev:cli crkd --instructions "Follow clean code" --provider "open-router" --
 ```
 
 This command sends a request with custom instructions `"Follow clean code"`, uses the `openai/gpt-4o-mini` model, and streams the response with specified options.
+
+### Example Usage with Root Path
+
+To specify a root path for the codebase:
+
+```bash
+yarn dev:cli crkd --root ./my-project --provider "open-router" --model "gpt-4" "Add error handling"
+```
+
+This command operates on the `./my-project` directory, uses the `gpt-4` model from `open-router`, and performs the task of adding error handling.
+
+### Example Usage with Instructions Path
+
+To use a custom instructions file:
+
+```bash
+yarn dev:cli crkd --instructions-path ./instructions.md --provider "open-router" --model "gpt-4" "Create component"
+```
+
+This command uses the instructions provided in `./instructions.md`, uses the `gpt-4` model from `open-router`, and creates a component.
+
+### Interactive Mode
+
+To start the CLI in interactive mode:
+
+```bash
+yarn dev:cli crkd --interactive -m gpt-4 -p open-router
+```
+
+This command starts the CLI in interactive mode, allowing you to continuously send messages to the AI and receive responses. Type "exit" or press Ctrl+C to quit.
+
+### Auto-Scaler Mode
+
+To enable auto-scaling of the model based on the number of tries:
+
+```bash
+yarn dev:cli crkd --auto-scaler --provider "open-router" --model "gpt-4" "Create component"
+```
+
+This command enables auto-scaling, which will adjust the model based on the number of tries, using the `gpt-4` model from `open-router`, and creates a component.
 
 ## Available Options
 

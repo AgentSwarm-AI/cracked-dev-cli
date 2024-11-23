@@ -1,6 +1,6 @@
+import { ILLMProvider, IMessage } from "@services/LLM/ILLMProvider";
+import { OpenRouterAPI } from "@services/LLMProviders/OpenRouter/OpenRouterAPI";
 import { autoInjectable, container, singleton } from "tsyringe";
-import { OpenRouterAPI } from "../LLMProviders/OpenRouter/OpenRouterAPI";
-import { ILLMProvider, IMessage } from "./ILLMProvider";
 
 export enum LLMProviderType {
   OpenRouter = "open-router",
@@ -64,7 +64,12 @@ export class LLMProvider implements ILLMProvider {
     if (!this.currentProvider) {
       throw new Error("Current provider not set");
     }
-    return this.currentProvider.sendMessageWithContext(model, message, systemInstructions, options);
+    return this.currentProvider.sendMessageWithContext(
+      model,
+      message,
+      systemInstructions,
+      options,
+    );
   }
 
   public clearConversationContext(): void {
@@ -118,6 +123,11 @@ export class LLMProvider implements ILLMProvider {
     if (!this.currentProvider) {
       throw new Error("Current provider not set");
     }
-    return this.currentProvider.streamMessage(model, message, callback, options);
+    return this.currentProvider.streamMessage(
+      model,
+      message,
+      callback,
+      options,
+    );
   }
 }

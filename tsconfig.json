@@ -14,7 +14,18 @@
     "allowJs": true,
     "resolveJsonModule": true,
     "experimentalDecorators": true,
-    "emitDecoratorMetadata": true
+    "emitDecoratorMetadata": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@constants/*": ["src/constants/*"],
+      "@services/*": ["src/services/*"],
+      "@utils/*": ["src/services/utils/*"],
+      "@middleware/*": ["src/middleware/*"],
+      "@commands/*": ["src/commands/*"],
+      "@config/*": ["src/config/*"],
+      "@tests/*": ["src/jest/*"]
+    }
   },
   "include": ["src"],
   "exclude": ["node_modules", "dist"]

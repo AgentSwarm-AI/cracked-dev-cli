@@ -1,56 +1,89 @@
+// src/services/LLM/__tests__/LLMProvider.test.ts
+import { ILLMProvider } from "@services/LLM/ILLMProvider";
+import { LLMProvider, LLMProviderType } from "@services/LLM/LLMProvider";
+import { MessageContextManager } from "@services/LLM/MessageContextManager";
+import { OpenRouterAPI } from "@services/LLMProviders/OpenRouter/OpenRouterAPI";
+import { UnitTestMocker } from "@tests/mocks/UnitTestMocker";
 import { container } from "tsyringe";
-import { OpenRouterAPI } from "../../LLMProviders/OpenRouter/OpenRouterAPI";
-import { ILLMProvider } from "../ILLMProvider";
-import { LLMProvider, LLMProviderType } from "../LLMProvider";
-import { ConversationContext } from "../ConversationContext";
-
-jest.mock("../../LLMProviders/OpenRouter/OpenRouterAPI");
-jest.mock("../ConversationContext");
 
 describe("LLMProvider", () => {
   let provider: ILLMProvider;
-  let mockOpenRouterAPI: jest.Mocked<OpenRouterAPI>;
-  let mockConversationContext: jest.Mocked<ConversationContext>;
+  let mocker: UnitTestMocker;
 
   beforeEach(() => {
-    mockConversationContext = new ConversationContext() as jest.Mocked<ConversationContext>;
-    jest.spyOn(mockConversationContext, "setSystemInstructions").mockImplementation();
-    jest.spyOn(mockConversationContext, "getSystemInstructions").mockReturnValue(null);
-    jest.spyOn(mockConversationContext, "getMessages").mockReturnValue([]);
-    jest.spyOn(mockConversationContext, "clear").mockImplementation();
-    jest.spyOn(mockConversationContext, "addMessage").mockImplementation();
+    mocker = new UnitTestMocker();
 
-    mockOpenRouterAPI = new OpenRouterAPI(mockConversationContext) as jest.Mocked<OpenRouterAPI>;
-    jest.spyOn(mockOpenRouterAPI, "sendMessage").mockResolvedValue("response");
-    jest.spyOn(mockOpenRouterAPI, "sendMessageWithContext").mockResolvedValue("response");
-    jest.spyOn(mockOpenRouterAPI, "clearConversationContext").mockImplementation();
-    jest.spyOn(mockOpenRouterAPI, "getConversationContext").mockReturnValue([]);
-    jest.spyOn(mockOpenRouterAPI, "addSystemInstructions").mockImplementation();
-    jest.spyOn(mockOpenRouterAPI, "getAvailableModels").mockResolvedValue(["model1", "model2"]);
-    jest.spyOn(mockOpenRouterAPI, "validateModel").mockResolvedValue(true);
-    jest.spyOn(mockOpenRouterAPI, "getModelInfo").mockResolvedValue({});
-    jest.spyOn(mockOpenRouterAPI, "streamMessage").mockResolvedValue(undefined);
+    // Mock OpenRouterAPI methods
+    mocker.spyOnPrototypeWithImplementation(
+      OpenRouterAPI,
+      "sendMessage",
+      async () => "response",
+    );
+    mocker.spyOnPrototypeWithImplementation(
+      OpenRouterAPI,
+      "sendMessageWithContext",
+      async () => "response",
+    );
+    mocker.spyOnPrototypeWithImplementation(
+      OpenRouterAPI,
+      "clearConversationContext",
+      () => {},
+    );
+    mocker.spyOnPrototypeWithImplementation(
+      OpenRouterAPI,
+      "getConversationContext",
+      () => [],
+    );
+    mocker.spyOnPrototypeWithImplementation(
+      OpenRouterAPI,
+      "addSystemInstructions",
+      () => {},
+    );
+    mocker.spyOnPrototypeWithImplementation(
+      OpenRouterAPI,
+      "getAvailableModels",
+      async () => ["model1", "model2"],
+    );
+    mocker.spyOnPrototypeWithImplementation(
+      OpenRouterAPI,
+      "validateModel",
+      async () => true,
+    );
+    mocker.spyOnPrototypeWithImplementation(
+      OpenRouterAPI,
+      "getModelInfo",
+      async () => ({}),
+    );
+    mocker.spyOnPrototypeWithImplementation(
+      OpenRouterAPI,
+      "streamMessage",
+      async () => {},
+    );
 
-    // Mocking container.resolve to return the LLMProvider instance
-    container.resolve = jest.fn().mockImplementation((token) => {
-      if (token === ConversationContext) {
-        return mockConversationContext;
-      } else if (token === OpenRouterAPI) {
-        return mockOpenRouterAPI;
-      } else if (token === LLMProvider) {
-        return new LLMProvider();
-      }
-      return null;
-    });
+    // Mock MessageContextManager methods
+    mocker.spyOnPrototype(MessageContextManager, "getMessages", []);
+    mocker.spyOnPrototype(MessageContextManager, "addMessage", undefined);
+    mocker.spyOnPrototype(MessageContextManager, "clear", undefined);
+    mocker.spyOnPrototype(
+      MessageContextManager,
+      "setSystemInstructions",
+      undefined,
+    );
 
-    // Resolving LLMProvider after setting up the mocks
+    // Resolve LLMProvider from the container
     provider = container.resolve(LLMProvider);
+  });
+
+  afterEach(() => {
+    mocker.clearAllMocks();
+    container.clearInstances();
+    jest.clearAllMocks();
   });
 
   describe("getInstance", () => {
     it("should return an instance of OpenRouterAPI for OpenRouter provider type", () => {
-      provider = LLMProvider.getInstance(LLMProviderType.OpenRouter);
-      expect(provider).toBe(mockOpenRouterAPI);
+      const instance = LLMProvider.getInstance(LLMProviderType.OpenRouter);
+      expect(instance).toBeInstanceOf(OpenRouterAPI);
     });
 
     it("should throw an error if the provider type is not recognized", () => {
@@ -61,16 +94,13 @@ describe("LLMProvider", () => {
   });
 
   describe("Delegated Methods", () => {
-    beforeEach(() => {
-      provider = LLMProvider.getInstance(LLMProviderType.OpenRouter);
-    });
-
     it("should delegate sendMessage to the current provider", async () => {
       const response = await provider.sendMessage("model", "message");
       expect(response).toBe("response");
-      expect(mockOpenRouterAPI.sendMessage).toHaveBeenCalledWith(
+      expect(OpenRouterAPI.prototype.sendMessage).toHaveBeenCalledWith(
         "model",
         "message",
+        undefined,
       );
     });
 
@@ -81,69 +111,109 @@ describe("LLMProvider", () => {
         "systemInstructions",
       );
       expect(response).toBe("response");
-      expect(mockOpenRouterAPI.sendMessageWithContext).toHaveBeenCalledWith(
+      expect(
+        OpenRouterAPI.prototype.sendMessageWithContext,
+      ).toHaveBeenCalledWith(
         "model",
         "message",
         "systemInstructions",
+        undefined,
       );
     });
 
     it("should delegate clearConversationContext to the current provider", () => {
       provider.clearConversationContext();
-      expect(mockOpenRouterAPI.clearConversationContext).toHaveBeenCalled();
+      expect(
+        OpenRouterAPI.prototype.clearConversationContext,
+      ).toHaveBeenCalled();
     });
 
     it("should delegate getConversationContext to the current provider", () => {
       const context = provider.getConversationContext();
       expect(context).toEqual([]);
-      expect(mockOpenRouterAPI.getConversationContext).toHaveBeenCalled();
+      expect(OpenRouterAPI.prototype.getConversationContext).toHaveBeenCalled();
     });
 
     it("should delegate addSystemInstructions to the current provider", () => {
       provider.addSystemInstructions("instructions");
-      expect(mockOpenRouterAPI.addSystemInstructions).toHaveBeenCalledWith(
-        "instructions",
-      );
+      expect(
+        OpenRouterAPI.prototype.addSystemInstructions,
+      ).toHaveBeenCalledWith("instructions");
     });
 
     it("should delegate getAvailableModels to the current provider", async () => {
       const models = await provider.getAvailableModels();
       expect(models).toEqual(["model1", "model2"]);
-      expect(mockOpenRouterAPI.getAvailableModels).toHaveBeenCalled();
+      expect(OpenRouterAPI.prototype.getAvailableModels).toHaveBeenCalled();
     });
 
     it("should delegate validateModel to the current provider", async () => {
       const isValid = await provider.validateModel("model");
       expect(isValid).toBe(true);
-      expect(mockOpenRouterAPI.validateModel).toHaveBeenCalledWith("model");
+      expect(OpenRouterAPI.prototype.validateModel).toHaveBeenCalledWith(
+        "model",
+      );
     });
 
     it("should delegate getModelInfo to the current provider", async () => {
       const modelInfo = await provider.getModelInfo("model");
       expect(modelInfo).toEqual({});
-      expect(mockOpenRouterAPI.getModelInfo).toHaveBeenCalledWith("model");
+      expect(OpenRouterAPI.prototype.getModelInfo).toHaveBeenCalledWith(
+        "model",
+      );
     });
 
     it("should delegate streamMessage to the current provider", async () => {
       const mockCallback = jest.fn();
       await provider.streamMessage("model", "message", mockCallback);
-      expect(mockOpenRouterAPI.streamMessage).toHaveBeenCalledWith(
+      expect(OpenRouterAPI.prototype.streamMessage).toHaveBeenCalledWith(
         "model",
         "message",
         mockCallback,
+        undefined,
       );
     });
 
     it("should throw an error when sendMessage is called with an unsupported model", async () => {
-      mockOpenRouterAPI.validateModel = jest.fn().mockResolvedValue(false);
-      mockOpenRouterAPI.sendMessage = jest.fn().mockRejectedValue(new Error("Model not available"));
-      await expect(provider.sendMessage("unsupported-model", "message")).rejects.toThrowError("Model not available");
+      mocker.spyOnPrototypeWithImplementation(
+        OpenRouterAPI,
+        "sendMessage",
+        async () => {
+          throw new Error("Model not available");
+        },
+      );
+      mocker.spyOnPrototypeWithImplementation(
+        OpenRouterAPI,
+        "validateModel",
+        async () => false,
+      );
+
+      await expect(
+        provider.sendMessage("unsupported-model", "message"),
+      ).rejects.toThrow("Model not available");
     });
 
     it("should throw an error when sendMessageWithContext is called with an unsupported model", async () => {
-      mockOpenRouterAPI.validateModel = jest.fn().mockResolvedValue(false);
-      mockOpenRouterAPI.sendMessageWithContext = jest.fn().mockRejectedValue(new Error("Model not available"));
-      await expect(provider.sendMessageWithContext("unsupported-model", "message", "systemInstructions")).rejects.toThrowError("Model not available");
+      mocker.spyOnPrototypeWithImplementation(
+        OpenRouterAPI,
+        "sendMessageWithContext",
+        async () => {
+          throw new Error("Model not available");
+        },
+      );
+      mocker.spyOnPrototypeWithImplementation(
+        OpenRouterAPI,
+        "validateModel",
+        async () => false,
+      );
+
+      await expect(
+        provider.sendMessageWithContext(
+          "unsupported-model",
+          "message",
+          "systemInstructions",
+        ),
+      ).rejects.toThrow("Model not available");
     });
   });
 });

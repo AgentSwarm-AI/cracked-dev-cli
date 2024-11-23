@@ -1,8 +1,11 @@
+import {
+  IFileSearch,
+  IFileSearchResult,
+} from "@services/FileManagement/types/FileManagementTypes";
 import fg from "fast-glob";
 import fs from "fs-extra";
 import path from "path";
 import { autoInjectable } from "tsyringe";
-import { IFileSearch, IFileSearchResult } from "./types/FileManagementTypes";
 
 @autoInjectable()
 export class FileSearch implements IFileSearch {

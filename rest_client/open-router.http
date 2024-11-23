@@ -1,0 +1,5 @@
+# Activate Premium Account
+
+GET {{openRouterURL}}/models HTTP/1.1
+Authorization: Bearer {{openRouteRAPIKey}}
+content-type: application/json

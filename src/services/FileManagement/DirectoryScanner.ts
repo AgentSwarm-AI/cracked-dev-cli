@@ -1,8 +1,11 @@
+import {
+  IDirectoryScanner,
+  TreeOptions,
+} from "@services/FileManagement/types/DirectoryScannerTypes";
+import { IFileOperationResult } from "@services/FileManagement/types/FileManagementTypes";
 import fs from "fs";
 import path from "path";
 import { autoInjectable } from "tsyringe";
-import { IDirectoryScanner, TreeOptions } from "./types/DirectoryScannerTypes";
-import { IFileOperationResult } from "./types/FileManagementTypes";
 
 @autoInjectable()
 export class DirectoryScanner implements IDirectoryScanner {

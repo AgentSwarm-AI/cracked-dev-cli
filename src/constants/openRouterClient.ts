@@ -1,5 +1,5 @@
+import { appEnv } from "@config/appEnv";
 import axios, { AxiosInstance } from "axios";
-import { appEnv } from "../appEnv";
 
 export const createOpenRouterClient = (baseURL: string): AxiosInstance => {
   return axios.create({

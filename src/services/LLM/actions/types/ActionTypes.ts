@@ -1,9 +1,3 @@
-export interface IActionResult {
-  success: boolean;
-  data?: any;
-  error?: Error;
-}
-
 export type ActionType =
   | "read_file"
   | "write_file"
@@ -15,20 +9,27 @@ export type ActionType =
   | "search_file"
   | "end_task"
   | "fetch_url"
-  | "edit_file";
+  | "edit_file"
+  | "relative_path_lookup";
+
+export interface IActionResult {
+  success: boolean;
+  data?: any;
+  error?: Error;
+}
 
 export interface IActionDependency {
   actionId: string;
   type: ActionType;
   content: string;
-  dependsOn?: string[]; // Array of action IDs this action depends on
+  dependsOn?: string[];
 }
 
 export interface IActionGroup {
   actions: IActionDependency[];
-  parallel: boolean; // Whether actions in this group can be executed in parallel
+  parallel: boolean;
 }
 
 export interface IActionExecutionPlan {
-  groups: IActionGroup[]; // Groups of actions to be executed in sequence
+  groups: IActionGroup[];
 }

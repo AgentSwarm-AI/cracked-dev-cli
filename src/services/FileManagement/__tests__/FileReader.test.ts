@@ -1,6 +1,6 @@
+import { FileReader } from "@services/FileManagement/FileReader"; // Adjust the import based on the actual export
 import fs from "fs/promises";
 import path from "path";
-import { FileReader } from "../FileReader"; // Adjust the import based on the actual export
 
 describe("FileReader", () => {
   const filePath = path.join(__dirname, "testFile.txt"); // Use a relative path

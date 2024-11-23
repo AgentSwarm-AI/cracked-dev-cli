@@ -1,5 +1,5 @@
+import { Colors } from "@constants/colors";
 import { autoInjectable, singleton } from "tsyringe";
-import { Colors } from "../../constants/colors";
 
 @singleton()
 @autoInjectable()
@@ -10,6 +10,25 @@ export class DebugLogger {
 
   setDebug(debug: boolean) {
     this.debug = debug;
+  }
+
+  private formatData(data: any): string {
+    if (typeof data === "string") {
+      return data;
+    }
+
+    if (typeof data === "object") {
+      try {
+        return JSON.stringify(data, null, 2)
+          .replace(/\\\\/g, "\\")
+          .replace(/\\"/g, '"')
+          .replace(/\\n/g, "\n");
+      } catch {
+        return String(data);
+      }
+    }
+
+    return String(data);
   }
 
   log(type: string, message: string, data?: any) {
@@ -25,17 +44,11 @@ export class DebugLogger {
 
     if (data) {
       console.log(`\n${Colors.magenta}Data:${Colors.reset}`);
-      if (typeof data === "object") {
-        const jsonString = JSON.stringify(data, null, 2)
-          .replace(/\\n/g, "\n")
-          .split("\n")
-          .map((line) => `  ${line}`)
-          .join("\n");
-        console.log(`${Colors.blue}${jsonString}${Colors.reset}`);
-      } else {
-        const formattedData = String(data).replace(/\\n/g, "\n");
-        console.log(`${Colors.blue}  ${formattedData}${Colors.reset}`);
-      }
+      const formattedData = this.formatData(data)
+        .split("\n")
+        .map((line) => `  ${line}`)
+        .join("\n");
+      console.log(`${Colors.blue}${formattedData}${Colors.reset}`);
       console.log(subDivider);
     }
   }

@@ -1,6 +1,6 @@
+import { ActionTagsExtractor } from "@services/LLM/actions/ActionTagsExtractor";
+import { IActionResult } from "@services/LLM/actions/types/ActionTypes";
 import { autoInjectable } from "tsyringe";
-import { ActionTagsExtractor } from "./ActionTagsExtractor";
-import { IActionResult } from "./types/ActionTypes";
 
 @autoInjectable()
 export class EndTaskAction {

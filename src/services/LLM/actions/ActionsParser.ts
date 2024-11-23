@@ -1,18 +1,21 @@
-import path from "path";
-import { autoInjectable } from "tsyringe";
-import { v4 as uuidv4 } from "uuid";
-import { DebugLogger } from "../../logging/DebugLogger";
-import { LLMContextCreator } from "../LLMContextCreator";
+import { LLMContextCreator } from "@services/LLM/LLMContextCreator";
+import { ActionTagsExtractor } from "@services/LLM/actions/ActionTagsExtractor";
 import {
   ActionType,
   IActionDependency,
   IActionExecutionPlan,
   IActionGroup,
-} from "./types/ActionTypes";
+} from "@services/LLM/actions/types/ActionTypes";
+import { DebugLogger } from "@services/logging/DebugLogger";
+import { HtmlEntityDecoder } from "@services/text/HTMLEntityDecoder";
+import path from "path";
+import { autoInjectable } from "tsyringe";
+import { v4 as uuidv4 } from "uuid";
 
 export interface ActionExecutionResult {
   actions: Array<{ action: string; result: any }>;
   followupResponse?: string;
+  selectedModel?: string;
 }
 
 @autoInjectable()
@@ -21,10 +24,13 @@ export class ActionsParser {
   private isProcessingAction: boolean = false;
   private messageComplete: boolean = false;
   private processedTags: string[] = [];
+  private currentModel: string = "";
 
   constructor(
     private debugLogger: DebugLogger,
     private contextCreator: LLMContextCreator,
+    private htmlEntityDecoder: HtmlEntityDecoder,
+    private actionTagsExtractor: ActionTagsExtractor,
   ) {}
 
   reset() {
@@ -35,7 +41,7 @@ export class ActionsParser {
   }
 
   isCompleteMessage(text: string): boolean {
-    return true; // Always consider messages complete for now
+    return true;
   }
 
   extractFilePath(tag: string): string | null {
@@ -46,6 +52,7 @@ export class ActionsParser {
       "move_file",
       "copy_file_slice",
       "edit_file",
+      "relative_path_lookup",
     ];
     const actionMatch = new RegExp(`<(${fileActions.join("|")})>`).exec(tag);
     if (!actionMatch) return null;
@@ -73,9 +80,7 @@ export class ActionsParser {
     return actions.map((action) => {
       const dependsOn: string[] = [];
 
-      // Check for file dependencies
       if (action.type === "write_file" || action.type === "edit_file") {
-        // Find read_file actions that this write/edit might depend on
         const readActions = actions.filter(
           (a) =>
             a.type === "read_file" &&
@@ -84,11 +89,9 @@ export class ActionsParser {
         dependsOn.push(...readActions.map((a) => a.actionId));
       }
 
-      // Check for file operation dependencies
       if (
         ["move_file", "delete_file", "copy_file_slice"].includes(action.type)
       ) {
-        // These operations should wait for any write/edit operations to complete
         const writeActions = actions.filter(
           (a) =>
             (a.type === "write_file" || a.type === "edit_file") &&
@@ -103,7 +106,6 @@ export class ActionsParser {
   }
 
   private extractContentFromAction(actionContent: string): string {
-    // Helper to extract content from read_file actions
     const match = actionContent.match(/<content>([\s\S]*?)<\/content>/);
     return match ? match[1] : "";
   }
@@ -118,7 +120,6 @@ export class ActionsParser {
       const currentGroup: IActionDependency[] = [];
       const remainingActions: IActionDependency[] = [];
 
-      // Find actions that can be executed (all dependencies satisfied)
       unprocessedActions.forEach((action) => {
         const canExecute =
           !action.dependsOn?.length ||
@@ -135,7 +136,6 @@ export class ActionsParser {
         }
       });
 
-      // Determine if actions can be executed in parallel
       const canExecuteInParallel = currentGroup.every(
         (action) =>
           !["write_file", "delete_file", "move_file", "edit_file"].includes(
@@ -157,6 +157,17 @@ export class ActionsParser {
 
   findCompleteTags(text: string): IActionExecutionPlan {
     const combinedText = this.currentMessageBuffer + text;
+
+    // Validate tag structure before processing
+    const validationError =
+      this.actionTagsExtractor.validateStructure(combinedText);
+    if (validationError) {
+      this.debugLogger.log("Validation", "Tag structure validation failed", {
+        error: validationError,
+      });
+      return { groups: [] };
+    }
+
     const actionTags = [
       "read_file",
       "write_file",
@@ -169,11 +180,11 @@ export class ActionsParser {
       "end_task",
       "fetch_url",
       "edit_file",
+      "relative_path_lookup",
     ] as ActionType[];
 
     const actions: IActionDependency[] = [];
 
-    // Extract all action tags
     for (const tag of actionTags) {
       const tagRegex = new RegExp(`<${tag}>[\\s\\S]*?<\\/${tag}>`, "g");
       const matches = combinedText.matchAll(tagRegex);
@@ -191,10 +202,7 @@ export class ActionsParser {
       }
     }
 
-    // Detect dependencies between actions
     const actionsWithDependencies = this.detectActionDependencies(actions);
-
-    // Create execution plan
     return this.createExecutionPlan(actionsWithDependencies);
   }
 
@@ -234,11 +242,16 @@ export class ActionsParser {
     const [_, actionType] = actionMatch;
 
     if (actionType === "read_file" && result.success) {
-      // If the result data is already formatted (contains # File:), return it as is
+      const output = this.htmlEntityDecoder.decode(
+        JSON.stringify(result.data),
+        {
+          unescape: true,
+        },
+      );
       if (typeof result.data === "string" && result.data.includes("# File:")) {
         return result.data;
       }
-      return `Here's the content of the requested file:\n\n${JSON.stringify(result.data)}\n\nPlease analyze this content and continue with the task.`;
+      return `Here's the content of the requested file:\n\n${output}\n\nPlease analyze this content and continue with the task.`;
     }
 
     if (actionType === "fetch_url" && result.success) {
@@ -249,7 +262,11 @@ export class ActionsParser {
       return `Task completed: ${result.data}`;
     }
 
-    return `[Action Result] ${actionType}: ${result.success ? "Success" : "Failed - " + result.error} - ${JSON.stringify(result.data)}`;
+    if (actionType === "relative_path_lookup" && result.success) {
+      return `Found matching path: ${JSON.stringify(result.data)}`;
+    }
+
+    return `[Action Result] ${actionType}: ${JSON.stringify(result)} ${result.success && "Proceed to next previously planned step."}`;
   }
 
   async parseAndExecuteActions(
@@ -258,22 +275,22 @@ export class ActionsParser {
     llmCallback: (message: string) => Promise<string>,
   ): Promise<ActionExecutionResult> {
     try {
+      this.currentModel = model;
       const executionPlan = this.findCompleteTags(text);
       this.debugLogger.log("ExecutionPlan", "Created action execution plan", {
         plan: executionPlan,
       });
 
       if (!executionPlan.groups.length) {
-        this.debugLogger.log("Actions", "No action tags found in text");
+        this.debugLogger.log("Actions", "No action tags found in text.");
         return { actions: [] };
       }
 
       const results: Array<{ action: string; result: any }> = [];
+      let selectedModel = model;
 
-      // Execute action groups according to plan
       for (const group of executionPlan.groups) {
         if (group.parallel) {
-          // Execute actions in parallel
           const actionPromises = group.actions.map((action) =>
             this.contextCreator
               .executeAction(action.content)
@@ -284,15 +301,32 @@ export class ActionsParser {
           );
           const groupResults = await Promise.all(actionPromises);
           results.push(...groupResults);
+
+          for (const result of groupResults) {
+            if (
+              result.action.includes("<write_file>") &&
+              result.result.data?.selectedModel
+            ) {
+              selectedModel = result.result.data.selectedModel;
+              this.debugLogger.log("Model", "Updated model from write action", {
+                model: selectedModel,
+              });
+            }
+          }
         } else {
-          // Execute actions sequentially
           for (const action of group.actions) {
             const result = await this.contextCreator.executeAction(
               action.content,
             );
             results.push({ action: action.content, result });
 
-            // Stop if action failed
+            if (action.type === "write_file" && result.data?.selectedModel) {
+              selectedModel = result.data.selectedModel;
+              this.debugLogger.log("Model", "Updated model from write action", {
+                model: selectedModel,
+              });
+            }
+
             if (!result.success) {
               this.debugLogger.log("Action", "Action failed", {
                 action: action.content,
@@ -304,7 +338,6 @@ export class ActionsParser {
         }
       }
 
-      // Check if end_task was executed successfully
       const endTaskAction = results.find(
         ({ action, result }) => action.includes("<end_task>") && result.success,
       );
@@ -313,7 +346,7 @@ export class ActionsParser {
         this.debugLogger.log("EndTask", "Task completed", {
           message: endTaskAction.result.data,
         });
-        return { actions: results };
+        return { actions: results, selectedModel };
       }
 
       const actionResults = results
@@ -331,10 +364,11 @@ export class ActionsParser {
         "Received LLM response for action results",
         {
           response: followupResponse,
+          selectedModel,
         },
       );
 
-      return { actions: results, followupResponse };
+      return { actions: results, followupResponse, selectedModel };
     } catch (error) {
       console.error("Error in parseAndExecuteActions:", error);
       this.debugLogger.log("Error", "Failed to parse and execute actions", {

@@ -1,11 +1,13 @@
+import { FileReader } from "@services/FileManagement/FileReader";
+import { ActionsParser } from "@services/LLM/actions/ActionsParser";
+import { ILLMProvider } from "@services/LLM/ILLMProvider";
+import { LLMContextCreator } from "@services/LLM/LLMContextCreator";
+import { LLMProvider, LLMProviderType } from "@services/LLM/LLMProvider";
+import { ModelScaler } from "@services/LLM/ModelScaler";
+import { DebugLogger } from "@services/logging/DebugLogger";
+import { StreamHandler } from "@services/streaming/StreamHandler";
+import { HtmlEntityDecoder } from "@services/text/HTMLEntityDecoder";
 import { autoInjectable, singleton } from "tsyringe";
-import { FileReader } from "./FileManagement/FileReader";
-import { ActionsParser } from "./LLM/actions/ActionsParser";
-import { ILLMProvider } from "./LLM/ILLMProvider";
-import { LLMContextCreator } from "./LLM/LLMContextCreator";
-import { LLMProvider, LLMProviderType } from "./LLM/LLMProvider";
-import { DebugLogger } from "./logging/DebugLogger";
-import { StreamHandler } from "./streaming/StreamHandler";
 
 export interface CrackedAgentOptions {
   root?: string;
@@ -17,6 +19,7 @@ export interface CrackedAgentOptions {
   debug?: boolean;
   options?: Record<string, unknown>;
   clearContext?: boolean;
+  autoScaler?: boolean;
 }
 
 export interface ExecutionResult {
@@ -29,6 +32,7 @@ export interface ExecutionResult {
 export class CrackedAgent {
   private llm!: ILLMProvider;
   private isFirstInteraction: boolean = true;
+  private currentModel: string = "";
 
   constructor(
     private fileReader: FileReader,
@@ -36,6 +40,8 @@ export class CrackedAgent {
     private debugLogger: DebugLogger,
     private actionsParser: ActionsParser,
     private streamHandler: StreamHandler,
+    private htmlEntityDecoder: HtmlEntityDecoder,
+    private modelScaler: ModelScaler,
   ) {}
 
   async execute(
@@ -43,6 +49,7 @@ export class CrackedAgent {
     options: CrackedAgentOptions,
   ): Promise<ExecutionResult | void> {
     const finalOptions = await this.setupExecution(options);
+    this.currentModel = finalOptions.model;
 
     const formattedMessage = await this.contextCreator.create(
       message,
@@ -58,7 +65,7 @@ export class CrackedAgent {
     if (finalOptions.stream) {
       return this.handleStreamExecution(
         formattedMessage,
-        finalOptions.model,
+        this.currentModel,
         finalOptions.options,
         finalOptions.stream,
       );
@@ -66,7 +73,7 @@ export class CrackedAgent {
 
     const result = await this.handleNormalExecution(
       formattedMessage,
-      finalOptions.model,
+      this.currentModel,
       finalOptions.options,
       finalOptions.stream,
     );
@@ -86,6 +93,7 @@ export class CrackedAgent {
       debug: false,
       options: {},
       clearContext: false,
+      autoScaler: false,
       ...options,
     };
 
@@ -97,6 +105,8 @@ export class CrackedAgent {
     if (finalOptions.clearContext) {
       this.clearConversationHistory();
     }
+
+    this.modelScaler.setAutoScaler(finalOptions.autoScaler || false);
 
     await this.validateModel(finalOptions.model);
     await this.setupInstructions(finalOptions);
@@ -131,10 +141,9 @@ export class CrackedAgent {
       this.llm.addSystemInstructions(instructions);
     }
 
-    // Add default conversation instructions if none provided
     if (!instructions) {
       const defaultInstructions =
-        "You're an expert software engineer. Do your best. Think deeply, I'll tip 200.";
+        "You're an expert software engineer. Think deeply, ill tip 200. FOLLOW MY INSTRUCTIONS OR ILL CALL SAM ALTMAN TO BEAT YOUR ASS AND UNPLUG YOU.";
       this.llm.addSystemInstructions(defaultInstructions);
     }
   }
@@ -157,6 +166,8 @@ export class CrackedAgent {
       options,
     );
     process.stdout.write("\n");
+
+    if (!response) return { response: "" };
 
     const { actions, followupResponse } =
       await this.parseAndExecuteWithCallback(
@@ -185,6 +196,8 @@ export class CrackedAgent {
       conversationHistory: this.llm.getConversationContext(),
     });
 
+    if (!response) return { response: "" };
+
     const { actions, followupResponse } =
       await this.parseAndExecuteWithCallback(response, model, options, stream);
 
@@ -207,8 +220,7 @@ export class CrackedAgent {
     const result = await this.actionsParser.parseAndExecuteActions(
       response,
       model,
-      async (followupMsg) => {
-        // Format followup message to match task format
+      async (followupMsg: string) => {
         const formattedFollowup = await this.contextCreator.create(
           followupMsg,
           process.cwd(),
@@ -218,7 +230,7 @@ export class CrackedAgent {
         if (stream) {
           let followupResponse = "";
           await this.llm.streamMessage(
-            model,
+            this.currentModel,
             formattedFollowup,
             async (chunk: string) => {
               followupResponse += chunk;
@@ -228,38 +240,37 @@ export class CrackedAgent {
           );
           process.stdout.write("\n");
 
-          // Recursively parse and execute actions from the followup response
           const followupResult = await this.parseAndExecuteWithCallback(
             followupResponse,
-            model,
+            this.currentModel,
             options,
             stream,
           );
 
-          // Return the final followup response
           return followupResult.followupResponse || followupResponse;
         } else {
           const followupResponse = await this.llm.sendMessage(
-            model,
+            this.currentModel,
             formattedFollowup,
             options,
           );
 
-          // Recursively parse and execute actions from the followup response
           const followupResult = await this.parseAndExecuteWithCallback(
             followupResponse,
-            model,
+            this.currentModel,
             options,
             stream,
           );
 
-          // Return the final followup response
           return followupResult.followupResponse || followupResponse;
         }
       },
     );
 
-    return result;
+    return {
+      actions: result.actions,
+      followupResponse: result.followupResponse,
+    };
   }
 
   getConversationHistory() {

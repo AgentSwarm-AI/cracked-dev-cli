@@ -1,6 +1,6 @@
-import { FileSearch } from "../../../FileManagement/FileSearch";
-import { ActionTagsExtractor } from "../ActionTagsExtractor";
-import { SearchAction } from "../SearchAction";
+import { FileSearch } from "@services/FileManagement/FileSearch";
+import { ActionTagsExtractor } from "@services/LLM/actions/ActionTagsExtractor";
+import { SearchAction } from "@services/LLM/actions/SearchAction";
 
 describe("SearchAction", () => {
   let searchAction: SearchAction;

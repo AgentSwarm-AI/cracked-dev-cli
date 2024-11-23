@@ -1,6 +1,6 @@
+import { ProjectInfo } from "@services/LLM/utils/ProjectInfo";
 import fs from "fs";
 import { container } from "tsyringe";
-import { ProjectInfo } from "../ProjectInfo";
 
 const mockFileScan = () => {
   return Promise.resolve({
@@ -90,9 +90,7 @@ describe("ProjectInfo", () => {
       # Comment
     `;
 
-    jest
-      .spyOn(fs.promises, "readFile")
-      .mockResolvedValue(mockRequirementsTxt);
+    jest.spyOn(fs.promises, "readFile").mockResolvedValue(mockRequirementsTxt);
 
     // Create a mock Dirent object
     const mockDirent = {
@@ -128,9 +126,7 @@ describe("ProjectInfo", () => {
       actix-web = "4.0"
     `;
 
-    jest
-      .spyOn(fs.promises, "readFile")
-      .mockResolvedValue(mockCargoToml);
+    jest.spyOn(fs.promises, "readFile").mockResolvedValue(mockCargoToml);
 
     // Create a mock Dirent object
     const mockDirent = {
@@ -175,9 +171,7 @@ describe("ProjectInfo", () => {
       )
     `;
 
-    jest
-      .spyOn(fs.promises, "readFile")
-      .mockResolvedValue(mockGoMod);
+    jest.spyOn(fs.promises, "readFile").mockResolvedValue(mockGoMod);
 
     // Create a mock Dirent object
     const mockDirent = {
@@ -196,7 +190,10 @@ describe("ProjectInfo", () => {
     const result = await projectInfo.gatherProjectInfo("/fake/path");
 
     expect(result).toEqual({
-      mainDependencies: ["github.com/gorilla/mux", "github.com/stretchr/testify"],
+      mainDependencies: [
+        "github.com/gorilla/mux",
+        "github.com/stretchr/testify",
+      ],
       scripts: {
         build: "go build",
         run: "go run .",

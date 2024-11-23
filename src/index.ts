@@ -1,8 +1,8 @@
+import { CrackedAgent } from "@services/CrackedAgent";
 import "reflect-metadata";
 import { container } from "tsyringe";
-import { CrackedAgent } from "./services/CrackedAgent.js";
 
-export { Crkd } from "./commands/crkd.js";
+export { Crkd } from "@/commands/crkd";
 
 const crackedAgent = container.resolve(CrackedAgent);
 
