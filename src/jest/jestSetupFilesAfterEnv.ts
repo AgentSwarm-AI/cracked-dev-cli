@@ -2,26 +2,34 @@ import "reflect-metadata";
 
 // Mock modelScaling module
 jest.mock("@constants/modelScaling", () => ({
-  AUTO_SCALER_MAX_TRY_PER_MODEL: 2,
+  __esModule: true,
+  ...jest.requireActual("@constants/modelScaling"),
   autoScaleAvailableModels: [
     {
       id: "qwen/qwen-2.5-coder-32b-instruct",
-      priority: 1,
-      active: true,
+      description: "Cheap, fast, slightly better than GPT4o-mini",
+      maxWriteTries: 2,
+      maxGlobalTries: 5,
     },
     {
       id: "anthropic/claude-3.5-sonnet:beta",
-      priority: 2,
-      active: true,
+      description: "Scaled model for retry attempts",
+      maxWriteTries: 3,
+      maxGlobalTries: 10,
+    },
+    {
+      id: "openai/gpt-4o-2024-11-20",
+      description: "Scaled model for retry attempts",
+      maxWriteTries: 5,
+      maxGlobalTries: 15,
+    },
+    {
+      id: "openai/o1-mini",
+      description: "Final model for complex cases (currently inactive)",
+      maxWriteTries: 2,
+      maxGlobalTries: 20,
     },
   ],
-  getModelForTryCount: (tryCount: string | null): string => {
-    if (!tryCount) return "qwen/qwen-2.5-coder-32b-instruct";
-    const tries = parseInt(tryCount, 10);
-    return tries >= 2
-      ? "anthropic/claude-3.5-sonnet:beta"
-      : "qwen/qwen-2.5-coder-32b-instruct";
-  },
 }));
 
 // Mock chalk with a default export that matches how it's used

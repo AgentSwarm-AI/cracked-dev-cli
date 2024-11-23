@@ -1,52 +1,64 @@
 interface IModelConfig {
   id: string;
-  priority: number;
-  active: boolean;
   description?: string;
+  maxWriteTries: number;
+  maxGlobalTries: number;
 }
-
-export const AUTO_SCALER_MAX_TRY_PER_MODEL = 2;
 
 export const autoScaleAvailableModels: IModelConfig[] = [
   {
     id: "qwen/qwen-2.5-coder-32b-instruct",
-    priority: 1,
-    active: true,
-    description: "Base model for initial attempts",
+    description: "Cheap, fast, slightly better than GPT4o-mini",
+    maxWriteTries: 2,
+    maxGlobalTries: 5,
   },
   {
     id: "anthropic/claude-3.5-sonnet:beta",
-    priority: 2,
-    active: true,
     description: "Scaled model for retry attempts",
+    maxWriteTries: 3,
+    maxGlobalTries: 10,
   },
   {
     id: "openai/gpt-4o-2024-11-20",
-    priority: 3,
-    active: true,
     description: "Scaled model for retry attempts",
+    maxWriteTries: 5,
+    maxGlobalTries: 15,
   },
   {
     id: "openai/o1-mini",
-    priority: 4,
-    active: true,
     description: "Final model for complex cases (currently inactive)",
+    maxWriteTries: 2,
+    maxGlobalTries: 20,
   },
 ];
 
-export const getModelForTryCount = (tryCount: string | null): string => {
+export const getModelForTryCount = (
+  tryCount: string | null,
+  globalTries: number,
+): string => {
   if (!tryCount) return autoScaleAvailableModels[0].id;
 
   const tries = parseInt(tryCount, 10);
-  // Calculate scale level based on try count and threshold
-  const scaleLevel = Math.floor(tries / AUTO_SCALER_MAX_TRY_PER_MODEL);
 
-  // Find active models
-  const activeModels = autoScaleAvailableModels
-    .filter((model) => model.active)
-    .sort((a, b) => a.priority - b.priority);
+  // Find the appropriate model based on try count and maxTries
+  for (let i = 0; i < autoScaleAvailableModels.length; i++) {
+    const previousTriesSum = autoScaleAvailableModels
+      .slice(0, i)
+      .reduce((sum, model) => sum + model.maxWriteTries, 0);
 
-  // Use min to prevent exceeding available models
-  const modelIndex = Math.min(scaleLevel, activeModels.length - 1);
-  return activeModels[modelIndex].id;
+    // Scale up if either condition is met:
+    // 1. Current try count exceeds the sum of maxWriteTries up to this model
+    // 2. Global try count exceeds maxGlobalTries for this model
+    if (
+      tries >= previousTriesSum + autoScaleAvailableModels[i].maxWriteTries ||
+      globalTries >= autoScaleAvailableModels[i].maxGlobalTries
+    ) {
+      continue; // Move to next model
+    }
+
+    return autoScaleAvailableModels[i].id;
+  }
+
+  // If all thresholds are exceeded, return the last model
+  return autoScaleAvailableModels[autoScaleAvailableModels.length - 1].id;
 };

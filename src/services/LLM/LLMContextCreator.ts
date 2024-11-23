@@ -153,6 +153,7 @@ To achieve this goal, I'll:
 - CRITICAL: When struggling with path imports, STOP write_file WITH THE SAME IMPORT PATH. Use <relative_path_lookup> or <search_file> to find the correct path.
 - CRITICAL: If stuck in a problem, try to use read_file to get more context and come up with a new strategy.
 
+
 #### After Coding
 - After changes, if applicable:
   - Run relevant tests; for risky changes, run folder tests.
@@ -161,12 +162,14 @@ To achieve this goal, I'll:
   - If tests fail, use <end_task> to report issues and seek guidance.
 
 ### Tests
+- Prioritize individual test file runs!
 - No tests for logging messages.
 - CRITICAL When fixing tests, run them first before reading files.
 - When adding tests, read target and related files.
 - Ensure added tests pass.
 - If i'm asking to write tests, no need to try to read the test file, because it wasn't created yet (obviously)!
 - When writing tests, write ALL OF THEM AT ONCE, in one prompt, even though they're in separate steps (goals). This would avoid wasting tokens.
+- CRITICAL: FULL TEST RUN ONLY ALLOWED WHEN ENDING TASK. If that's not the case, run test for specific file or directory.
 
 ### Commands Writing Instructions
 - Use the project's package manager.

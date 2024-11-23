@@ -1,4 +1,4 @@
-import { DEFAULT_INITIAL_MODEL } from "@/constants/models";
+import { DEFAULT_INITIAL_MODEL } from "@constants/models";
 import { autoScaleAvailableModels } from "@constants/modelScaling";
 import { Args, Command, Flags } from "@oclif/core";
 import { CrackedAgent } from "@services/CrackedAgent";
@@ -41,7 +41,7 @@ export class Crkd extends Command {
       char: "m",
       description: "AI model to use",
       default: () => ConfigService.loadConfig().model || DEFAULT_INITIAL_MODEL,
-      required: true,
+      required: false, // Changed to false since we have a default
     }),
     provider: Flags.string({
       char: "p",
@@ -174,7 +174,6 @@ export class Crkd extends Command {
       // Handle auto-scaler warning
       if (flags.autoScaler && flags.model !== DEFAULT_INITIAL_MODEL) {
         const availableModels = autoScaleAvailableModels
-          .filter((model) => model.active)
           .map((model) => model.id)
           .join(", ");
 
@@ -206,7 +205,7 @@ Auto-scaler will use the following models in order: ${availableModels}`);
         await this.startInteractiveMode(agent, options);
       } else {
         const result = await agent.execute(args.message!, options);
-        if (!flags.stream && result) {
+        if (!options.stream && result) {
           this.log(result.response);
           if (result.actions?.length) {
             this.log("\nExecuted Actions:");

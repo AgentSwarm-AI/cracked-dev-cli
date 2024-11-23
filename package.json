@@ -1,6 +1,7 @@
 {
   "name": "cracked-dev-cli",
-  "version": "1.0.0",
+  "version": "1.0.1",
+  "description": "AI-powered CLI tool for software development",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
@@ -11,6 +12,21 @@
   "files": [
     "dist",
     "bin"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jonit-dev/cracked-dev-cli/"
+  },
+  "keywords": [
+    "cli",
+    "ai",
+    "development",
+    "productivity",
+    "coding",
+    "assistant"
   ],
   "scripts": {
     "build": "tsup",

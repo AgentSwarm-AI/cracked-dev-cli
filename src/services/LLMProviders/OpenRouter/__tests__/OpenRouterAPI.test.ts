@@ -6,6 +6,7 @@ import { DebugLogger } from "@services/logging/DebugLogger";
 import { HtmlEntityDecoder } from "@services/text/HTMLEntityDecoder";
 import { UnitTestMocker } from "@tests/mocks/UnitTestMocker";
 import { container } from "tsyringe";
+import { IOpenRouterMessage } from "../types/OpenRouterAPITypes";
 
 describe("OpenRouterAPI", () => {
   let openRouterAPI: OpenRouterAPI;
@@ -255,6 +256,180 @@ describe("OpenRouterAPI", () => {
       expect(MessageContextManager.prototype.addMessage).toHaveBeenCalledWith(
         "assistant",
         "Hello!",
+      );
+    });
+  });
+
+  describe("prompt caching", () => {
+    it("should reuse conversation context for subsequent messages", async () => {
+      const mockMessages: IOpenRouterMessage[] = [
+        { role: "user", content: "Initial message" },
+        { role: "assistant", content: "Initial response" },
+      ];
+
+      mocker.spyOnPrototypeWithImplementation(
+        MessageContextManager,
+        "getMessages",
+        () => mockMessages,
+      );
+
+      const mockResponse = {
+        data: {
+          choices: [{ message: { content: "Follow-up response" } }],
+        },
+      };
+
+      const postSpy = jest
+        .spyOn(openRouterAPI["httpClient"], "post")
+        .mockResolvedValueOnce(mockResponse);
+
+      await openRouterAPI.sendMessage("gpt-4", "Follow-up message");
+
+      const expectedPayload = {
+        model: "gpt-4",
+        messages: [
+          ...mockMessages,
+          { role: "user", content: "Follow-up message" },
+        ],
+      };
+
+      expect(postSpy).toHaveBeenCalledWith(
+        "/chat/completions",
+        expectedPayload,
+      );
+    });
+
+    it("should maintain conversation history across multiple messages", async () => {
+      const messages: IOpenRouterMessage[] = [];
+      const messageContextSpy = mocker.spyOnPrototypeWithImplementation(
+        MessageContextManager,
+        "getMessages",
+        () => messages,
+      );
+
+      const mockResponses = [
+        { data: { choices: [{ message: { content: "First response" } }] } },
+        { data: { choices: [{ message: { content: "Second response" } }] } },
+      ];
+
+      const postSpy = jest
+        .spyOn(openRouterAPI["httpClient"], "post")
+        .mockResolvedValueOnce(mockResponses[0])
+        .mockResolvedValueOnce(mockResponses[1]);
+
+      // First message
+      await openRouterAPI.sendMessage("gpt-4", "First message");
+      messages.push(
+        { role: "user", content: "First message" },
+        { role: "assistant", content: "First response" },
+      );
+
+      // Second message
+      await openRouterAPI.sendMessage("gpt-4", "Second message");
+
+      const expectedPayload = {
+        model: "gpt-4",
+        messages: [
+          { role: "user", content: "First message" },
+          { role: "assistant", content: "First response" },
+          { role: "user", content: "Second message" },
+        ],
+      };
+
+      expect(postSpy).toHaveBeenCalledTimes(2);
+      expect(postSpy).toHaveBeenLastCalledWith(
+        "/chat/completions",
+        expectedPayload,
+      );
+    });
+
+    it("should clear conversation history when requested", async () => {
+      const mockMessages: IOpenRouterMessage[] = [
+        { role: "user", content: "Previous message" },
+        { role: "assistant", content: "Previous response" },
+      ];
+
+      mocker.spyOnPrototypeWithImplementation(
+        MessageContextManager,
+        "getMessages",
+        () => mockMessages,
+      );
+
+      const mockResponse = {
+        data: {
+          choices: [{ message: { content: "New response" } }],
+        },
+      };
+
+      const postSpy = jest
+        .spyOn(openRouterAPI["httpClient"], "post")
+        .mockResolvedValueOnce(mockResponse);
+
+      // Clear conversation
+      openRouterAPI.clearConversationContext();
+
+      // Reset mock to return empty messages after clear
+      mocker.spyOnPrototypeWithImplementation(
+        MessageContextManager,
+        "getMessages",
+        () => [],
+      );
+
+      await openRouterAPI.sendMessage("gpt-4", "New message");
+
+      const expectedPayload = {
+        model: "gpt-4",
+        messages: [{ role: "user", content: "New message" }],
+      };
+
+      expect(MessageContextManager.prototype.clear).toHaveBeenCalled();
+      expect(postSpy).toHaveBeenCalledWith(
+        "/chat/completions",
+        expectedPayload,
+      );
+    });
+
+    it("should handle system instructions in conversation context", async () => {
+      const systemInstructions = "Be concise";
+      const mockMessages: IOpenRouterMessage[] = [
+        { role: "system", content: systemInstructions },
+        { role: "user", content: "Previous message" },
+        { role: "assistant", content: "Previous response" },
+      ];
+
+      mocker.spyOnPrototypeWithImplementation(
+        MessageContextManager,
+        "getMessages",
+        () => mockMessages,
+      );
+
+      const mockResponse = {
+        data: {
+          choices: [{ message: { content: "Concise response" } }],
+        },
+      };
+
+      const postSpy = jest
+        .spyOn(openRouterAPI["httpClient"], "post")
+        .mockResolvedValueOnce(mockResponse);
+
+      await openRouterAPI.sendMessageWithContext(
+        "gpt-4",
+        "New message",
+        systemInstructions,
+      );
+
+      const expectedPayload = {
+        model: "gpt-4",
+        messages: [...mockMessages, { role: "user", content: "New message" }],
+      };
+
+      expect(
+        MessageContextManager.prototype.setSystemInstructions,
+      ).toHaveBeenCalledWith(systemInstructions);
+      expect(postSpy).toHaveBeenCalledWith(
+        "/chat/completions",
+        expectedPayload,
       );
     });
   });
