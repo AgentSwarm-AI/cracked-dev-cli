@@ -24,12 +24,6 @@ export const autoScaleAvailableModels: IModelConfig[] = [
     maxWriteTries: 5,
     maxGlobalTries: 15,
   },
-  {
-    id: "openai/o1-mini",
-    description: "Final model for complex cases (currently inactive)",
-    maxWriteTries: 2,
-    maxGlobalTries: 20,
-  },
 ];
 
 export const getModelForTryCount = (

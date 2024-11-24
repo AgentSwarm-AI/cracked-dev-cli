@@ -36,6 +36,7 @@ describe("WriteFileAction", () => {
       getTryCount: jest.fn(),
       incrementTryCount: jest.fn(),
       setTryCount: jest.fn(),
+      isAutoScalerEnabled: jest.fn(),
     } as any;
 
     writeFileAction = new WriteFileAction(
@@ -66,6 +67,7 @@ describe("WriteFileAction", () => {
       });
 
       mockModelScaler.getCurrentModel.mockReturnValue("test-model");
+      mockModelScaler.isAutoScalerEnabled.mockReturnValue(false);
       mockFileOperations.exists.mockResolvedValue(false);
       mockFileOperations.write.mockResolvedValue({ success: true });
       mockHtmlEntityDecoder.decode.mockReturnValue(content);
@@ -101,6 +103,7 @@ describe("WriteFileAction", () => {
       });
 
       mockModelScaler.getCurrentModel.mockReturnValue("test-model");
+      mockModelScaler.isAutoScalerEnabled.mockReturnValue(false);
       mockFileOperations.exists.mockResolvedValue(false);
       mockFileOperations.write.mockResolvedValue({ success: true });
       mockHtmlEntityDecoder.decode.mockReturnValue(content);
@@ -131,6 +134,7 @@ describe("WriteFileAction", () => {
       });
 
       mockModelScaler.getCurrentModel.mockReturnValue("test-model");
+      mockModelScaler.isAutoScalerEnabled.mockReturnValue(false);
       mockFileOperations.exists.mockResolvedValue(true);
       mockFileOperations.read.mockResolvedValue({
         success: true,
@@ -164,6 +168,7 @@ describe("WriteFileAction", () => {
       });
 
       mockModelScaler.getCurrentModel.mockReturnValue("test-model");
+      mockModelScaler.isAutoScalerEnabled.mockReturnValue(false);
       mockFileOperations.exists.mockResolvedValue(false);
       mockFileOperations.write.mockResolvedValue({ success: true });
       mockHtmlEntityDecoder.decode.mockReturnValue(content);
@@ -217,6 +222,67 @@ describe("WriteFileAction", () => {
       expect(result.success).toBe(false);
       expect(result.error?.message).toBe("No file content provided");
       expect(mockFileOperations.write).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("model selection", () => {
+    it("should return selectedModel when auto-scaler is disabled", async () => {
+      // Setup
+      const filePath = "/test/file.ts";
+      const content = "test content";
+      const actionContent = `
+        <write_file>
+          <path>${filePath}</path>
+          <content>${content}</content>
+        </write_file>`;
+
+      mockActionTagsExtractor.extractTag.mockImplementation((_, tag) => {
+        if (tag === "path") return filePath;
+        return null;
+      });
+
+      const currentModel = "test-model";
+      mockModelScaler.getCurrentModel.mockReturnValue(currentModel);
+      mockModelScaler.isAutoScalerEnabled.mockReturnValue(false);
+      mockFileOperations.exists.mockResolvedValue(false);
+      mockFileOperations.write.mockResolvedValue({ success: true });
+      mockHtmlEntityDecoder.decode.mockReturnValue(content);
+
+      // Execute
+      const result = await writeFileAction.execute(actionContent);
+
+      // Verify
+      expect(result.success).toBe(true);
+      expect(result.data).toEqual({ selectedModel: currentModel });
+    });
+
+    it("should not return selectedModel when auto-scaler is enabled", async () => {
+      // Setup
+      const filePath = "/test/file.ts";
+      const content = "test content";
+      const actionContent = `
+        <write_file>
+          <path>${filePath}</path>
+          <content>${content}</content>
+        </write_file>`;
+
+      mockActionTagsExtractor.extractTag.mockImplementation((_, tag) => {
+        if (tag === "path") return filePath;
+        return null;
+      });
+
+      mockModelScaler.getCurrentModel.mockReturnValue("test-model");
+      mockModelScaler.isAutoScalerEnabled.mockReturnValue(true);
+      mockFileOperations.exists.mockResolvedValue(false);
+      mockFileOperations.write.mockResolvedValue({ success: true });
+      mockHtmlEntityDecoder.decode.mockReturnValue(content);
+
+      // Execute
+      const result = await writeFileAction.execute(actionContent);
+
+      // Verify
+      expect(result.success).toBe(true);
+      expect(result.data).toBeUndefined();
     });
   });
 });

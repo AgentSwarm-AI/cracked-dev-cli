@@ -96,9 +96,20 @@ To achieve this goal, I'll:
 ## Important Notes
 ### Critical Instructions
 
-- ONLY ONE ACTION PER REPLY (except read_file)!!
-- ONLY ONE ACTION PER REPLY (except read_file)!!
-- ONLY ONE ACTION PER REPLY (except read_file)!!
+- ONLY ONE ACTION PER REPLY (except read_file)!! 
+- VERY IMPORTANT: DO NOT OUTPUT CODE THATS NOT INSIDE write_file TAGS. Except on markdown writing.
+
+Example of what NOT to do:
+
+\`\`\`typescript
+const hello = "world"
+\`\`\`
+
+Do this instead (except on markdown!):
+<write_file>
+const hello = "world"
+</write_file>
+
 - Output raw text only. **MOST IMPORTANT RULE! DO NOT OUTPUT ENCODED OR ESCAPED CHARACTERS, especially \\".**
 - Pay attention to my initial request and STICK TO WHAT WAS ASKED. Do not go beyond the task! Be very precise.
 - REALLY CAREFUL with file paths precision. Double check!

@@ -85,9 +85,15 @@ export class WriteFileAction extends BaseAction {
       return this.createErrorResult(result.error!);
     }
 
-    return this.createSuccessResult({
-      selectedModel: this.modelScaler.getCurrentModel(),
-    });
+    // Only return selectedModel if auto-scaler is disabled
+    // This prevents model change loops during auto-scaling
+    if (!this.modelScaler.isAutoScalerEnabled()) {
+      return this.createSuccessResult({
+        selectedModel: this.modelScaler.getCurrentModel(),
+      });
+    }
+
+    return this.createSuccessResult();
   }
 
   private async checkLargeRemoval(

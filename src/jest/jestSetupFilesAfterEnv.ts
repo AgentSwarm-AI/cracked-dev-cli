@@ -3,7 +3,6 @@ import "reflect-metadata";
 // Mock modelScaling module
 jest.mock("@constants/modelScaling", () => ({
   __esModule: true,
-  ...jest.requireActual("@constants/modelScaling"),
   autoScaleAvailableModels: [
     {
       id: "qwen/qwen-2.5-coder-32b-instruct",
@@ -30,6 +29,54 @@ jest.mock("@constants/modelScaling", () => ({
       maxGlobalTries: 20,
     },
   ],
+  getModelForTryCount: (
+    tryCount: string | null,
+    globalTries: number,
+  ): string => {
+    const models = [
+      {
+        id: "qwen/qwen-2.5-coder-32b-instruct",
+        maxWriteTries: 2,
+        maxGlobalTries: 5,
+      },
+      {
+        id: "anthropic/claude-3.5-sonnet:beta",
+        maxWriteTries: 3,
+        maxGlobalTries: 10,
+      },
+      {
+        id: "openai/gpt-4o-2024-11-20",
+        maxWriteTries: 5,
+        maxGlobalTries: 15,
+      },
+      {
+        id: "openai/o1-mini",
+        maxWriteTries: 2,
+        maxGlobalTries: 20,
+      },
+    ];
+
+    if (!tryCount) return models[0].id;
+
+    const tries = parseInt(tryCount, 10);
+
+    for (let i = 0; i < models.length; i++) {
+      const previousTriesSum = models
+        .slice(0, i)
+        .reduce((sum, model) => sum + model.maxWriteTries, 0);
+
+      if (
+        tries >= previousTriesSum + models[i].maxWriteTries ||
+        globalTries >= models[i].maxGlobalTries
+      ) {
+        continue;
+      }
+
+      return models[i].id;
+    }
+
+    return models[models.length - 1].id;
+  },
 }));
 
 // Mock chalk with a default export that matches how it's used

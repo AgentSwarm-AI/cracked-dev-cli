@@ -267,8 +267,11 @@ export class ActionsParser {
 
       const results: Array<{ action: string; result: any }> = [];
       let selectedModel = model;
+      let hasError = false;
 
       for (const group of executionPlan.groups) {
+        if (hasError) break;
+
         if (group.parallel) {
           const actionPromises = group.actions.map((action) =>
             this.contextCreator
@@ -281,15 +284,33 @@ export class ActionsParser {
           const groupResults = await Promise.all(actionPromises);
           results.push(...groupResults);
 
+          // Check for errors in parallel actions
           for (const result of groupResults) {
-            if (
-              result.action.includes("<write_file>") &&
-              result.result.data?.selectedModel
-            ) {
-              selectedModel = result.result.data.selectedModel;
-              this.debugLogger.log("Model", "Updated model from write action", {
-                model: selectedModel,
+            if (!result.result.success) {
+              this.debugLogger.log("Action", "Action failed", {
+                action: result.action,
+                result: result.result,
               });
+              hasError = true;
+              break;
+            }
+          }
+
+          if (!hasError) {
+            for (const result of groupResults) {
+              if (
+                result.action.includes("<write_file>") &&
+                result.result.data?.selectedModel
+              ) {
+                selectedModel = result.result.data.selectedModel;
+                this.debugLogger.log(
+                  "Model",
+                  "Updated model from write action",
+                  {
+                    model: selectedModel,
+                  },
+                );
+              }
             }
           }
         } else {
@@ -299,19 +320,20 @@ export class ActionsParser {
             );
             results.push({ action: action.content, result });
 
-            if (action.type === "write_file" && result.data?.selectedModel) {
-              selectedModel = result.data.selectedModel;
-              this.debugLogger.log("Model", "Updated model from write action", {
-                model: selectedModel,
-              });
-            }
-
             if (!result.success) {
               this.debugLogger.log("Action", "Action failed", {
                 action: action.content,
                 result,
               });
+              hasError = true;
               break;
+            }
+
+            if (action.type === "write_file" && result.data?.selectedModel) {
+              selectedModel = result.data.selectedModel;
+              this.debugLogger.log("Model", "Updated model from write action", {
+                model: selectedModel,
+              });
             }
           }
         }
@@ -332,16 +354,19 @@ export class ActionsParser {
         .map(({ action, result }) => this.formatActionResult(action, result))
         .join("\n\n");
 
-      const followupResponse = await llmCallback(actionResults);
-
-      this.debugLogger.log(
-        "Response",
-        "Received LLM response for action results",
-        {
-          response: followupResponse,
-          selectedModel,
-        },
-      );
+      // Only get followupResponse if there were no errors
+      let followupResponse;
+      if (!hasError) {
+        followupResponse = await llmCallback(actionResults);
+        this.debugLogger.log(
+          "Response",
+          "Received LLM response for action results",
+          {
+            response: followupResponse,
+            selectedModel,
+          },
+        );
+      }
 
       return { actions: results, followupResponse, selectedModel };
     } catch (error) {
