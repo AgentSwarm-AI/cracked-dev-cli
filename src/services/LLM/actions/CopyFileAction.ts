@@ -37,6 +37,16 @@ export class CopyFileAction extends BaseAction {
     return null;
   }
 
+  async execute(content: string): Promise<IActionResult> {
+    // Validate XML structure first
+    const structureError = this.actionTagsExtractor.validateStructure(content);
+    if (structureError) {
+      return this.createErrorResult(structureError);
+    }
+
+    return super.execute(content);
+  }
+
   protected async executeInternal(
     params: Record<string, any>,
   ): Promise<IActionResult> {
