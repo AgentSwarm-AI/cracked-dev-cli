@@ -1,4 +1,4 @@
-import { fetch_url } from "@services/FileManagement/FetchUtil";
+import axios, { AxiosResponse } from "axios";
 import { autoInjectable } from "tsyringe";
 import { ActionTagsExtractor } from "./ActionTagsExtractor";
 import { fetchUrlAction as blueprint } from "./blueprints/fetchUrlAction";
@@ -43,12 +43,24 @@ export class FetchUrlAction extends BaseAction {
 
       this.logInfo(`Fetching URL: ${url}`);
 
-      const data = await fetch_url(url);
+      const data = await this.fetchUrl(url);
       return this.createSuccessResult(data);
     } catch (error) {
       return this.createErrorResult(
         error instanceof Error ? error : new Error("Failed to fetch URL"),
       );
+    }
+  }
+
+  private async fetchUrl<T = any>(url: string): Promise<T> {
+    try {
+      const response: AxiosResponse<T> = await axios.get(url);
+      return response.data;
+    } catch (error: any) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(`Network error: ${error.message}`);
+      }
+      throw new Error(`Error fetching URL: ${error.message}`);
     }
   }
 }
