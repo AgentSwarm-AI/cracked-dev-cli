@@ -3,6 +3,7 @@ import { ILLMProvider, IMessage } from "@services/LLM/ILLMProvider";
 import { MessageContextManager } from "@services/LLM/MessageContextManager";
 import { ModelInfo } from "@services/LLM/ModelInfo";
 import { ModelScaler } from "@services/LLM/ModelScaler";
+import { formatMessageContent } from "@services/LLM/utils/ModelUtils";
 import { DebugLogger } from "@services/logging/DebugLogger";
 import { HtmlEntityDecoder } from "@services/text/HTMLEntityDecoder";
 import { autoInjectable } from "tsyringe";
@@ -22,7 +23,9 @@ class LLMError extends Error {
 
 interface IFormattedMessage {
   role: string;
-  content: string;
+  content:
+    | string
+    | { type: string; text: string; cache_control?: { type: "ephemeral" } }[];
 }
 
 @autoInjectable()
@@ -120,14 +123,14 @@ export class OpenRouterAPI implements ILLMProvider {
       return [...(systemMessage ? [systemMessage] : []), ...recentMessages].map(
         (msg) => ({
           role: msg.role,
-          content: msg.content,
+          content: formatMessageContent(msg.content, model),
         }),
       );
     }
 
     return validMessages.map((msg) => ({
       role: msg.role,
-      content: msg.content,
+      content: formatMessageContent(msg.content, model),
     }));
   }
 

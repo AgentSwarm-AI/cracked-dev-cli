@@ -115,6 +115,86 @@ describe("OpenRouterAPI", () => {
       );
     });
 
+    it("should format messages with cache control for anthropic models with long content", async () => {
+      const longContent = "a".repeat(1001);
+      const mockResponse = {
+        data: {
+          choices: [{ message: { content: "Response" } }],
+        },
+      };
+
+      mocker.spyOnPrototypeWithImplementation(
+        MessageContextManager,
+        "getMessages",
+        () => [],
+      );
+
+      const postSpy = jest
+        .spyOn(openRouterAPI["httpClient"], "post")
+        .mockResolvedValueOnce(mockResponse);
+
+      await openRouterAPI.sendMessage("anthropic/claude-3-opus", longContent);
+
+      const expectedPayload = {
+        model: "anthropic/claude-3-opus",
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: longContent,
+                cache_control: {
+                  type: "ephemeral",
+                },
+              },
+            ],
+          },
+        ],
+      };
+
+      expect(postSpy).toHaveBeenCalledWith(
+        "/chat/completions",
+        expectedPayload,
+      );
+    });
+
+    it("should format messages without cache control for non-anthropic models", async () => {
+      const content = "test message";
+      const mockResponse = {
+        data: {
+          choices: [{ message: { content: "Response" } }],
+        },
+      };
+
+      mocker.spyOnPrototypeWithImplementation(
+        MessageContextManager,
+        "getMessages",
+        () => [],
+      );
+
+      const postSpy = jest
+        .spyOn(openRouterAPI["httpClient"], "post")
+        .mockResolvedValueOnce(mockResponse);
+
+      await openRouterAPI.sendMessage("gpt-4", content);
+
+      const expectedPayload = {
+        model: "gpt-4",
+        messages: [
+          {
+            role: "user",
+            content: content,
+          },
+        ],
+      };
+
+      expect(postSpy).toHaveBeenCalledWith(
+        "/chat/completions",
+        expectedPayload,
+      );
+    });
+
     it("should handle errors appropriately", async () => {
       const error = {
         response: {
