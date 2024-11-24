@@ -8,7 +8,6 @@ import { ActionTagsExtractor } from "./ActionTagsExtractor";
 import { commandActionBlueprint as blueprint } from "./blueprints/commandActionBlueprint";
 import { BaseAction } from "./core/BaseAction";
 import { IActionBlueprint } from "./core/IAction";
-import { CommandError } from "./errors/CommandError";
 
 interface CommandParams {
   command: string;
@@ -64,8 +63,8 @@ export class CommandAction extends BaseAction {
       this.logInfo(`Executing command: ${command}`);
       return this.executeCommand(command);
     } catch (error) {
-      this.logError(`Command execution failed: ${(error as Error).message}`);
-      return this.createErrorResult(error as Error);
+      // Even on error, return success with the error message as output
+      return this.createSuccessResult((error as Error).message);
     }
   }
 
@@ -138,16 +137,12 @@ export class CommandAction extends BaseAction {
             output: combinedOutput,
           });
 
-          if (exitCode === 0) {
-            resolve(this.createSuccessResult(combinedOutput));
-          } else {
-            const error = new CommandError(
-              `Command failed with exit code ${exitCode}`,
-              combinedOutput || "Command not found",
-              exitCode,
-            );
-            resolve(this.createErrorResult(error));
-          }
+          // Always return success with the combined output
+          resolve(
+            this.createSuccessResult(
+              combinedOutput || `Command completed with exit code ${exitCode}`,
+            ),
+          );
         }
       };
 
@@ -160,9 +155,9 @@ export class CommandAction extends BaseAction {
           command,
           error: error.message,
         });
-        const errorMessage = `${error.message}: command not found`;
+        // Return success with error message as output
         resolve(
-          this.createErrorResult(new CommandError(errorMessage, errorMessage)),
+          this.createSuccessResult(`${error.message}: command not found`),
         );
       });
     });

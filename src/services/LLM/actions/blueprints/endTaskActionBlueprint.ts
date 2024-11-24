@@ -7,12 +7,5 @@ export const endTaskActionBlueprint: IActionBlueprint = {
   description: "Mark a task as complete with a message",
   priority: 4, // Highest priority to run last
   canRunInParallel: false,
-  parameters: [
-    {
-      name: "message",
-      required: true,
-      description: "The completion message",
-      validator: (value: any) => typeof value === "string" && value.length > 0,
-    },
-  ],
+  parameters: [],
 };

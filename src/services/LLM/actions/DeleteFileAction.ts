@@ -26,8 +26,8 @@ export class DeleteFileAction extends BaseAction {
   protected validateParams(params: Record<string, any>): string | null {
     const { path } = params as DeleteFileParams;
 
-    if (!path) {
-      return "No file path provided";
+    if (typeof path !== "string" || !path.trim()) {
+      return "Invalid or no file path provided";
     }
 
     return null;
@@ -39,16 +39,36 @@ export class DeleteFileAction extends BaseAction {
     try {
       const { path: filePath } = params as DeleteFileParams;
 
-      this.logInfo(`File path: ${filePath}`);
+      this.logInfo(`Attempting to delete file at path: ${filePath}`);
       const result = await this.fileOperations.delete(filePath);
 
       if (!result.success) {
+        this.logError(`Failed to delete file at path: ${filePath}. Error: ${result.error}`);
         return this.createErrorResult(result.error!);
       }
 
+      this.logInfo(`Successfully deleted file at path: ${filePath}`);
       return this.createSuccessResult(result.data);
     } catch (error) {
+      const { path: filePath } = params as DeleteFileParams;
+      this.logError(`An unexpected error occurred while deleting file at path: ${filePath}. Error: ${error}`);
       return this.createErrorResult(error as Error);
     }
+  }
+
+  async execute(content: string): Promise<IActionResult> {
+    let params: DeleteFileParams;
+    try {
+      params = JSON.parse(content) as DeleteFileParams;
+    } catch (error) {
+      return this.createErrorResult(new Error("Invalid JSON content"));
+    }
+
+    const validationError = this.validateParams(params);
+    if (validationError) {
+      return this.createErrorResult(new Error(validationError));
+    }
+
+    return this.executeInternal(params);
   }
 }

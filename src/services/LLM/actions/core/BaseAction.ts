@@ -46,9 +46,6 @@ export abstract class BaseAction implements IAction {
       // Parse parameters from content
       const params = this.parseParams(content);
 
-      // Log parsed parameters for debugging
-      this.logInfo(`Parsed parameters: ${JSON.stringify(params)}`);
-
       // Validate parameters
       const validationError = this.validateParams(params);
       if (validationError) {

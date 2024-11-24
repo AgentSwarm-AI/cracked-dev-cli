@@ -16,26 +16,25 @@ describe("CommandAction", () => {
     expect(result.data.trim()).toBe("Test Command");
   });
 
-  it("should handle stderr output without throwing", async () => {
+  it("should handle stderr output as success with output", async () => {
     const result = await commandAction.execute(
-      "<execute_command>ls nonexistentfile 2>&1 || true</execute_command>",
+      "<execute_command>ls nonexistentfile 2>&1</execute_command>",
     );
     expect(result.success).toBe(true);
     expect(result.data).toContain("nonexistentfile");
   });
 
-  it("should return error result for invalid command", async () => {
+  it("should return success with error message for invalid command", async () => {
     const result = await commandAction.execute(
       "<execute_command>invalidCommand</execute_command>",
     );
-    expect(result.success).toBe(false);
-    expect(result.error).toBeDefined();
-    expect(result.error?.message).toContain("Command failed with exit code");
+    expect(result.success).toBe(true);
+    expect(result.data).toContain("invalidCommand: not found");
   });
 
   it("should handle empty command", async () => {
     const result = await commandAction.execute("");
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(false); // Still false for validation errors
     expect(result.error?.message).toBe("No valid command to execute");
   });
 
@@ -47,5 +46,22 @@ describe("CommandAction", () => {
     `);
     expect(result.success).toBe(true);
     expect(result.data.trim()).toBe("Test Command");
+  });
+
+  it("should return success with exit code for failed commands", async () => {
+    const result = await commandAction.execute(
+      "<execute_command>exit 1</execute_command>",
+    );
+    expect(result.success).toBe(true);
+    expect(result.data).toContain("Command completed with exit code 1");
+  });
+
+  it("should combine stdout and stderr in output", async () => {
+    const result = await commandAction.execute(
+      "<execute_command>echo success && echo error >&2</execute_command>",
+    );
+    expect(result.success).toBe(true);
+    expect(result.data).toContain("success");
+    expect(result.data).toContain("error");
   });
 });

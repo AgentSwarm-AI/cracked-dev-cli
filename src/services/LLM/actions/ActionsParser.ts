@@ -265,11 +265,6 @@ export class ActionsParser {
         plan: executionPlan,
       });
 
-      if (!executionPlan.groups.length) {
-        this.debugLogger.log("Actions", "No action tags found in text.");
-        return { actions: [] };
-      }
-
       const results: Array<{ action: string; result: any }> = [];
       let selectedModel = model;
 
@@ -336,10 +331,6 @@ export class ActionsParser {
       const actionResults = results
         .map(({ action, result }) => this.formatActionResult(action, result))
         .join("\n\n");
-
-      this.debugLogger.log("ActionResults", "Formatted action results", {
-        results: actionResults,
-      });
 
       const followupResponse = await llmCallback(actionResults);
 

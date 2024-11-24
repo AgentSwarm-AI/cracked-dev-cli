@@ -24,7 +24,7 @@ describe("EndTaskAction", () => {
   });
 
   describe("tag validation", () => {
-    it("should detect missing message tag", async () => {
+    it("should detect missing message", async () => {
       const content = "<end_task></end_task>";
 
       const result = await endTaskAction.execute(content);
@@ -34,15 +34,19 @@ describe("EndTaskAction", () => {
     });
 
     it("should accept properly formatted tags", async () => {
-      const content = "<end_task><message>Task completed</message></end_task>";
+      const content = "<end_task>Task completed</end_task>";
 
       const result = await endTaskAction.execute(content);
 
       expect(result.success).toBe(true);
       expect(result.data).toBe("Task completed");
-      expect(consoleLogSpy).toHaveBeenCalledWith("ℹ️ end_task: Parsed parameters: {\"message\":\"Task completed\"}");
-      expect(consoleLogSpy).toHaveBeenCalledWith("ℹ️ end_task: End task message: Task completed");
-      expect(consoleLogSpy).toHaveBeenCalledWith("✅ end_task: Action executed successfully");
+
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        "ℹ️ end_task: End task message: Task completed",
+      );
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        "✅ end_task: Action executed successfully",
+      );
     });
 
     it("should handle invalid tag structure", async () => {
@@ -57,18 +61,22 @@ describe("EndTaskAction", () => {
 
   describe("execution", () => {
     it("should execute with valid message", async () => {
-      const content = "<end_task><message>Task completed</message></end_task>";
+      const content = "<end_task>Task completed</end_task>";
 
       const result = await endTaskAction.execute(content);
 
       expect(result.success).toBe(true);
       expect(result.data).toBe("Task completed");
-      expect(consoleLogSpy).toHaveBeenCalledWith("ℹ️ end_task: Parsed parameters: {\"message\":\"Task completed\"}");
-      expect(consoleLogSpy).toHaveBeenCalledWith("ℹ️ end_task: End task message: Task completed");
-      expect(consoleLogSpy).toHaveBeenCalledWith("✅ end_task: Action executed successfully");
+
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        "ℹ️ end_task: End task message: Task completed",
+      );
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        "✅ end_task: Action executed successfully",
+      );
     });
 
-    it("should handle missing message tag gracefully", async () => {
+    it("should handle empty content gracefully", async () => {
       const content = "<end_task></end_task>";
 
       const result = await endTaskAction.execute(content);
