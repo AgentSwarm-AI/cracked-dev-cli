@@ -4,18 +4,69 @@ import { AnsiStripper } from "@services/text/AnsiStripper";
 import chalk from "chalk";
 import { spawn, SpawnOptionsWithoutStdio } from "child_process";
 import { autoInjectable } from "tsyringe";
+import { ActionTagsExtractor } from "./ActionTagsExtractor";
+import { commandAction as blueprint } from "./blueprints/commandAction";
+import { BaseAction } from "./core/BaseAction";
+import { IActionMetadata } from "./core/IAction";
+import { CommandError } from "./errors/CommandError";
+
+interface CommandParams {
+  command: string;
+}
 
 @autoInjectable()
-export class CommandAction {
+export class CommandAction extends BaseAction {
   constructor(
+    protected actionTagsExtractor: ActionTagsExtractor,
     private debugLogger: DebugLogger,
     private ansiStripper: AnsiStripper,
-  ) {}
+  ) {
+    super(actionTagsExtractor);
+  }
 
-  private extractCommand(command: string): string {
-    const regex = /<execute_command>\s*([\s\S]*?)\s*<\/execute_command>/i;
-    const match = command.match(regex);
-    return match ? match[1].trim() : command.trim();
+  protected getBlueprint(): IActionMetadata {
+    return blueprint;
+  }
+
+  protected parseParams(content: string): Record<string, any> {
+    const tag = this.getBlueprint().tag;
+    const match = content.match(new RegExp(`<${tag}>[\\s\\S]*?<\\/${tag}>`));
+    if (!match) {
+      this.logError("Failed to parse command from content");
+      return { command: "" };
+    }
+
+    // Extract the command from between the tags and trim whitespace
+    const command = match[0]
+      .replace(new RegExp(`^<${tag}>`), "")
+      .replace(new RegExp(`<\\/${tag}>$`), "")
+      .trim();
+
+    this.logInfo(`Parsed command: ${command}`);
+    return { command };
+  }
+
+  protected validateParams(params: Record<string, any>): string | null {
+    const { command } = params as CommandParams;
+
+    if (!command || command.trim().length === 0) {
+      return "No valid command to execute";
+    }
+
+    return null;
+  }
+
+  protected async executeInternal(
+    params: Record<string, any>,
+  ): Promise<IActionResult> {
+    try {
+      const { command } = params as CommandParams;
+      this.logInfo(`Executing command: ${command}`);
+      return this.executeCommand(command);
+    } catch (error) {
+      this.logError(`Command execution failed: ${(error as Error).message}`);
+      return this.createErrorResult(error as Error);
+    }
   }
 
   private isTestEnvironment(): boolean {
@@ -25,22 +76,12 @@ export class CommandAction {
     );
   }
 
-  async execute(
+  private async executeCommand(
     command: string,
-    options?: SpawnOptionsWithoutStdio & { timeout?: number },
+    options?: SpawnOptionsWithoutStdio,
   ): Promise<IActionResult> {
     return new Promise((resolve) => {
-      const cleanedCommand = this.extractCommand(command);
-
-      if (!cleanedCommand) {
-        return resolve({
-          success: false,
-          error: new Error("No valid command to execute."),
-          data: "",
-        });
-      }
-
-      const [cmd, ...args] = cleanedCommand.split(" ");
+      const [cmd, ...args] = command.split(" ");
       const child = spawn(cmd, args, { ...options, shell: true });
 
       let stdoutData = "";
@@ -92,22 +133,20 @@ export class CommandAction {
 
           const combinedOutput = stdoutData + stderrData;
           this.debugLogger.log("CommandAction", "Command execution completed", {
-            command: cleanedCommand,
+            command,
             exitCode,
-            output: combinedOutput, // Clean output without ANSI codes
+            output: combinedOutput,
           });
 
           if (exitCode === 0) {
-            resolve({
-              success: true,
-              data: combinedOutput,
-            });
+            resolve(this.createSuccessResult(combinedOutput));
           } else {
-            resolve({
-              success: false,
-              error: new Error(`Command failed with exit code ${exitCode}`),
-              data: combinedOutput,
-            });
+            const error = new CommandError(
+              `Command failed with exit code ${exitCode}`,
+              combinedOutput || "Command not found",
+              exitCode,
+            );
+            resolve(this.createErrorResult(error));
           }
         }
       };
@@ -118,35 +157,14 @@ export class CommandAction {
 
       child.on("error", (error) => {
         this.debugLogger.log("CommandAction", "Command execution error", {
-          command: cleanedCommand,
+          command,
           error: error.message,
         });
-        resolve({
-          success: false,
-          error,
-          data: error.message,
-        });
+        const errorMessage = `${error.message}: command not found`;
+        resolve(
+          this.createErrorResult(new CommandError(errorMessage, errorMessage)),
+        );
       });
-
-      if (options?.timeout) {
-        setTimeout(() => {
-          if (child.exitCode === null) {
-            child.kill();
-            this.debugLogger.log(
-              "CommandAction",
-              "Command execution timed out",
-              {
-                command: cleanedCommand,
-              },
-            );
-            resolve({
-              success: false,
-              error: new Error("Command execution timed out"),
-              data: "Timeout exceeded",
-            });
-          }
-        }, options.timeout);
-      }
     });
   }
 }

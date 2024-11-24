@@ -1,5 +1,4 @@
 import { EndTaskAction } from "@services/LLM/actions/EndTaskAction";
-import { ActionTagsExtractor } from "@services/LLM/actions/ActionTagsExtractor";
 import { UnitTestMocker } from "@tests/mocks/UnitTestMocker";
 import { container } from "tsyringe";
 
@@ -15,9 +14,6 @@ describe("EndTaskAction", () => {
   beforeEach(() => {
     mocker = new UnitTestMocker();
 
-    // Setup spies on prototype methods of dependencies
-    mocker.spyOnPrototype(ActionTagsExtractor, "extractTag", jest.fn());
-
     // Mock console.log
     consoleLogSpy = jest.spyOn(console, "log").mockImplementation();
   });
@@ -30,66 +26,55 @@ describe("EndTaskAction", () => {
   describe("tag validation", () => {
     it("should detect missing message tag", async () => {
       const content = "<end_task></end_task>";
-      (endTaskAction as any).actionTagsExtractor.extractTag.mockReturnValue(null);
 
       const result = await endTaskAction.execute(content);
 
       expect(result.success).toBe(false);
-      expect(result.error?.message).toContain(
-        "Invalid end_task format. Must include <message> tag.",
-      );
+      expect(result.error?.message).toBe("No message provided");
     });
 
     it("should accept properly formatted tags", async () => {
       const content = "<end_task><message>Task completed</message></end_task>";
-      (endTaskAction as any).actionTagsExtractor.extractTag.mockReturnValue(
-        "Task completed",
-      );
 
       const result = await endTaskAction.execute(content);
 
       expect(result.success).toBe(true);
       expect(result.data).toBe("Task completed");
-      expect(consoleLogSpy).toHaveBeenCalledWith("📝 End task message: Task completed");
+      expect(consoleLogSpy).toHaveBeenCalledWith("ℹ️ end_task: Parsed parameters: {\"message\":\"Task completed\"}");
+      expect(consoleLogSpy).toHaveBeenCalledWith("ℹ️ end_task: End task message: Task completed");
+      expect(consoleLogSpy).toHaveBeenCalledWith("✅ end_task: Action executed successfully");
     });
 
     it("should handle invalid tag structure", async () => {
       const content = "end_task Task completed end_task";
-      (endTaskAction as any).actionTagsExtractor.extractTag.mockReturnValue(null);
 
       const result = await endTaskAction.execute(content);
 
       expect(result.success).toBe(false);
-      expect(result.error?.message).toContain(
-        "Invalid end_task format. Must include <message> tag.",
-      );
+      expect(result.error?.message).toBe("No message provided");
     });
   });
 
   describe("execution", () => {
     it("should execute with valid message", async () => {
       const content = "<end_task><message>Task completed</message></end_task>";
-      (endTaskAction as any).actionTagsExtractor.extractTag.mockReturnValue(
-        "Task completed",
-      );
 
       const result = await endTaskAction.execute(content);
 
       expect(result.success).toBe(true);
       expect(result.data).toBe("Task completed");
-      expect(consoleLogSpy).toHaveBeenCalledWith("📝 End task message: Task completed");
+      expect(consoleLogSpy).toHaveBeenCalledWith("ℹ️ end_task: Parsed parameters: {\"message\":\"Task completed\"}");
+      expect(consoleLogSpy).toHaveBeenCalledWith("ℹ️ end_task: End task message: Task completed");
+      expect(consoleLogSpy).toHaveBeenCalledWith("✅ end_task: Action executed successfully");
     });
 
     it("should handle missing message tag gracefully", async () => {
       const content = "<end_task></end_task>";
-      (endTaskAction as any).actionTagsExtractor.extractTag.mockReturnValue(null);
 
       const result = await endTaskAction.execute(content);
 
       expect(result.success).toBe(false);
-      expect(result.error?.message).toContain(
-        "Invalid end_task format. Must include <message> tag.",
-      );
+      expect(result.error?.message).toBe("No message provided");
     });
   });
 });

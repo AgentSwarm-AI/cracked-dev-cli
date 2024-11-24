@@ -1,9 +1,5 @@
 import { ActionExecutor } from "@services/LLM/actions/ActionExecutor";
-import { CommandAction } from "@services/LLM/actions/CommandAction";
-import { EndTaskAction } from "@services/LLM/actions/EndTaskAction";
-import { FileActions } from "@services/LLM/actions/FileActions";
 import { RelativePathLookupAction } from "@services/LLM/actions/RelativePathLookupAction";
-import { SearchAction } from "@services/LLM/actions/SearchAction";
 import { WriteFileAction } from "@services/LLM/actions/WriteFileAction";
 import { UnitTestMocker } from "@tests/mocks/UnitTestMocker";
 import { container } from "tsyringe";
@@ -18,17 +14,6 @@ describe("ActionExecutor", () => {
 
   beforeEach(() => {
     mocker = new UnitTestMocker();
-
-    // Setup spies on prototype methods of dependencies
-    mocker.spyOnPrototype(WriteFileAction, "execute", { success: true });
-    mocker.spyOnPrototype(RelativePathLookupAction, "execute", {
-      success: true,
-      data: "/absolute/path/to/file",
-    });
-    mocker.spyOnPrototype(FileActions, "handleReadFile", { success: true });
-    mocker.spyOnPrototype(CommandAction, "execute", { success: true });
-    mocker.spyOnPrototype(SearchAction, "execute", { success: true });
-    mocker.spyOnPrototype(EndTaskAction, "execute", { success: true });
   });
 
   afterEach(() => {
@@ -77,15 +62,19 @@ describe("ActionExecutor", () => {
     it("should accept properly formatted tags", async () => {
       const content =
         "<write_file><path>test.txt</path><content>test</content></write_file>";
-      const innerContent = "<path>test.txt</path><content>test</content>";
 
-      const writeSpy = mocker.spyOnPrototype(WriteFileAction, "execute", {
-        success: true,
-      });
+      // Mock the WriteFileAction to return success
+      const writeSpy = jest
+        .spyOn(WriteFileAction.prototype, "execute")
+        .mockResolvedValue({
+          success: true,
+          data: null,
+        });
+
       const result = await actionExecutor.executeAction(content);
 
       expect(result.success).toBe(true);
-      expect(writeSpy).toHaveBeenCalledWith(innerContent);
+      expect(writeSpy).toHaveBeenCalledWith(content);
     });
   });
 
@@ -110,14 +99,14 @@ describe("ActionExecutor", () => {
   it("should handle relative_path_lookup action", async () => {
     const content = `<relative_path_lookup><path>./some/path</path></relative_path_lookup>`;
 
-    const lookupSpy = mocker.spyOnPrototype(
-      RelativePathLookupAction,
-      "execute",
-      {
+    // Mock the RelativePathLookupAction to return success with data
+    const lookupSpy = jest
+      .spyOn(RelativePathLookupAction.prototype, "execute")
+      .mockResolvedValue({
         success: true,
         data: "/absolute/path/to/file",
-      },
-    );
+      });
+
     const result = await actionExecutor.executeAction(content);
 
     expect(result.success).toBe(true);

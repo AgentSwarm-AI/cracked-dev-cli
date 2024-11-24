@@ -1,62 +1,40 @@
-import { CommandAction } from "@services/LLM/actions/CommandAction";
-import { EndTaskAction } from "@services/LLM/actions/EndTaskAction";
-import { FileActions } from "@services/LLM/actions/FileActions";
-import { RelativePathLookupAction } from "@services/LLM/actions/RelativePathLookupAction";
-import { SearchAction } from "@services/LLM/actions/SearchAction";
-import { IActionResult } from "@services/LLM/actions/types/ActionTypes";
-import { WriteFileAction } from "@services/LLM/actions/WriteFileAction";
 import { autoInjectable } from "tsyringe";
+import { ActionTag, getBlueprint, getImplementedActions } from "./blueprints";
+import { ActionFactory } from "./core/ActionFactory";
+import { IActionResult } from "./types/ActionTypes";
+
 interface IPendingAction {
   type: string;
   content: string;
   priority: number;
-  rawContent: string;
 }
 
 @autoInjectable()
 export class ActionExecutor {
-  constructor(
-    private fileActions: FileActions,
-    private commandAction: CommandAction,
-    private searchAction: SearchAction,
-    private endTaskAction: EndTaskAction,
-    private writeFileAction: WriteFileAction,
-    private relativePathLookupAction: RelativePathLookupAction,
-  ) {}
+  constructor(private actionFactory: ActionFactory) {}
 
   async executeAction(actionText: string): Promise<IActionResult> {
     try {
-      // Check for action words without proper XML structure
-      const actionWords = [
-        "write_file",
-        "read_file",
-        "delete_file",
-        "move_file",
-        "copy_file_slice",
-        "fetch_url",
-        "execute_command",
-        "search_string",
-        "search_file",
-        "end_task",
-        "relative_path_lookup",
-      ];
+      // Get all implemented action types
+      const implementedActions = getImplementedActions();
 
-      for (const word of actionWords) {
+      // Validate XML structure
+      for (const actionType of implementedActions) {
         if (
-          actionText.includes(word) &&
-          !actionText.includes(`<${word}>`) &&
-          !actionText.includes(`</${word}>`)
+          actionText.includes(actionType) &&
+          !actionText.includes(`<${actionType}>`) &&
+          !actionText.includes(`</${actionType}>`)
         ) {
           return {
             success: false,
             error: new Error(
-              `Found "${word}" without proper XML tag structure. Tags must be wrapped in < > brackets. For example: <${word}>content</${word}>`,
+              `Found "${actionType}" without proper XML tag structure. Tags must be wrapped in < > brackets. For example: <${actionType}>content</${actionType}>`,
             ),
           };
         }
       }
 
-      // Updated regex to better handle nested tags
+      // Extract actions using regex
       const actionMatch = /<(\w+)>([\s\S]*?)<\/\1>/g;
       const matches = Array.from(actionText.matchAll(actionMatch));
 
@@ -69,79 +47,64 @@ export class ActionExecutor {
         };
       }
 
-      // Collect and sort actions
+      // Collect and sort actions based on blueprint priorities
       const pendingActions: IPendingAction[] = matches
         .filter(
           ([, actionType]) => actionType !== "path" && actionType !== "content",
         )
-        .map(([fullMatch, actionType, content]) => ({
-          type: actionType,
-          content: content.trim(),
-          rawContent: fullMatch,
-          // execute_command gets lowest priority (runs last)
-          priority: actionType === "execute_command" ? 1 : 0,
-        }))
-        .sort((a, b) => a.priority - b.priority);
+        .map(([fullMatch, actionType]) => {
+          const blueprint = getBlueprint(actionType as ActionTag);
+          return {
+            type: actionType,
+            content: fullMatch,
+            priority: blueprint?.priority || 0,
+          };
+        })
+        .sort((a, b) => (b.priority || 0) - (a.priority || 0));
 
       // Execute actions in order
       let lastResult: IActionResult = { success: true };
       for (const action of pendingActions) {
-        lastResult = await this.executeActionByType(
-          action.type,
-          action.type === "relative_path_lookup"
-            ? action.rawContent
-            : action.content,
+        // Validate action type
+        if (!implementedActions.includes(action.type as ActionTag)) {
+          return {
+            success: false,
+            error: new Error(`Unknown action type: ${action.type}`),
+          };
+        }
+
+        const actionInstance = this.actionFactory.createAction(
+          action.type as ActionTag,
         );
+        if (!actionInstance) {
+          return {
+            success: false,
+            error: new Error(
+              `Failed to create action instance for "${action.type}"`,
+            ),
+          };
+        }
+
+        // Get blueprint for logging
+        const blueprint = getBlueprint(action.type as ActionTag);
+        if (blueprint) {
+          console.log(
+            `⚡ ${blueprint.description || `Executing ${action.type}`}...`,
+          );
+        }
+
+        // Execute action with full tag content
+        lastResult = await actionInstance.execute(action.content);
+
         if (!lastResult.success) break;
       }
 
       return lastResult;
     } catch (error) {
-      return { success: false, error: error as Error };
-    }
-  }
-
-  private async executeActionByType(
-    actionType: string,
-    content: string,
-  ): Promise<IActionResult> {
-    switch (actionType) {
-      case "read_file":
-        console.log("📖 Reading file...");
-        return await this.fileActions.handleReadFile(content);
-      case "write_file":
-        console.log("📝 Writing to file...");
-        return await this.writeFileAction.execute(content);
-      case "delete_file":
-        console.log("🗑️ Deleting file...");
-        return await this.fileActions.handleDeleteFile(content);
-      case "move_file":
-        console.log("🚚 Moving file...");
-        return await this.fileActions.handleMoveFile(content);
-      case "copy_file_slice":
-        console.log("📋 Copying file...");
-        return await this.fileActions.handleCopyFile(content);
-      case "fetch_url":
-        console.log("🌐 Fetching URL...");
-        return await this.fileActions.handleFetchUrl(content);
-      case "execute_command":
-        console.log(`🚀 Executing command: ${content}`);
-        return await this.commandAction.execute(content);
-      case "search_string":
-      case "search_file":
-        console.log("🔍 Searching...");
-        return await this.searchAction.execute(actionType, content);
-      case "end_task":
-        console.log("🏁 Ending task...");
-        return await this.endTaskAction.execute(content);
-      case "relative_path_lookup":
-        console.log("🔄 Looking up relative path...");
-        return await this.relativePathLookupAction.execute(content);
-      default:
-        return {
-          success: false,
-          error: new Error(`Unknown action type: ${actionType}`),
-        };
+      return {
+        success: false,
+        error: error as Error,
+      };
     }
   }
 }

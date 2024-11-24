@@ -1,7 +1,6 @@
 import { LLMContextCreator } from "@services/LLM/LLMContextCreator";
 import { ActionTagsExtractor } from "@services/LLM/actions/ActionTagsExtractor";
 import {
-  ActionType,
   IActionDependency,
   IActionExecutionPlan,
   IActionGroup,
@@ -11,6 +10,7 @@ import { HtmlEntityDecoder } from "@services/text/HTMLEntityDecoder";
 import path from "path";
 import { autoInjectable } from "tsyringe";
 import { v4 as uuidv4 } from "uuid";
+import { getBlueprint, getImplementedActions } from "./blueprints";
 
 export interface ActionExecutionResult {
   actions: Array<{ action: string; result: any }>;
@@ -44,16 +44,16 @@ export class ActionsParser {
     return true;
   }
 
+  private getActionsWithPathParam(): string[] {
+    return getImplementedActions().filter((tag) => {
+      const blueprint = getBlueprint(tag);
+      return blueprint.parameters?.some((param) => param.name === "path");
+    });
+  }
+
   extractFilePath(tag: string): string | null {
-    const fileActions = [
-      "read_file",
-      "write_file",
-      "delete_file",
-      "move_file",
-      "copy_file_slice",
-      "edit_file",
-      "relative_path_lookup",
-    ];
+    // Get actions that have a path parameter from their blueprints
+    const fileActions = this.getActionsWithPathParam();
     const actionMatch = new RegExp(`<(${fileActions.join("|")})>`).exec(tag);
     if (!actionMatch) return null;
 
@@ -80,7 +80,7 @@ export class ActionsParser {
     return actions.map((action) => {
       const dependsOn: string[] = [];
 
-      if (action.type === "write_file" || action.type === "edit_file") {
+      if (action.type === "write_file") {
         const readActions = actions.filter(
           (a) =>
             a.type === "read_file" &&
@@ -89,12 +89,10 @@ export class ActionsParser {
         dependsOn.push(...readActions.map((a) => a.actionId));
       }
 
-      if (
-        ["move_file", "delete_file", "copy_file_slice"].includes(action.type)
-      ) {
+      if (["move_file", "delete_file"].includes(action.type)) {
         const writeActions = actions.filter(
           (a) =>
-            (a.type === "write_file" || a.type === "edit_file") &&
+            a.type === "write_file" &&
             this.extractFilePath(a.content) ===
               this.extractFilePath(action.content),
         );
@@ -138,9 +136,8 @@ export class ActionsParser {
 
       const canExecuteInParallel = currentGroup.every(
         (action) =>
-          !["write_file", "delete_file", "move_file", "edit_file"].includes(
-            action.type,
-          ) || currentGroup.length === 1,
+          !["write_file", "delete_file", "move_file"].includes(action.type) ||
+          currentGroup.length === 1,
       );
 
       groups.push({
@@ -168,21 +165,8 @@ export class ActionsParser {
       return { groups: [] };
     }
 
-    const actionTags = [
-      "read_file",
-      "write_file",
-      "delete_file",
-      "move_file",
-      "copy_file_slice",
-      "execute_command",
-      "search_string",
-      "search_file",
-      "end_task",
-      "fetch_url",
-      "edit_file",
-      "relative_path_lookup",
-    ] as ActionType[];
-
+    // Use getImplementedActions instead of getActionTags to only get fully implemented actions
+    const actionTags = getImplementedActions();
     const actions: IActionDependency[] = [];
 
     for (const tag of actionTags) {

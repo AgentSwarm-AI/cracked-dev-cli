@@ -1,26 +1,15 @@
-export type ActionType =
-  | "read_file"
-  | "write_file"
-  | "delete_file"
-  | "move_file"
-  | "copy_file_slice"
-  | "execute_command"
-  | "search_string"
-  | "search_file"
-  | "end_task"
-  | "fetch_url"
-  | "edit_file"
-  | "relative_path_lookup";
+import { ActionTag } from "../blueprints";
+import { CommandError } from "../errors/CommandError";
 
 export interface IActionResult {
   success: boolean;
   data?: any;
-  error?: Error;
+  error?: Error | CommandError;
 }
 
 export interface IActionDependency {
   actionId: string;
-  type: ActionType;
+  type: ActionTag;
   content: string;
   dependsOn?: string[];
 }

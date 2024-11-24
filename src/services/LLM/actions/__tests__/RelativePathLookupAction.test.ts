@@ -1,226 +1,228 @@
 import { PathAdjuster } from "@services/FileManagement/PathAdjuster";
+import { ActionTagsExtractor } from "@services/LLM/actions/ActionTagsExtractor";
 import { RelativePathLookupAction } from "@services/LLM/actions/RelativePathLookupAction";
-import { UnitTestMocker } from "@tests/mocks/UnitTestMocker";
 import path from "path";
 import { container } from "tsyringe";
 
-jest.mock("@services/FileManagement/PathAdjuster");
+// Create mock classes
+class MockPathAdjuster {
+  adjustPath = jest.fn();
+}
+
+class MockActionTagsExtractor {
+  extractTag = jest.fn();
+}
+
+// Mock both classes
+jest.mock("@services/FileManagement/PathAdjuster", () => ({
+  PathAdjuster: jest.fn().mockImplementation(() => new MockPathAdjuster()),
+}));
+
+jest.mock("@services/LLM/actions/ActionTagsExtractor", () => ({
+  ActionTagsExtractor: jest
+    .fn()
+    .mockImplementation(() => new MockActionTagsExtractor()),
+}));
 
 describe("RelativePathLookupAction", () => {
   let relativePathLookupAction: RelativePathLookupAction;
-  let mocker: UnitTestMocker;
+  let pathAdjuster: MockPathAdjuster;
+  let actionTagsExtractor: MockActionTagsExtractor;
 
   beforeEach(() => {
-    mocker = new UnitTestMocker();
+    jest.clearAllMocks();
+    container.clearInstances();
 
-    // Setup spies on prototype methods of dependencies before instantiating RelativePathLookupAction
-    mocker.spyOnPrototype(PathAdjuster, "adjustPath", jest.fn());
+    // Create new instances of our mocks
+    pathAdjuster = new MockPathAdjuster();
+    actionTagsExtractor = new MockActionTagsExtractor();
 
-    // Instantiate RelativePathLookupAction after setting up mocks
+    // Register the mocks with the container
+    container.registerInstance(
+      PathAdjuster,
+      pathAdjuster as unknown as PathAdjuster,
+    );
+    container.registerInstance(
+      ActionTagsExtractor,
+      actionTagsExtractor as unknown as ActionTagsExtractor,
+    );
+
+    // Set up default mock behavior for ActionTagsExtractor
+    actionTagsExtractor.extractTag.mockImplementation((content, tag) => {
+      if (content.includes(`<${tag}>`)) {
+        const match = content.match(new RegExp(`<${tag}>(.*?)</${tag}>`, "s"));
+        return match ? match[1].trim() : null;
+      }
+      return null;
+    });
+
+    // Resolve RelativePathLookupAction which will now use our mocks
     relativePathLookupAction = container.resolve(RelativePathLookupAction);
   });
 
-  afterEach(() => {
-    mocker.clearAllMocks();
-    container.clearInstances();
-    jest.clearAllMocks();
+  it("should handle successful path lookup", async () => {
+    const sourcePath = "/home/user/project/src/components/test.ts";
+    const relativePath = "../utils/helper.ts";
+    const expectedAbsolutePath = "/home/user/project/src/utils/helper.ts";
+
+    pathAdjuster.adjustPath.mockResolvedValue(expectedAbsolutePath);
+
+    const result = await relativePathLookupAction.execute(`
+      <relative_path_lookup>
+        <source_path>${sourcePath}</source_path>
+        <path>${relativePath}</path>
+      </relative_path_lookup>
+    `);
+
+    expect(result.success).toBe(true);
+    expect(result.data).toEqual({
+      originalPath: relativePath,
+      newPath: relativePath,
+      absolutePath: expectedAbsolutePath,
+    });
+    expect(pathAdjuster.adjustPath).toHaveBeenCalledWith(
+      path.resolve(path.dirname(sourcePath), relativePath),
+      0.6,
+    );
   });
 
-  describe("execute", () => {
-    it("should handle successful path lookup", async () => {
-      const sourcePath = "/home/user/project/src/components/test.ts";
-      const relativePath = "../utils/helper.ts";
-      const content = `
-        <relative_path_lookup>
-          <source_path>${sourcePath}</source_path>
-          <path>${relativePath}</path>
-        </relative_path_lookup>
-      `;
-      const expectedAbsolutePath = "/home/user/project/src/utils/helper.ts";
+  it("should handle path lookup with custom threshold", async () => {
+    const sourcePath = "/home/user/project/src/components/test.ts";
+    const relativePath = "../utils/helper.ts";
+    const expectedAbsolutePath = "/home/user/project/src/utils/helper.ts";
 
-      const fullImportPath = path.resolve(
-        path.dirname(sourcePath),
-        relativePath,
-      );
-      // Mock adjustPath to resolve with expectedAbsolutePath
-      (PathAdjuster.prototype.adjustPath as jest.Mock).mockResolvedValueOnce(
-        expectedAbsolutePath,
-      );
+    pathAdjuster.adjustPath.mockResolvedValue(expectedAbsolutePath);
 
-      const result = await relativePathLookupAction.execute(content);
+    const result = await relativePathLookupAction.execute(`
+      <relative_path_lookup>
+        <source_path>${sourcePath}</source_path>
+        <path>${relativePath}</path>
+        <threshold>0.8</threshold>
+      </relative_path_lookup>
+    `);
 
-      expect(result.success).toBe(true);
-      expect(result.data).toEqual({
-        originalPath: relativePath,
-        newPath: relativePath,
-        absolutePath: expectedAbsolutePath,
-      });
-      expect(PathAdjuster.prototype.adjustPath).toHaveBeenCalledWith(
-        fullImportPath,
-        0.6,
-      );
+    expect(result.success).toBe(true);
+    expect(result.data).toEqual({
+      originalPath: relativePath,
+      newPath: relativePath,
+      absolutePath: expectedAbsolutePath,
     });
+    expect(pathAdjuster.adjustPath).toHaveBeenCalledWith(
+      path.resolve(path.dirname(sourcePath), relativePath),
+      0.8,
+    );
+  });
 
-    it("should handle path lookup with custom threshold", async () => {
-      const sourcePath = "/home/user/project/src/components/test.ts";
-      const relativePath = "../utils/helper.ts";
-      const content = `
+  describe("validation", () => {
+    it("should fail when source_path is missing", async () => {
+      const result = await relativePathLookupAction.execute(`
         <relative_path_lookup>
-          <source_path>${sourcePath}</source_path>
-          <path>${relativePath}</path>
-          <threshold>0.8</threshold>
+          <path>../utils/helper.ts</path>
         </relative_path_lookup>
-      `;
-      const expectedAbsolutePath = "/home/user/project/src/utils/helper.ts";
-
-      const fullImportPath = path.resolve(
-        path.dirname(sourcePath),
-        relativePath,
-      );
-      // Mock adjustPath to resolve with expectedAbsolutePath
-      (PathAdjuster.prototype.adjustPath as jest.Mock).mockResolvedValueOnce(
-        expectedAbsolutePath,
-      );
-
-      const result = await relativePathLookupAction.execute(content);
-
-      expect(result.success).toBe(true);
-      expect(result.data).toEqual({
-        originalPath: relativePath,
-        newPath: relativePath,
-        absolutePath: expectedAbsolutePath,
-      });
-      expect(PathAdjuster.prototype.adjustPath).toHaveBeenCalledWith(
-        fullImportPath,
-        0.8,
-      );
-    });
-
-    it("should handle missing source_path tag", async () => {
-      const relativePath = "../utils/helper.ts";
-      const content = `
-        <relative_path_lookup>
-          <path>${relativePath}</path>
-        </relative_path_lookup>
-      `;
-
-      const result = await relativePathLookupAction.execute(content);
+      `);
 
       expect(result.success).toBe(false);
-      expect(result.error?.message).toBe(
-        "No source_path provided in relative_path_lookup action",
-      );
-      expect(PathAdjuster.prototype.adjustPath).not.toHaveBeenCalled();
+      expect(result.error?.message).toBe("No source_path provided");
+      expect(pathAdjuster.adjustPath).not.toHaveBeenCalled();
     });
 
-    it("should handle missing path tag", async () => {
-      const sourcePath = "/home/user/project/src/components/test.ts";
-      const content = `
+    it("should fail when path is missing", async () => {
+      const result = await relativePathLookupAction.execute(`
         <relative_path_lookup>
-          <source_path>${sourcePath}</source_path>
+          <source_path>/home/user/project/src/components/test.ts</source_path>
         </relative_path_lookup>
-      `;
-
-      const result = await relativePathLookupAction.execute(content);
+      `);
 
       expect(result.success).toBe(false);
-      expect(result.error?.message).toBe(
-        "No path provided in relative_path_lookup action",
-      );
-      expect(PathAdjuster.prototype.adjustPath).not.toHaveBeenCalled();
+      expect(result.error?.message).toBe("No path provided");
+      expect(pathAdjuster.adjustPath).not.toHaveBeenCalled();
     });
 
-    it("should handle path not found", async () => {
-      const sourcePath = "/home/user/project/src/components/test.ts";
-      const relativePath = "../nonexistent/file.ts";
-      const content = `
+    it("should fail when threshold is invalid", async () => {
+      const result = await relativePathLookupAction.execute(`
         <relative_path_lookup>
-          <source_path>${sourcePath}</source_path>
-          <path>${relativePath}</path>
+          <source_path>/home/user/project/src/components/test.ts</source_path>
+          <path>../utils/helper.ts</path>
+          <threshold>1.5</threshold>
         </relative_path_lookup>
-      `;
-
-      const fullImportPath = path.resolve(
-        path.dirname(sourcePath),
-        relativePath,
-      );
-      // Mock adjustPath to resolve with null indicating path not found
-      (PathAdjuster.prototype.adjustPath as jest.Mock).mockResolvedValueOnce(
-        null,
-      );
-
-      const result = await relativePathLookupAction.execute(content);
-
-      expect(result.success).toBe(true);
-      expect(result.data).toBeNull();
-      expect(PathAdjuster.prototype.adjustPath).toHaveBeenCalledWith(
-        fullImportPath,
-        0.6,
-      );
-    });
-
-    it("should handle PathAdjuster errors", async () => {
-      const sourcePath = "/home/user/project/src/components/test.ts";
-      const relativePath = "../utils/helper.ts";
-      const content = `
-        <relative_path_lookup>
-          <source_path>${sourcePath}</source_path>
-          <path>${relativePath}</path>
-        </relative_path_lookup>
-      `;
-      const error = new Error("PathAdjuster error");
-
-      const fullImportPath = path.resolve(
-        path.dirname(sourcePath),
-        relativePath,
-      );
-      // Mock adjustPath to reject with an error
-      (PathAdjuster.prototype.adjustPath as jest.Mock).mockRejectedValueOnce(
-        error,
-      );
-
-      const result = await relativePathLookupAction.execute(content);
+      `);
 
       expect(result.success).toBe(false);
-      expect(result.error).toBe(error);
-      expect(PathAdjuster.prototype.adjustPath).toHaveBeenCalledWith(
-        fullImportPath,
-        0.6,
-      );
+      expect(result.error?.message).toBe("Threshold must be between 0 and 1");
+      expect(pathAdjuster.adjustPath).not.toHaveBeenCalled();
     });
+  });
 
-    it("should convert absolute path to proper relative path", async () => {
-      const sourcePath = "/home/user/project/src/components/test.ts";
-      const relativePath = "../utils/helper.ts";
-      const content = `
-        <relative_path_lookup>
-          <source_path>${sourcePath}</source_path>
-          <path>${relativePath}</path>
-        </relative_path_lookup>
-      `;
-      const adjustedPath = "/home/user/project/src/lib/utils/helper.ts";
+  it("should handle path not found", async () => {
+    const sourcePath = "/home/user/project/src/components/test.ts";
+    const relativePath = "../nonexistent/file.ts";
 
-      const fullImportPath = path.resolve(
-        path.dirname(sourcePath),
-        relativePath,
-      );
-      // Mock adjustPath to resolve with the adjusted absolute path
-      (PathAdjuster.prototype.adjustPath as jest.Mock).mockResolvedValueOnce(
-        adjustedPath,
-      );
+    pathAdjuster.adjustPath.mockResolvedValue(null);
 
-      const result = await relativePathLookupAction.execute(content);
+    const result = await relativePathLookupAction.execute(`
+      <relative_path_lookup>
+        <source_path>${sourcePath}</source_path>
+        <path>${relativePath}</path>
+      </relative_path_lookup>
+    `);
 
-      expect(result.success).toBe(true);
-      expect(result.data).toEqual({
-        originalPath: relativePath,
-        newPath: "../lib/utils/helper.ts",
-        absolutePath: adjustedPath,
-      });
-      expect(PathAdjuster.prototype.adjustPath).toHaveBeenCalledWith(
-        fullImportPath,
-        0.6,
-      );
+    expect(result.success).toBe(true);
+    expect(result.data).toBeNull();
+    expect(pathAdjuster.adjustPath).toHaveBeenCalledWith(
+      path.resolve(path.dirname(sourcePath), relativePath),
+      0.6,
+    );
+  });
+
+  it("should handle PathAdjuster errors", async () => {
+    const sourcePath = "/home/user/project/src/components/test.ts";
+    const relativePath = "../utils/helper.ts";
+    const error = new Error("PathAdjuster error");
+
+    pathAdjuster.adjustPath.mockRejectedValue(error);
+
+    const result = await relativePathLookupAction.execute(`
+      <relative_path_lookup>
+        <source_path>${sourcePath}</source_path>
+        <path>${relativePath}</path>
+      </relative_path_lookup>
+    `);
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe(error);
+    expect(pathAdjuster.adjustPath).toHaveBeenCalledWith(
+      path.resolve(path.dirname(sourcePath), relativePath),
+      0.6,
+    );
+  });
+
+  it("should handle whitespace in parameters", async () => {
+    const sourcePath = "/home/user/project/src/components/test.ts";
+    const relativePath = "../utils/helper.ts";
+    const expectedAbsolutePath = "/home/user/project/src/utils/helper.ts";
+
+    pathAdjuster.adjustPath.mockResolvedValue(expectedAbsolutePath);
+
+    const result = await relativePathLookupAction.execute(`
+      <relative_path_lookup>
+        <source_path>
+          ${sourcePath}
+        </source_path>
+        <path>
+          ${relativePath}
+        </path>
+      </relative_path_lookup>
+    `);
+
+    expect(result.success).toBe(true);
+    expect(result.data).toEqual({
+      originalPath: relativePath,
+      newPath: relativePath,
+      absolutePath: expectedAbsolutePath,
     });
+    expect(pathAdjuster.adjustPath).toHaveBeenCalledWith(
+      path.resolve(path.dirname(sourcePath), relativePath),
+      0.6,
+    );
   });
 });

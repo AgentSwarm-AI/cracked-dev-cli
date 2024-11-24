@@ -1,26 +1,40 @@
-import { ActionTagsExtractor } from "@services/LLM/actions/ActionTagsExtractor";
-import { IActionResult } from "@services/LLM/actions/types/ActionTypes";
 import { autoInjectable } from "tsyringe";
+import { ActionTagsExtractor } from "./ActionTagsExtractor";
+import { endTaskAction as blueprint } from "./blueprints/endTaskAction";
+import { BaseAction } from "./core/BaseAction";
+import { IActionMetadata } from "./core/IAction";
+import { IActionResult } from "./types/ActionTypes";
+
+interface EndTaskParams {
+  message: string;
+}
 
 @autoInjectable()
-export class EndTaskAction {
-  constructor(private actionTagsExtractor: ActionTagsExtractor) {}
+export class EndTaskAction extends BaseAction {
+  constructor(protected actionTagsExtractor: ActionTagsExtractor) {
+    super(actionTagsExtractor);
+  }
 
-  async execute(content: string): Promise<IActionResult> {
-    const message = this.actionTagsExtractor.extractTag(content, "message");
+  protected getBlueprint(): IActionMetadata {
+    return blueprint;
+  }
+
+  protected validateParams(params: Record<string, any>): string | null {
+    const { message } = params as EndTaskParams;
+
     if (!message) {
-      return {
-        success: false,
-        error: new Error(
-          "Invalid end_task format. Must include <message> tag.",
-        ),
-      };
+      return "No message provided";
     }
 
-    console.log(`📝 End task message: ${message}`);
-    return {
-      success: true,
-      data: message,
-    };
+    return null;
+  }
+
+  protected async executeInternal(
+    params: Record<string, any>,
+  ): Promise<IActionResult> {
+    const { message } = params as EndTaskParams;
+
+    this.logInfo(`End task message: ${message}`);
+    return this.createSuccessResult(message);
   }
 }
