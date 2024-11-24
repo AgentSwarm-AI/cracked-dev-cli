@@ -33,6 +33,8 @@ export class OpenRouterAPI implements ILLMProvider {
   private streamBuffer: string = "";
   private maxRetries: number = 3;
   private retryDelay: number = 1000;
+  private streamTimeout: number = 30000; // 30 seconds timeout
+  private lastStreamActivity: number = 0;
 
   constructor(
     private messageContextManager: MessageContextManager,
@@ -198,12 +200,18 @@ export class OpenRouterAPI implements ILLMProvider {
 
       const cleaned = this.messageContextManager.cleanupContext(maxTokens);
       if (cleaned) {
+        this.resetStreamState();
         await this.streamMessage(currentModel, message, callback);
         return;
       }
     }
 
     callback("", error);
+  }
+
+  private resetStreamState(): void {
+    this.streamBuffer = "";
+    this.lastStreamActivity = Date.now();
   }
 
   private async retryStreamOperation<T>(
@@ -239,6 +247,15 @@ export class OpenRouterAPI implements ILLMProvider {
       error.message?.includes("network") ||
       error.message?.includes("timeout")
     );
+  }
+
+  private checkStreamTimeout(): boolean {
+    const now = Date.now();
+    if (now - this.lastStreamActivity > this.streamTimeout) {
+      return true;
+    }
+    this.lastStreamActivity = now;
+    return false;
   }
 
   private processCompleteMessage(message: string): {
@@ -303,7 +320,7 @@ export class OpenRouterAPI implements ILLMProvider {
     const currentModel = this.modelScaler.getCurrentModel() || model;
 
     let assistantMessage = "";
-    this.streamBuffer = "";
+    this.resetStreamState();
 
     try {
       await this.modelInfo.setCurrentModel(currentModel);
@@ -324,12 +341,20 @@ export class OpenRouterAPI implements ILLMProvider {
           },
           {
             responseType: "stream",
-            timeout: 0,
+            timeout: this.streamTimeout,
           },
         );
 
         try {
           for await (const chunk of response.data) {
+            if (this.checkStreamTimeout()) {
+              throw new LLMError(
+                "Stream timeout due to inactivity",
+                "STREAM_ERROR",
+                { timeout: this.streamTimeout },
+              );
+            }
+
             const { content, error } = this.parseStreamChunk(chunk.toString());
 
             if (error) {
@@ -367,7 +392,7 @@ export class OpenRouterAPI implements ILLMProvider {
             }
           }
         } finally {
-          this.streamBuffer = "";
+          this.resetStreamState();
         }
 
         if (assistantMessage) {

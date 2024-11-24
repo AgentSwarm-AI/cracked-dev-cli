@@ -2,9 +2,9 @@ import { PathAdjuster } from "@services/FileManagement/PathAdjuster";
 import path from "path";
 import { autoInjectable } from "tsyringe";
 import { ActionTagsExtractor } from "./ActionTagsExtractor";
-import { relativePathLookupAction as blueprint } from "./blueprints/relativePathLookupAction";
+import { relativePathLookupActionBlueprint as blueprint } from "./blueprints/relativePathLookupActionBlueprint";
 import { BaseAction } from "./core/BaseAction";
-import { IActionMetadata } from "./core/IAction";
+import { IActionBlueprint } from "./core/IAction";
 import { IActionResult } from "./types/ActionTypes";
 
 interface RelativePathLookupParams {
@@ -22,7 +22,7 @@ export class RelativePathLookupAction extends BaseAction {
     super(actionTagsExtractor);
   }
 
-  protected getBlueprint(): IActionMetadata {
+  protected getBlueprint(): IActionBlueprint {
     return blueprint;
   }
 

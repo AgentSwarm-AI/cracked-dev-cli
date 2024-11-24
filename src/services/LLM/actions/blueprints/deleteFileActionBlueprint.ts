@@ -1,7 +1,7 @@
-import { IActionMetadata } from "../core/IAction";
+import { IActionBlueprint } from "../core/IAction";
 import { DeleteFileAction } from "../DeleteFileAction";
 
-export const deleteFileAction: IActionMetadata = {
+export const deleteFileActionBlueprint: IActionBlueprint = {
   tag: "delete_file",
   class: DeleteFileAction,
   description: "Delete a file at the specified path",

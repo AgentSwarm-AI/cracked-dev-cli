@@ -1,6 +1,6 @@
 import { ActionTagsExtractor } from "../ActionTagsExtractor";
 import { IActionResult } from "../types/ActionTypes";
-import { IAction, IActionMetadata, IActionParameter } from "./IAction";
+import { IAction, IActionBlueprint, IActionParameter } from "./IAction";
 
 export abstract class BaseAction implements IAction {
   constructor(protected actionTagsExtractor: ActionTagsExtractor) {}
@@ -9,7 +9,7 @@ export abstract class BaseAction implements IAction {
     params: Record<string, any>,
   ): Promise<IActionResult>;
   protected abstract validateParams(params: Record<string, any>): string | null;
-  protected abstract getBlueprint(): IActionMetadata;
+  protected abstract getBlueprint(): IActionBlueprint;
 
   protected parseParams(content: string): Record<string, any> {
     const blueprint = this.getBlueprint();

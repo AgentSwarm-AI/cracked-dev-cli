@@ -1,7 +1,7 @@
-import { IActionMetadata } from "../core/IAction";
+import { IActionBlueprint } from "../core/IAction";
 import { ReadFileAction } from "../ReadFileAction";
 
-export const readFileAction: IActionMetadata = {
+export const readFileActionBlueprint: IActionBlueprint = {
   tag: "read_file",
   class: ReadFileAction,
   description: "Reads content from one or more files",

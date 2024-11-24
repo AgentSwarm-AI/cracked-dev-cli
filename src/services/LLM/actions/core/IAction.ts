@@ -8,7 +8,7 @@ export interface IActionParameter {
   mayContainNestedContent?: boolean;
 }
 
-export interface IActionMetadata {
+export interface IActionBlueprint {
   tag: string;
   class: any;
   description: string;

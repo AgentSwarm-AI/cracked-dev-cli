@@ -4,9 +4,9 @@ import { ModelScaler } from "@services/LLM/ModelScaler";
 import { HtmlEntityDecoder } from "@services/text/HTMLEntityDecoder";
 import { autoInjectable } from "tsyringe";
 import { ActionTagsExtractor } from "./ActionTagsExtractor";
-import { writeFileAction as blueprint } from "./blueprints/writeFileAction";
+import { writeFileActionBlueprint as blueprint } from "./blueprints/writeFileActionBlueprint";
 import { BaseAction } from "./core/BaseAction";
-import { IActionMetadata } from "./core/IAction";
+import { IActionBlueprint } from "./core/IAction";
 import { IActionResult } from "./types/ActionTypes";
 
 interface WriteFileParams {
@@ -25,7 +25,7 @@ export class WriteFileAction extends BaseAction {
     super(actionTagsExtractor);
   }
 
-  protected getBlueprint(): IActionMetadata {
+  protected getBlueprint(): IActionBlueprint {
     return blueprint;
   }
 

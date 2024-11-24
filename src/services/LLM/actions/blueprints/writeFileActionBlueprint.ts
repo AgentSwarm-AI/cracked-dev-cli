@@ -1,7 +1,7 @@
-import { IActionMetadata } from "../core/IAction";
+import { IActionBlueprint } from "../core/IAction";
 import { WriteFileAction } from "../WriteFileAction";
 
-export const writeFileAction: IActionMetadata = {
+export const writeFileActionBlueprint: IActionBlueprint = {
   tag: "write_file",
   class: WriteFileAction,
   description:

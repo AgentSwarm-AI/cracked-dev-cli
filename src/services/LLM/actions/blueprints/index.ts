@@ -1,34 +1,37 @@
-import { IActionMetadata } from "../core/IAction";
-import { commandAction } from "./commandAction";
-import { copyFileAction } from "./copyFileAction";
-import { deleteFileAction } from "./deleteFileAction";
-import { endTaskAction } from "./endTaskAction";
-import { fetchUrlAction } from "./fetchUrlAction";
-import { moveFileAction } from "./moveFileAction";
-import { readFileAction } from "./readFileAction";
-import { relativePathLookupAction } from "./relativePathLookupAction";
-import { searchFileAction, searchStringAction } from "./searchActions";
-import { writeFileAction } from "./writeFileAction";
+import { IActionBlueprint } from "../core/IAction";
+import { commandActionBlueprint } from "./commandActionBlueprint";
+import { copyFileActionBlueprint } from "./copyFileActionBlueprint";
+import { deleteFileActionBlueprint } from "./deleteFileActionBlueprint";
+import { endTaskActionBlueprint } from "./endTaskActionBlueprint";
+import { fetchUrlActionBlueprint } from "./fetchUrlActionBlueprint";
+import { moveFileActionBlueprint } from "./moveFileActionBlueprint";
+import { readFileActionBlueprint } from "./readFileActionBlueprint";
+import { relativePathLookupActionBlueprint } from "./relativePathLookupActionBlueprint";
+import {
+  searchFileActionBlueprint,
+  searchStringActionBlueprint,
+} from "./searchActionsBlueprint";
+import { writeFileActionBlueprint } from "./writeFileActionBlueprint";
 
 export const actionsBlueprints = {
-  write_file: writeFileAction,
-  read_file: readFileAction,
-  execute_command: commandAction,
-  search_string: searchStringAction,
-  search_file: searchFileAction,
-  end_task: endTaskAction,
-  relative_path_lookup: relativePathLookupAction,
-  delete_file: deleteFileAction,
-  move_file: moveFileAction,
-  fetch_url: fetchUrlAction,
-  copy_file: copyFileAction,
+  write_file: writeFileActionBlueprint,
+  read_file: readFileActionBlueprint,
+  execute_command: commandActionBlueprint,
+  search_string: searchStringActionBlueprint,
+  search_file: searchFileActionBlueprint,
+  end_task: endTaskActionBlueprint,
+  relative_path_lookup: relativePathLookupActionBlueprint,
+  delete_file: deleteFileActionBlueprint,
+  move_file: moveFileActionBlueprint,
+  fetch_url: fetchUrlActionBlueprint,
+  copy_file: copyFileActionBlueprint,
 } as const;
 
 // Infer action types from blueprints
 export type ActionTag = keyof typeof actionsBlueprints;
 
 // Helper to get blueprint by tag
-export function getBlueprint(tag: ActionTag): IActionMetadata {
+export function getBlueprint(tag: ActionTag): IActionBlueprint {
   return actionsBlueprints[tag];
 }
 

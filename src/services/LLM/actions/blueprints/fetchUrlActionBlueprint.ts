@@ -1,7 +1,7 @@
-import { IActionMetadata } from "../core/IAction";
+import { IActionBlueprint } from "../core/IAction";
 import { FetchUrlAction } from "../FetchUrlAction";
 
-export const fetchUrlAction: IActionMetadata = {
+export const fetchUrlActionBlueprint: IActionBlueprint = {
   tag: "fetch_url",
   class: FetchUrlAction,
   description: "Fetch content from a URL",

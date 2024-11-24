@@ -1,8 +1,8 @@
 import { autoInjectable } from "tsyringe";
 import { ActionTagsExtractor } from "./ActionTagsExtractor";
-import { endTaskAction as blueprint } from "./blueprints/endTaskAction";
+import { endTaskActionBlueprint as blueprint } from "./blueprints/endTaskActionBlueprint";
 import { BaseAction } from "./core/BaseAction";
-import { IActionMetadata } from "./core/IAction";
+import { IActionBlueprint } from "./core/IAction";
 import { IActionResult } from "./types/ActionTypes";
 
 interface EndTaskParams {
@@ -15,7 +15,7 @@ export class EndTaskAction extends BaseAction {
     super(actionTagsExtractor);
   }
 
-  protected getBlueprint(): IActionMetadata {
+  protected getBlueprint(): IActionBlueprint {
     return blueprint;
   }
 

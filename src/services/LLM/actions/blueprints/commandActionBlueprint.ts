@@ -1,7 +1,7 @@
 import { CommandAction } from "../CommandAction";
-import { IActionMetadata } from "../core/IAction";
+import { IActionBlueprint } from "../core/IAction";
 
-export const commandAction: IActionMetadata = {
+export const commandActionBlueprint: IActionBlueprint = {
   tag: "execute_command",
   class: CommandAction,
   description: "Executes a system command with output streaming",

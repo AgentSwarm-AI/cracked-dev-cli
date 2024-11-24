@@ -2,11 +2,11 @@ import { FileSearch } from "@services/FileManagement/FileSearch";
 import { autoInjectable } from "tsyringe";
 import { ActionTagsExtractor } from "./ActionTagsExtractor";
 import {
-  searchFileAction,
-  searchStringAction,
-} from "./blueprints/searchActions";
+  searchFileActionBlueprint,
+  searchStringActionBlueprint,
+} from "./blueprints/searchActionsBlueprint";
 import { BaseAction } from "./core/BaseAction";
-import { IActionMetadata } from "./core/IAction";
+import { IActionBlueprint } from "./core/IAction";
 import { IActionResult } from "./types/ActionTypes";
 
 interface SearchParams {
@@ -34,10 +34,10 @@ export class SearchAction extends BaseAction {
     return super.execute(content);
   }
 
-  protected getBlueprint(): IActionMetadata {
+  protected getBlueprint(): IActionBlueprint {
     return this.currentType === "search_string"
-      ? searchStringAction
-      : searchFileAction;
+      ? searchStringActionBlueprint
+      : searchFileActionBlueprint;
   }
 
   protected parseParams(content: string): Record<string, any> {

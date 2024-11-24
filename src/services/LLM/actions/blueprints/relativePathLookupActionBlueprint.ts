@@ -1,7 +1,7 @@
-import { IActionMetadata } from "../core/IAction";
+import { IActionBlueprint } from "../core/IAction";
 import { RelativePathLookupAction } from "../RelativePathLookupAction";
 
-export const relativePathLookupAction: IActionMetadata = {
+export const relativePathLookupActionBlueprint: IActionBlueprint = {
   tag: "relative_path_lookup",
   class: RelativePathLookupAction,
   description: "Adjust and validate relative file paths",

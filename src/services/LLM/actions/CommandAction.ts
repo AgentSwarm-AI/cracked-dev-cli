@@ -5,9 +5,9 @@ import chalk from "chalk";
 import { spawn, SpawnOptionsWithoutStdio } from "child_process";
 import { autoInjectable } from "tsyringe";
 import { ActionTagsExtractor } from "./ActionTagsExtractor";
-import { commandAction as blueprint } from "./blueprints/commandAction";
+import { commandActionBlueprint as blueprint } from "./blueprints/commandActionBlueprint";
 import { BaseAction } from "./core/BaseAction";
-import { IActionMetadata } from "./core/IAction";
+import { IActionBlueprint } from "./core/IAction";
 import { CommandError } from "./errors/CommandError";
 
 interface CommandParams {
@@ -24,7 +24,7 @@ export class CommandAction extends BaseAction {
     super(actionTagsExtractor);
   }
 
-  protected getBlueprint(): IActionMetadata {
+  protected getBlueprint(): IActionBlueprint {
     return blueprint;
   }
 

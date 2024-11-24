@@ -1,7 +1,7 @@
-import { IActionMetadata } from "../core/IAction";
+import { IActionBlueprint } from "../core/IAction";
 import { SearchAction } from "../SearchAction";
 
-export const searchStringAction: IActionMetadata = {
+export const searchStringActionBlueprint: IActionBlueprint = {
   tag: "search_string",
   class: SearchAction,
   description: "Search for content within files",
@@ -23,7 +23,7 @@ export const searchStringAction: IActionMetadata = {
   ],
 };
 
-export const searchFileAction: IActionMetadata = {
+export const searchFileActionBlueprint: IActionBlueprint = {
   tag: "search_file",
   class: SearchAction,
   description: "Search for files by name",

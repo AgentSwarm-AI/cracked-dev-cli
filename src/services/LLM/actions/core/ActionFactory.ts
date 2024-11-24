@@ -4,11 +4,11 @@ import {
   ActionTag,
   getImplementedActions,
 } from "../blueprints";
-import { IAction, IActionMetadata } from "./IAction";
+import { IAction, IActionBlueprint } from "./IAction";
 
 @autoInjectable()
 export class ActionFactory {
-  private blueprintCache: Map<string, IActionMetadata> = new Map();
+  private blueprintCache: Map<string, IActionBlueprint> = new Map();
   private instanceCache: Map<string, IAction> = new Map();
 
   constructor() {
@@ -22,11 +22,11 @@ export class ActionFactory {
     });
   }
 
-  getBlueprint(tag: string): IActionMetadata | undefined {
+  getBlueprint(tag: string): IActionBlueprint | undefined {
     return this.blueprintCache.get(tag);
   }
 
-  getAllBlueprints(): IActionMetadata[] {
+  getAllBlueprints(): IActionBlueprint[] {
     return Array.from(this.blueprintCache.values());
   }
 

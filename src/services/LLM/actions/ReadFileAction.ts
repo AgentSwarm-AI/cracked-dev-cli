@@ -6,9 +6,9 @@ import { DebugLogger } from "@services/logging/DebugLogger";
 import path from "path";
 import { autoInjectable } from "tsyringe";
 import { ActionTagsExtractor } from "./ActionTagsExtractor";
-import { readFileAction as blueprint } from "./blueprints/readFileAction";
+import { readFileActionBlueprint as blueprint } from "./blueprints/readFileActionBlueprint";
 import { BaseAction } from "./core/BaseAction";
-import { IActionMetadata } from "./core/IAction";
+import { IActionBlueprint } from "./core/IAction";
 
 interface ReadFileParams {
   path: string[];
@@ -25,7 +25,7 @@ export class ReadFileAction extends BaseAction {
     super(actionTagsExtractor);
   }
 
-  protected getBlueprint(): IActionMetadata {
+  protected getBlueprint(): IActionBlueprint {
     return blueprint;
   }
 

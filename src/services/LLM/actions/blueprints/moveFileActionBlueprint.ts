@@ -1,7 +1,7 @@
-import { IActionMetadata } from "../core/IAction";
+import { IActionBlueprint } from "../core/IAction";
 import { MoveFileAction } from "../MoveFileAction";
 
-export const moveFileAction: IActionMetadata = {
+export const moveFileActionBlueprint: IActionBlueprint = {
   tag: "move_file",
   class: MoveFileAction,
   description: "Move a file from source to destination path",

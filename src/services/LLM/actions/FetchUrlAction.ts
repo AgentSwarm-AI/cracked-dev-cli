@@ -1,9 +1,9 @@
 import axios, { AxiosResponse } from "axios";
 import { autoInjectable } from "tsyringe";
 import { ActionTagsExtractor } from "./ActionTagsExtractor";
-import { fetchUrlAction as blueprint } from "./blueprints/fetchUrlAction";
+import { fetchUrlActionBlueprint as blueprint } from "./blueprints/fetchUrlActionBlueprint";
 import { BaseAction } from "./core/BaseAction";
-import { IActionMetadata } from "./core/IAction";
+import { IActionBlueprint } from "./core/IAction";
 import { IActionResult } from "./types/ActionTypes";
 
 interface FetchUrlParams {
@@ -16,7 +16,7 @@ export class FetchUrlAction extends BaseAction {
     super(actionTagsExtractor);
   }
 
-  protected getBlueprint(): IActionMetadata {
+  protected getBlueprint(): IActionBlueprint {
     return blueprint;
   }
 

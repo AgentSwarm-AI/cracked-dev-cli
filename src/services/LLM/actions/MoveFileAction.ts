@@ -1,9 +1,9 @@
 import { FileOperations } from "@services/FileManagement/FileOperations";
 import { autoInjectable } from "tsyringe";
 import { ActionTagsExtractor } from "./ActionTagsExtractor";
-import { moveFileAction as blueprint } from "./blueprints/moveFileAction";
+import { moveFileActionBlueprint as blueprint } from "./blueprints/moveFileActionBlueprint";
 import { BaseAction } from "./core/BaseAction";
-import { IActionMetadata } from "./core/IAction";
+import { IActionBlueprint } from "./core/IAction";
 import { IActionResult } from "./types/ActionTypes";
 
 interface MoveFileParams {
@@ -20,7 +20,7 @@ export class MoveFileAction extends BaseAction {
     super(actionTagsExtractor);
   }
 
-  protected getBlueprint(): IActionMetadata {
+  protected getBlueprint(): IActionBlueprint {
     return blueprint;
   }
 

@@ -1,7 +1,7 @@
 import { CopyFileAction } from "../CopyFileAction";
-import { IActionMetadata } from "../core/IAction";
+import { IActionBlueprint } from "../core/IAction";
 
-export const copyFileAction: IActionMetadata = {
+export const copyFileActionBlueprint: IActionBlueprint = {
   tag: "copy_file",
   class: CopyFileAction,
   description: "Copy a file from source to destination path",
