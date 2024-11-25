@@ -7,6 +7,7 @@ import { HtmlEntityDecoder } from "@services/text/HTMLEntityDecoder";
 import { UnitTestMocker } from "@tests/mocks/UnitTestMocker";
 import { container } from "tsyringe";
 import { IOpenRouterMessage } from "../types/OpenRouterAPITypes";
+import { Readable } from "stream";
 
 describe("OpenRouterAPI", () => {
   let openRouterAPI: OpenRouterAPI;
@@ -15,7 +16,6 @@ describe("OpenRouterAPI", () => {
   beforeEach(() => {
     mocker = new UnitTestMocker();
 
-    // Spy on MessageContextManager methods
     mocker.spyOnPrototypeWithImplementation(
       MessageContextManager,
       "getMessages",
@@ -37,7 +37,6 @@ describe("OpenRouterAPI", () => {
       () => {},
     );
 
-    // Spy on ModelInfo methods
     mocker.spyOnPrototypeWithImplementation(
       ModelInfo,
       "initialize",
@@ -59,7 +58,6 @@ describe("OpenRouterAPI", () => {
       async () => ["gpt-4"],
     );
 
-    // Spy on other dependencies
     mocker.spyOnPrototypeWithImplementation(
       ModelScaler,
       "getCurrentModel",
@@ -74,7 +72,6 @@ describe("OpenRouterAPI", () => {
 
     mocker.spyOnPrototypeWithImplementation(DebugLogger, "log", () => {});
 
-    // Resolve OpenRouterAPI from the container
     openRouterAPI = container.resolve(OpenRouterAPI);
   });
 
@@ -306,13 +303,14 @@ describe("OpenRouterAPI", () => {
 
   describe("streaming", () => {
     it("should handle streaming messages", async () => {
-      const mockStream = {
-        data: [
-          Buffer.from('data: {"choices":[{"delta":{"content":"Hello"}}]}\n\n'),
-          Buffer.from('data: {"choices":[{"delta":{"content":"!"}}]}\n\n'),
-          Buffer.from("data: [DONE]\n\n"),
-        ],
-      };
+      const mockStream = new Readable({
+        read() {
+          this.push(Buffer.from('data: {"choices":[{"delta":{"content":"Hello"}}]}\n\n'));
+          this.push(Buffer.from('data: {"choices":[{"delta":{"content":"!"}}]}\n\n'));
+          this.push(Buffer.from("data: [DONE]\n\n"));
+          this.push(null);
+        }
+      });
 
       mocker.spyOnPrototypeWithImplementation(
         MessageContextManager,
@@ -320,9 +318,9 @@ describe("OpenRouterAPI", () => {
         () => [],
       );
 
-      jest
-        .spyOn(openRouterAPI["httpClient"], "post")
-        .mockResolvedValueOnce(mockStream);
+      jest.spyOn(openRouterAPI["httpClient"], "post").mockResolvedValueOnce({
+        data: mockStream
+      });
 
       const mockCallback = jest.fn();
       await openRouterAPI.streamMessage("gpt-4", "Hi", mockCallback);

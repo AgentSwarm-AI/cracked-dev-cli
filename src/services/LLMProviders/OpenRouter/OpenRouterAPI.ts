@@ -1,3 +1,4 @@
+/* eslint-disable no-useless-catch */
 import { openRouterClient } from "@constants/openRouterClient";
 import { ILLMProvider, IMessage } from "@services/LLM/ILLMProvider";
 import { MessageContextManager } from "@services/LLM/MessageContextManager";
@@ -93,12 +94,19 @@ export class OpenRouterAPI implements ILLMProvider {
     model: string,
   ): IFormattedMessage[] {
     // Filter out messages with empty content before formatting
-    return messages
-      .filter((msg) => msg.content?.trim().length > 0)
-      .map((msg) => ({
-        role: msg.role,
-        content: formatMessageContent(msg.content, model),
-      }));
+    const filteredMessages = messages.filter(
+      (msg) => msg.content?.trim().length > 0,
+    );
+
+    return filteredMessages.map((msg, index) => ({
+      role: msg.role,
+      content: formatMessageContent(
+        msg.content,
+        model,
+        index,
+        filteredMessages.length,
+      ),
+    }));
   }
 
   async sendMessage(
@@ -189,6 +197,8 @@ export class OpenRouterAPI implements ILLMProvider {
     message: string,
     callback: (chunk: string, error?: LLMError) => void,
   ): Promise<void> {
+    console.log(JSON.stringify(error, null, 2));
+
     this.debugLogger.log("Model", "Stream error", {
       error: error.type,
       message,
@@ -222,9 +232,9 @@ export class OpenRouterAPI implements ILLMProvider {
       }
 
       if (error instanceof LLMError) {
-        return error as unknown as T;
+        throw error;
       }
-      return this.handleLLMError(error) as unknown as T;
+      throw await this.handleLLMError(error);
     }
   }
 
@@ -253,8 +263,7 @@ export class OpenRouterAPI implements ILLMProvider {
       if (
         !jsonStr ||
         jsonStr === "[DONE]" ||
-        !jsonStr.startsWith("{") ||
-        !jsonStr.endsWith("}")
+        (!jsonStr.startsWith("{") && !jsonStr.startsWith("data: {"))
       ) {
         return { content: "" };
       }
@@ -274,6 +283,7 @@ export class OpenRouterAPI implements ILLMProvider {
 
       return { content: decodedContent };
     } catch (e) {
+      this.debugLogger.log("Error", "Error parsing stream chunk", { error: e });
       return { content: "" };
     }
   }
@@ -332,55 +342,76 @@ export class OpenRouterAPI implements ILLMProvider {
         );
 
         try {
-          for await (const chunk of response.data) {
-            const { content, error } = this.parseStreamChunk(chunk.toString());
+          const stream = response.data;
 
-            if (error) {
-              console.log(JSON.stringify(error));
-              const llmError = new LLMError(
-                error.message || "Stream error",
-                "STREAM_ERROR",
-                error.details,
+          await new Promise<void>((resolve, reject) => {
+            stream.on("data", (chunk: Buffer) => {
+              const { content, error } = this.parseStreamChunk(
+                chunk.toString(),
               );
-              await this.handleStreamError(llmError, message, callback);
-              return;
-            }
 
-            if (content) {
-              assistantMessage += content;
-              callback(content);
-            }
-          }
+              if (error) {
+                console.log(JSON.stringify(error, null, 2));
+                const llmError = new LLMError(
+                  error.message || "Stream error",
+                  "STREAM_ERROR",
+                  error.details,
+                );
+                this.handleStreamError(llmError, message, callback);
+                reject(llmError);
+                return;
+              }
 
-          if (this.streamBuffer) {
-            const { content, error } = this.processCompleteMessage(
-              this.streamBuffer,
+              if (content) {
+                assistantMessage += content;
+                callback(content);
+              }
+            });
+
+            stream.on("end", () => {
+              if (this.streamBuffer) {
+                const { content, error } = this.processCompleteMessage(
+                  this.streamBuffer,
+                );
+                if (error) {
+                  console.log(JSON.stringify(error, null, 2));
+                  const llmError = new LLMError(
+                    error.message || "Stream error",
+                    "STREAM_ERROR",
+                    error.details,
+                  );
+                  this.handleStreamError(llmError, message, callback);
+                  reject(llmError);
+                  return;
+                }
+                if (content) {
+                  assistantMessage += content;
+                  callback(content);
+                }
+              }
+              resolve();
+            });
+
+            stream.on("error", (err: any) => {
+              reject(err);
+            });
+          });
+
+          if (assistantMessage) {
+            this.messageContextManager.addMessage("user", message);
+            this.messageContextManager.addMessage(
+              "assistant",
+              assistantMessage,
             );
-            if (error) {
-              const llmError = new LLMError(
-                error.message || "Stream error",
-                "STREAM_ERROR",
-                error.details,
-              );
-              await this.handleStreamError(llmError, message, callback);
-              return;
-            }
-            if (content) {
-              assistantMessage += content;
-              callback(content);
-            }
+
+            await this.modelInfo.logCurrentModelUsage(
+              this.messageContextManager.getTotalTokenCount(),
+            );
           }
+        } catch (error) {
+          throw error;
         } finally {
           this.streamBuffer = "";
-        }
-
-        if (assistantMessage) {
-          this.messageContextManager.addMessage("user", message);
-          this.messageContextManager.addMessage("assistant", assistantMessage);
-
-          await this.modelInfo.logCurrentModelUsage(
-            this.messageContextManager.getTotalTokenCount(),
-          );
         }
       };
 

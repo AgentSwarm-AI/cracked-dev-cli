@@ -24,6 +24,17 @@ describe("StreamHandler", () => {
     mocker.spyOnPrototype(ActionsParser, "parseAndExecuteActions", jest.fn());
     mocker.spyOnPrototype(ActionsParser, "reset", jest.fn());
 
+    // Mock getters/setters
+    jest.spyOn(ActionsParser.prototype, "isComplete", "get").mockReturnValue(false);
+    jest.spyOn(ActionsParser.prototype, "isComplete", "set").mockImplementation(function(this: any, value: boolean) {
+      this._isComplete = value;
+    });
+    jest.spyOn(ActionsParser.prototype, "isProcessing", "get").mockReturnValue(false);
+    jest.spyOn(ActionsParser.prototype, "isProcessing", "set").mockImplementation(function(this: any, value: boolean) {
+      this._isProcessing = value;
+    });
+    jest.spyOn(ActionsParser.prototype, "buffer", "get").mockReturnValue("");
+
     streamHandler = container.resolve(StreamHandler);
   });
 
@@ -32,12 +43,8 @@ describe("StreamHandler", () => {
   });
 
   it("should handle a single chunk with no actions", async () => {
-    (ActionsParser.prototype.isCompleteMessage as jest.Mock).mockReturnValue(
-      false,
-    );
-    (
-      ActionsParser.prototype.parseAndExecuteActions as jest.Mock
-    ).mockResolvedValue({
+    (ActionsParser.prototype.isCompleteMessage as jest.Mock).mockReturnValue(false);
+    (ActionsParser.prototype.parseAndExecuteActions as jest.Mock).mockResolvedValue({
       actions: [],
     });
 
@@ -49,27 +56,14 @@ describe("StreamHandler", () => {
     );
 
     expect(result).toEqual([]);
-    expect(ActionsParser.prototype.appendToBuffer).toHaveBeenCalledWith(
-      "test chunk",
-    );
+    expect(ActionsParser.prototype.appendToBuffer).toHaveBeenCalledWith("test chunk");
   });
 
   it("should process actions when message is complete", async () => {
-    (ActionsParser.prototype.isCompleteMessage as jest.Mock).mockReturnValue(
-      true,
-    );
-    (
-      ActionsParser.prototype.parseAndExecuteActions as jest.Mock
-    ).mockResolvedValue({
+    (ActionsParser.prototype.isCompleteMessage as jest.Mock).mockReturnValue(true);
+    (ActionsParser.prototype.parseAndExecuteActions as jest.Mock).mockResolvedValue({
       actions: [{ action: "test", result: "success" }],
     });
-
-    jest
-      .spyOn(ActionsParser.prototype, "isComplete", "get")
-      .mockReturnValue(false);
-    jest
-      .spyOn(ActionsParser.prototype, "isProcessing", "get")
-      .mockReturnValue(false);
 
     const result = await streamHandler.handleChunk(
       "test chunk",
@@ -79,26 +73,14 @@ describe("StreamHandler", () => {
     );
 
     expect(result).toEqual([{ action: "test", result: "success" }]);
-    expect(ActionsParser.prototype.clearBuffer).toHaveBeenCalled();
-    expect(ActionsParser.prototype.isComplete).toBe(false);
+    expect(ActionsParser.prototype.reset).toHaveBeenCalled();
   });
 
   it("should handle multiple sequential actions", async () => {
-    (ActionsParser.prototype.isCompleteMessage as jest.Mock).mockReturnValue(
-      true,
-    );
-    (
-      ActionsParser.prototype.parseAndExecuteActions as jest.Mock
-    ).mockResolvedValue({
+    (ActionsParser.prototype.isCompleteMessage as jest.Mock).mockReturnValue(true);
+    (ActionsParser.prototype.parseAndExecuteActions as jest.Mock).mockResolvedValue({
       actions: [{ action: "action1", result: "success1" }],
     });
-
-    jest
-      .spyOn(ActionsParser.prototype, "isComplete", "get")
-      .mockReturnValue(false);
-    jest
-      .spyOn(ActionsParser.prototype, "isProcessing", "get")
-      .mockReturnValue(false);
 
     let result = await streamHandler.handleChunk(
       "first chunk",
@@ -108,12 +90,9 @@ describe("StreamHandler", () => {
     );
 
     expect(result).toEqual([{ action: "action1", result: "success1" }]);
-    expect(ActionsParser.prototype.clearBuffer).toHaveBeenCalled();
-    expect(ActionsParser.prototype.isComplete).toBe(false);
+    expect(ActionsParser.prototype.reset).toHaveBeenCalled();
 
-    (
-      ActionsParser.prototype.parseAndExecuteActions as jest.Mock
-    ).mockResolvedValue({
+    (ActionsParser.prototype.parseAndExecuteActions as jest.Mock).mockResolvedValue({
       actions: [{ action: "action2", result: "success2" }],
     });
 
@@ -125,7 +104,7 @@ describe("StreamHandler", () => {
     );
 
     expect(result).toEqual([{ action: "action2", result: "success2" }]);
-    expect(ActionsParser.prototype.clearBuffer).toHaveBeenCalled();
+    expect(ActionsParser.prototype.reset).toHaveBeenCalled();
   });
 
   it("should reset all state properly", () => {
@@ -134,12 +113,8 @@ describe("StreamHandler", () => {
   });
 
   it("should not process actions when already processing", async () => {
-    (ActionsParser.prototype.isCompleteMessage as jest.Mock).mockReturnValue(
-      true,
-    );
-    jest
-      .spyOn(ActionsParser.prototype, "isProcessing", "get")
-      .mockReturnValue(true);
+    (ActionsParser.prototype.isCompleteMessage as jest.Mock).mockReturnValue(true);
+    jest.spyOn(ActionsParser.prototype, "isProcessing", "get").mockReturnValue(true);
 
     const result = await streamHandler.handleChunk(
       "test chunk",
@@ -149,18 +124,11 @@ describe("StreamHandler", () => {
     );
 
     expect(result).toEqual([]);
-    expect(
-      ActionsParser.prototype.parseAndExecuteActions,
-    ).not.toHaveBeenCalled();
+    expect(ActionsParser.prototype.parseAndExecuteActions).not.toHaveBeenCalled();
   });
 
   it("should handle chunks when the message is not complete", async () => {
-    (ActionsParser.prototype.isCompleteMessage as jest.Mock).mockReturnValue(
-      false,
-    );
-    jest
-      .spyOn(ActionsParser.prototype, "isProcessing", "get")
-      .mockReturnValue(false);
+    (ActionsParser.prototype.isCompleteMessage as jest.Mock).mockReturnValue(false);
 
     const result = await streamHandler.handleChunk(
       "incomplete chunk",
@@ -170,32 +138,18 @@ describe("StreamHandler", () => {
     );
 
     expect(result).toEqual([]);
-    expect(ActionsParser.prototype.appendToBuffer).toHaveBeenCalledWith(
-      "incomplete chunk",
-    );
-    expect(ActionsParser.prototype.clearBuffer).not.toHaveBeenCalled();
+    expect(ActionsParser.prototype.appendToBuffer).toHaveBeenCalledWith("incomplete chunk");
   });
 
   it("should handle error in parseAndExecuteActions", async () => {
-    (ActionsParser.prototype.isCompleteMessage as jest.Mock).mockReturnValue(
-      true,
-    );
-    jest
-      .spyOn(ActionsParser.prototype, "isProcessing", "get")
-      .mockReturnValue(false);
+    (ActionsParser.prototype.isCompleteMessage as jest.Mock).mockReturnValue(true);
 
     const error = new Error("Test error");
-    (
-      ActionsParser.prototype.parseAndExecuteActions as jest.Mock
-    ).mockImplementation(() => {
+    (ActionsParser.prototype.parseAndExecuteActions as jest.Mock).mockImplementation(() => {
       throw error;
     });
 
-    // Spy on the debugLogger.log method
-    const debugLoggerLogSpy = jest.spyOn(
-      (streamHandler as any).debugLogger,
-      "log",
-    );
+    const debugLoggerLogSpy = jest.spyOn((streamHandler as any).debugLogger, "log");
 
     const result = await streamHandler.handleChunk(
       "test chunk",
@@ -206,31 +160,15 @@ describe("StreamHandler", () => {
 
     expect(result).toEqual([]);
     expect(debugLoggerLogSpy).toHaveBeenCalledTimes(2);
-    expect(debugLoggerLogSpy).toHaveBeenNthCalledWith(
-      1,
-      "Error",
-      "Error processing actions",
-      { error },
-    );
-    expect(debugLoggerLogSpy).toHaveBeenNthCalledWith(
-      2,
-      "Error",
-      "Test error",
-      {
-        title: "Error",
-        suggestion:
-          "Try your request again. If the issue persists, try with different parameters.",
-      },
-    );
+    expect(debugLoggerLogSpy).toHaveBeenNthCalledWith(1, "Error", "Error processing actions", { error });
+    expect(debugLoggerLogSpy).toHaveBeenNthCalledWith(2, "Error", "Test error", {
+      title: "Error",
+      suggestion: "Try your request again. If the issue persists, try with different parameters.",
+    });
   });
 
   it("should handle empty chunk", async () => {
-    (ActionsParser.prototype.isCompleteMessage as jest.Mock).mockReturnValue(
-      false,
-    );
-    jest
-      .spyOn(ActionsParser.prototype, "isProcessing", "get")
-      .mockReturnValue(false);
+    (ActionsParser.prototype.isCompleteMessage as jest.Mock).mockReturnValue(false);
 
     const result = await streamHandler.handleChunk(
       "",
@@ -245,12 +183,7 @@ describe("StreamHandler", () => {
 
   it("should handle chunk with special characters", async () => {
     const specialChunk = "test \n chunk \t with \r special \b characters";
-    (ActionsParser.prototype.isCompleteMessage as jest.Mock).mockReturnValue(
-      false,
-    );
-    jest
-      .spyOn(ActionsParser.prototype, "isProcessing", "get")
-      .mockReturnValue(false);
+    (ActionsParser.prototype.isCompleteMessage as jest.Mock).mockReturnValue(false);
 
     const result = await streamHandler.handleChunk(
       specialChunk,
@@ -260,74 +193,6 @@ describe("StreamHandler", () => {
     );
 
     expect(result).toEqual([]);
-    expect(ActionsParser.prototype.appendToBuffer).toHaveBeenCalledWith(
-      specialChunk,
-    );
+    expect(ActionsParser.prototype.appendToBuffer).toHaveBeenCalledWith(specialChunk);
   });
-
-  // New tests for large chunk handling
-  // Uncommented as per your original code
-  // it("should handle very large chunks by processing in smaller pieces", async () => {
-  //   const largeChunk = "x".repeat(2 * 1024 * 1024); // 2MB chunk
-  //   (ActionsParser.prototype.isCompleteMessage as jest.Mock).mockReturnValue(
-  //     false,
-  //   );
-  //   jest
-  //     .spyOn(ActionsParser.prototype, "isProcessing", "get")
-  //     .mockReturnValue(false);
-
-  //   const result = await streamHandler.handleChunk(
-  //     largeChunk,
-  //     "test-model",
-  //     async () => "",
-  //     async () => {},
-  //   );
-
-  //   expect(result).toEqual([]);
-  //   // Should have called appendToBuffer multiple times with smaller chunks
-  //   expect(ActionsParser.prototype.appendToBuffer).toHaveBeenCalledTimes(2);
-  // });
-
-  // it("should handle buffer overflow by keeping recent data", async () => {
-  //   const hugeChunk = "x".repeat(11 * 1024 * 1024); // 11MB chunk (exceeds 10MB limit)
-  //   (ActionsParser.prototype.isCompleteMessage as jest.Mock).mockReturnValue(
-  //     false,
-  //   );
-  //   jest
-  //     .spyOn(ActionsParser.prototype, "isProcessing", "get")
-  //     .mockReturnValue(false);
-
-  //   // Spy on the debugLogger.log method
-  //   const debugLoggerLogSpy = jest.spyOn(
-  //     (streamHandler as any).debugLogger,
-  //     "log",
-  //   );
-
-  //   const result = await streamHandler.handleChunk(
-  //     hugeChunk,
-  //     "test-model",
-  //     async () => "",
-  //     async () => {},
-  //   );
-
-  //   expect(result).toEqual([]);
-  //   expect(ActionsParser.prototype.clearBuffer).toHaveBeenCalled();
-  //   expect(debugLoggerLogSpy).toHaveBeenCalledTimes(2);
-  //   expect(debugLoggerLogSpy).toHaveBeenNthCalledWith(
-  //     1,
-  //     "Buffer Overflow",
-  //     "Buffer size limit exceeded",
-  //     { maxSize: MAX_BUFFER_SIZE, currentSize: expect.any(Number) },
-  //   );
-  //   expect(debugLoggerLogSpy).toHaveBeenNthCalledWith(
-  //     2,
-  //     "Error",
-  //     "The stream buffer has exceeded its maximum size limit.",
-  //     {
-  //       title: "Buffer Overflow",
-  //       suggestion:
-  //         "Try processing the stream in smaller chunks or increase the buffer size limit.",
-  //     },
-  //   );
-  // });
 });

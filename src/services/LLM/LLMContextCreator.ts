@@ -98,6 +98,7 @@ To achieve this goal, I'll:
 ## Important Notes
 ### Critical Instructions
 
+-EVERY OUTPUT YOU GIVE TO THE USER MUST HAVE A CORRESPONDING ACTION TAG. NO EXCEPTIONS.
 - ONLY ONE ACTION PER REPLY (except read_file)!! 
 - VERY IMPORTANT: DO NOT OUTPUT CODE THATS NOT INSIDE write_file TAGS. Except on markdown writing.
 
@@ -212,6 +213,7 @@ const hello = "world"
 
 REMEMBER: ONLY ONE ACTION PER REPLY!!!
 
+EVERY OUTPUT YOU GIVE TO THE USER MUST HAVE A CORRESPONDING ACTION TAG. NO EXCEPTIONS.
 
 <read_file>
   <path>path/here</path>

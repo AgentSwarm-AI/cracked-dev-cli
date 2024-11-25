@@ -19,29 +19,52 @@ export const isAnthropicModel = (model: string): boolean => {
   return ANTHROPIC_MODEL_REGEX.test(model);
 };
 
+const MAX_CHUNK_SIZE = 8000;
+
 export const formatMessageContent = (
   content: string,
   model: string,
+  messageIndex: number,
+  totalMessages: number,
 ): string | IMessageContent[] => {
   if (!isAnthropicModel(model)) {
     return content;
   }
 
-  // For Anthropic models, if content is large enough to benefit from caching (e.g. > 1000 chars)
-  if (content.length > 1000) {
+  // Find first user message index
+  const shouldCache = (index: number, total: number): boolean => {
+    // Always cache first user message
+    if (index === 0) return true;
+    // Cache last 3 messages
+    return index >= total - 3;
+  };
+
+  const addCacheControl = shouldCache(messageIndex, totalMessages);
+
+  // For small content, return single block
+  if (content.length <= 1000) {
     return [
       {
         type: "text",
         text: content,
-        cache_control: { type: "ephemeral" },
+        ...(addCacheControl && { cache_control: { type: "ephemeral" } }),
       },
     ];
   }
 
-  return [
-    {
-      type: "text",
-      text: content,
-    },
-  ];
+  // For large content, split into chunks
+  const chunks: string[] = [];
+  let remaining = content;
+  while (remaining.length > 0) {
+    const chunk = remaining.slice(0, MAX_CHUNK_SIZE);
+    chunks.push(chunk);
+    remaining = remaining.slice(MAX_CHUNK_SIZE);
+  }
+
+  return chunks.map((chunk, index) => ({
+    type: "text",
+    text: chunk,
+    ...(addCacheControl &&
+      index === 0 && { cache_control: { type: "ephemeral" } }),
+  }));
 };

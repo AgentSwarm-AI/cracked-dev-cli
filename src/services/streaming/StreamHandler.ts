@@ -1,16 +1,13 @@
-/**
- * StreamHandler manages and processes streaming data chunks, handles errors, and triggers action execution based on the parsed content.
- * It ensures that the stream is handled efficiently and that any actions within the stream are executed correctly.
- */
 import { ActionsParser } from "@services/LLM/actions/ActionsParser";
+
 import { DebugLogger } from "@services/logging/DebugLogger";
 import { autoInjectable } from "tsyringe";
 import { WriteStream } from "tty";
+import { LLMError } from "../LLMProviders/OpenRouter/OpenRouterAPI";
 
-// 10MB default max buffer size
-const MAX_BUFFER_SIZE = 10 * 1024 * 1024;
-// 1MB chunk size for processing
-const CHUNK_SIZE = 1024 * 1024;
+const MAX_BUFFER_SIZE = 10 * 1024 * 1024; // 10MB default max buffer size
+const CHUNK_SIZE = 1024 * 1024; // 1MB chunk size for processing
+const STREAM_TIMEOUT = 10000; // 10 seconds timeout for inactivity
 
 export interface StreamCallback {
   (message: string): Promise<string>;
@@ -26,23 +23,13 @@ interface ErrorDisplay {
   suggestion?: string;
 }
 
-export class LLMError extends Error {
-  constructor(
-    message: string,
-    public readonly type: string,
-    public readonly details?: Record<string, unknown>,
-  ) {
-    super(message);
-    this.name = "LLMError";
-  }
-}
-
 @autoInjectable()
 export class StreamHandler {
   private responseBuffer: string = "";
   private isStreamComplete: boolean = false;
   private lastActivityTimestamp: number = Date.now();
   private bufferSize: number = 0;
+  private inactivityTimer: NodeJS.Timeout | null = null;
 
   constructor(
     private debugLogger: DebugLogger,
@@ -55,6 +42,7 @@ export class StreamHandler {
     this.lastActivityTimestamp = Date.now();
     this.bufferSize = 0;
     this.actionsParser.reset();
+    this.clearInactivityTimer();
   }
 
   get response() {
@@ -139,20 +127,20 @@ export class StreamHandler {
     const { title, details, suggestion } = this.formatErrorDisplay(error);
 
     this.safeWriteToStdout("\n\n");
-    this.safeWriteToStdout("\x1b[31m");
+    this.safeWriteToStdout("\x1b[31m"); // Red color
     this.safeWriteToStdout(`❌ ${title}\n`);
-    this.safeWriteToStdout("\x1b[0m");
+    this.safeWriteToStdout("\x1b[0m"); // Reset color
 
-    this.safeWriteToStdout("\x1b[37m");
+    this.safeWriteToStdout("\x1b[37m"); // Light gray color
     this.safeWriteToStdout(`${details}\n`);
 
     if (suggestion) {
       this.safeWriteToStdout("\n");
-      this.safeWriteToStdout("\x1b[36m");
+      this.safeWriteToStdout("\x1b[36m"); // Cyan color
       this.safeWriteToStdout(`💡 ${suggestion}\n`);
     }
 
-    this.safeWriteToStdout("\x1b[0m");
+    this.safeWriteToStdout("\x1b[0m"); // Reset color
     this.safeWriteToStdout("\n");
 
     // Log error to debug logger
@@ -216,6 +204,27 @@ export class StreamHandler {
     });
   }
 
+  private startInactivityTimer() {
+    this.clearInactivityTimer();
+    this.inactivityTimer = setTimeout(() => {
+      this.displayError(
+        new LLMError(
+          "The stream was inactive for too long.",
+          "STREAM_TIMEOUT",
+          { timeout: STREAM_TIMEOUT },
+        ),
+      );
+      this.reset();
+    }, STREAM_TIMEOUT);
+  }
+
+  private clearInactivityTimer() {
+    if (this.inactivityTimer) {
+      clearTimeout(this.inactivityTimer);
+      this.inactivityTimer = null;
+    }
+  }
+
   async handleChunk(
     chunk: string,
     model: string,
@@ -227,6 +236,7 @@ export class StreamHandler {
     options?: Record<string, unknown>,
   ) {
     this.lastActivityTimestamp = Date.now();
+    this.startInactivityTimer();
 
     if (chunk.startsWith('{"error":')) {
       try {
@@ -246,11 +256,9 @@ export class StreamHandler {
       }
     }
 
-    // Process chunk in smaller pieces if it's large
     const chunks = this.processChunk(chunk);
 
     for (const subChunk of chunks) {
-      // Check if adding this chunk would exceed buffer size
       if (this.bufferSize + subChunk.length > MAX_BUFFER_SIZE) {
         this.handleBufferOverflow();
         this.displayError(
@@ -296,7 +304,6 @@ export class StreamHandler {
               this.lastActivityTimestamp = Date.now();
             });
 
-            // Check buffer size after action response
             if (this.bufferSize + actionResponse.length > MAX_BUFFER_SIZE) {
               this.handleBufferOverflow();
               this.displayError(
@@ -314,20 +321,19 @@ export class StreamHandler {
           },
         );
 
-        // Reset all state after action execution
-        this.actionsParser.clearBuffer();
-        this.actionsParser.isProcessing = false;
-        this.actionsParser.isComplete = false;
+        // Properly reset state after action execution
+        this.actionsParser.reset();
         this.isStreamComplete = false;
-        this.lastActivityTimestamp = Date.now();
         this.bufferSize = 0;
 
         // Refresh terminal state for new input
         this.safeWriteToStdout("\n");
-        this.safeWriteToStdout("\x1B[?25h");
+        this.safeWriteToStdout("\x1B[?25h"); // Show cursor
         this.safeClearLine();
         this.safeCursorTo(0);
         this.safeWriteToStdout("> ");
+
+        this.clearInactivityTimer();
 
         return actionResult.actions;
       } catch (error) {

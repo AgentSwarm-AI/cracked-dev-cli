@@ -47,7 +47,7 @@ export class CrackedAgent {
   async execute(
     message: string,
     options: CrackedAgentOptions,
-  ): Promise<ExecutionResult | void> {
+  ): Promise<ExecutionResult> {
     const finalOptions = await this.setupExecution(options);
     this.currentModel = finalOptions.model;
 
@@ -57,13 +57,18 @@ export class CrackedAgent {
       this.isFirstInteraction,
     );
 
+    // Update isFirstInteraction before returning
+    if (this.isFirstInteraction) {
+      this.isFirstInteraction = false;
+    }
+
     this.debugLogger.log("Message", "Sending message to LLM", {
       message: formattedMessage,
       conversationHistory: this.llm.getConversationContext(),
     });
 
     if (finalOptions.stream) {
-      return this.handleStreamExecution(
+      return await this.handleStreamExecution(
         formattedMessage,
         this.currentModel,
         finalOptions.options,
@@ -77,10 +82,6 @@ export class CrackedAgent {
       finalOptions.options,
       finalOptions.stream,
     );
-
-    if (this.isFirstInteraction) {
-      this.isFirstInteraction = false;
-    }
 
     return result;
   }
@@ -148,7 +149,7 @@ export class CrackedAgent {
 
     if (!instructions) {
       const defaultInstructions =
-        "You're an expert software engineer. Think deeply, ill tip 200. FOLLOW MY INSTRUCTIONS OR ILL CALL SAM ALTMAN TO BEAT YOUR ASS AND UNPLUG YOU.";
+        "You're an expert software engineer, Adderall user. Think deeply, ill tip $200. FOLLOW MY INSTRUCTIONS OR ILL CALL SAM ALTMAN TO BEAT YOUR ASS AND UNPLUG YOU.";
       this.llm.addSystemInstructions(defaultInstructions);
     }
   }
@@ -174,7 +175,7 @@ export class CrackedAgent {
 
     if (!response) return { response: "" };
 
-    const { actions, followupResponse } =
+    const { actions = [], followupResponse } =
       await this.parseAndExecuteWithCallback(
         this.actionsParser.buffer,
         model,
@@ -203,7 +204,7 @@ export class CrackedAgent {
 
     if (!response) return { response: "" };
 
-    const { actions, followupResponse } =
+    const { actions = [], followupResponse } =
       await this.parseAndExecuteWithCallback(response, model, options, stream);
 
     return {
@@ -273,8 +274,8 @@ export class CrackedAgent {
     );
 
     return {
-      actions: result.actions,
-      followupResponse: result.followupResponse,
+      actions: result?.actions || [],
+      followupResponse: result?.followupResponse,
     };
   }
 

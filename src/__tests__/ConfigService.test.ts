@@ -8,6 +8,7 @@ jest.mock("chalk");
 
 describe("ConfigService", () => {
   const mockConfigPath = path.resolve("crkdrc.json");
+  const mockGitignorePath = path.resolve(".gitignore");
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -15,8 +16,11 @@ describe("ConfigService", () => {
 
   describe("createDefaultConfig", () => {
     it("should create a default config file if it does not exist", () => {
-      (fs.existsSync as jest.Mock).mockReturnValue(false);
+      (fs.existsSync as jest.Mock)
+        .mockReturnValueOnce(false) // for config file
+        .mockReturnValueOnce(false); // for gitignore
       (fs.writeFileSync as jest.Mock).mockImplementation(() => {});
+      (fs.readFileSync as jest.Mock).mockReturnValue("");
 
       ConfigService.createDefaultConfig();
 
@@ -39,6 +43,10 @@ describe("ConfigService", () => {
           null,
           4,
         ),
+      );
+      expect(fs.writeFileSync).toHaveBeenCalledWith(
+        mockGitignorePath,
+        "crkdrc.json\n"
       );
       expect(chalk.green).toHaveBeenCalledWith(
         "CrackedDevCLI config generated. Please, add Provider, Model, and API Key to crkdrc.json.",

@@ -46,6 +46,8 @@ describe("ModelUtils", () => {
       const result = formatMessageContent(
         longContent,
         "anthropic/claude-3-opus",
+        0,
+        3
       );
       expect(result).toEqual([
         {
@@ -62,17 +64,22 @@ describe("ModelUtils", () => {
       const result = formatMessageContent(
         shortContent,
         "anthropic/claude-3-opus",
+        1,
+        3
       );
       expect(result).toEqual([
         {
           type: "text",
           text: shortContent,
+          cache_control: {
+            type: "ephemeral",
+          },
         },
       ]);
     });
 
     test("should return raw content for non-Anthropic model", () => {
-      const result = formatMessageContent(longContent, "openai/gpt-4");
+      const result = formatMessageContent(longContent, "openai/gpt-4", 0, 1);
       expect(result).toBe(longContent);
     });
   });
