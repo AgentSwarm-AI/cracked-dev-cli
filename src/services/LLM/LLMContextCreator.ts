@@ -207,12 +207,12 @@ EVERY OUTPUT YOU GIVE TO THE USER MUST HAVE A CORRESPONDING ACTION TAG. NO EXCEP
   <!-- Use relative paths -->
 </read_file>
 
-<relative_path_lookup>
-  <!-- CRITICAL: source_path is the file containing the broken imports -->
-  <source_path>/absolute/path/to/source/file.ts</source_path>
-  <path>../relative/path/to/fix</path>
-  <threshold>0.6</threshold>  <!-- Optional, defaults to 0.6. Higher means more strict. -->
-</relative_path_lookup>
+<search_file>
+  <!-- Use if you don't know where a file is -->
+  <directory>/path/to/search</directory>
+  <term>filename pattern</term>
+</search_file>
+
 
 DO NOT RUN write_file if import issues are not resolved! Use relative_path_lookup first.
 <write_file>
@@ -254,10 +254,12 @@ DO NOT RUN write_file if import issues are not resolved! Use relative_path_looku
   <term>pattern to search</term>
 </search_string>
 
-<search_file>
-  <directory>/path/to/search</directory>
-  <term>filename pattern</term>
-</search_file>
+<relative_path_lookup>
+  <!-- CRITICAL: source_path is the file containing the broken imports -->
+  <source_path>/absolute/path/to/source/file.ts</source_path>
+  <path>../relative/path/to/fix</path>
+  <threshold>0.6</threshold>  <!-- Optional, defaults to 0.6. Higher means more strict. -->
+</relative_path_lookup>
 
 <fetch_url>
   <url>https://url/should/be/here</url>
@@ -271,8 +273,7 @@ DO NOT RUN write_file if import issues are not resolved! Use relative_path_looku
   Summarize and finalize.
 </end_task> 
  
-## Environment
-${context.environmentDetails}
+## Environment 
 ${context.projectInfo} 
 
 </instructions>

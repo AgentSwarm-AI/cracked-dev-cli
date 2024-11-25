@@ -1,3 +1,4 @@
+import { FileSearch } from "@services/FileManagement/FileSearch";
 import { PathAdjuster } from "@services/FileManagement/PathAdjuster";
 import {
   IFileOperationResult,
@@ -13,6 +14,7 @@ import { autoInjectable } from "tsyringe";
 export class FileOperations implements IFileOperations {
   constructor(
     private pathAdjuster: PathAdjuster,
+    private fileSearch: FileSearch,
     private debugLogger: DebugLogger,
   ) {}
 
@@ -50,18 +52,30 @@ export class FileOperations implements IFileOperations {
       return filePath;
     }
 
-    // Try to find closest match
+    // For read operations, try to find similar files
+    const similarFiles = await this.fileSearch.findByName(
+      path.basename(filePath),
+      process.cwd(),
+    );
+    if (similarFiles.length > 0) {
+      const bestMatch = similarFiles[0];
+      this.debugLogger.log(
+        "FileOperations",
+        `Found similar file: ${bestMatch} for ${filePath}`,
+      );
+      return bestMatch;
+    }
+
+    // If no similar files found, try PathAdjuster
     const adjustedPath = await this.pathAdjuster.adjustPath(filePath);
     if (adjustedPath && (await fs.pathExists(adjustedPath))) {
       this.debugLogger.log(
         "FileOperations > PathAdjuster",
         `Adjusted path: ${adjustedPath}`,
       );
-
       return adjustedPath;
     }
 
-    // If no match found or match doesn't exist, return original path
     return filePath;
   }
 
@@ -99,7 +113,7 @@ export class FileOperations implements IFileOperations {
           }
           const content = await fs.readFile(adjustedPath, "utf-8");
           if (content) {
-            fileContents.push(`[File: ${adjustedPath}]\\n${content}`);
+            fileContents.push(`[File: ${adjustedPath}]\n${content}`);
           } else {
             errors.push(`${adjustedPath}: Empty content`);
           }
@@ -112,21 +126,12 @@ export class FileOperations implements IFileOperations {
         return {
           success: false,
           error: new Error(
-            `Failed to read files: ${errors.join(", ")}  - Try using a search_file to find the correct file path.`,
+            `Failed to read files: ${errors.join(", ")}. Try using search_file action to find the proper path.`,
           ),
         };
       }
 
-      if (fileContents.length !== filePaths.length) {
-        return {
-          success: false,
-          error: new Error(
-            "Some files were not read successfully. Try using search_file action to find the proper path.",
-          ),
-        };
-      }
-
-      return { success: true, data: fileContents.join("\\n\\n") };
+      return { success: true, data: fileContents.join("\n\n") };
     } catch (error) {
       return { success: false, error: error as Error };
     }

@@ -1,9 +1,7 @@
 import { FileOperations } from "@services/FileManagement/FileOperations";
-import { FileSearch } from "@services/FileManagement/FileSearch";
 import { IFileOperationResult } from "@services/FileManagement/types/FileManagementTypes";
 import { IActionResult } from "@services/LLM/actions/types/ActionTypes";
 import { DebugLogger } from "@services/logging/DebugLogger";
-import path from "path";
 import { autoInjectable } from "tsyringe";
 import { ActionTagsExtractor } from "./ActionTagsExtractor";
 import { readFileActionBlueprint as blueprint } from "./blueprints/readFileActionBlueprint";
@@ -20,7 +18,6 @@ export class ReadFileAction extends BaseAction {
     protected actionTagsExtractor: ActionTagsExtractor,
     private fileOperations: FileOperations,
     private debugLogger: DebugLogger,
-    private fileSearch: FileSearch,
   ) {
     super(actionTagsExtractor);
   }
@@ -67,7 +64,7 @@ export class ReadFileAction extends BaseAction {
     const filePaths = Array.isArray(params.path) ? params.path : [params.path];
     this.logInfo(`File paths: ${filePaths.join(", ")}`);
 
-    // If only one path, use single file read for backward compatibility
+    // If only one path, use single file read
     if (filePaths.length === 1) {
       return await this.handleSingleFile(filePaths[0]);
     }
@@ -77,23 +74,6 @@ export class ReadFileAction extends BaseAction {
   }
 
   private async handleSingleFile(filePath: string): Promise<IActionResult> {
-    const exists = await this.fileOperations.exists(filePath);
-    if (!exists) {
-      const fileName = path.basename(filePath);
-      const searchResults = await this.fileSearch.findByName(
-        fileName,
-        process.cwd(),
-      );
-
-      if (searchResults.length > 0) {
-        this.logInfo(
-          `File not found at specified path. Found alternative(s): ${searchResults.join(", ")}`,
-        );
-        const result = await this.fileOperations.read(searchResults[0]);
-        return this.convertFileResult(result);
-      }
-    }
-
     const result = await this.fileOperations.read(filePath);
     return this.convertFileResult(result);
   }
@@ -101,27 +81,7 @@ export class ReadFileAction extends BaseAction {
   private async handleMultipleFiles(
     filePaths: string[],
   ): Promise<IActionResult> {
-    const resolvedPaths = await Promise.all(
-      filePaths.map(async (filePath) => {
-        const exists = await this.fileOperations.exists(filePath);
-        if (!exists) {
-          const fileName = path.basename(filePath);
-          const searchResults = await this.fileSearch.findByName(
-            fileName,
-            process.cwd(),
-          );
-          if (searchResults.length > 0) {
-            this.logInfo(
-              `File not found at ${filePath}. Found at: ${searchResults[0]}`,
-            );
-            return searchResults[0];
-          }
-        }
-        return filePath;
-      }),
-    );
-
-    const result = await this.fileOperations.readMultiple(resolvedPaths);
+    const result = await this.fileOperations.readMultiple(filePaths);
     this.debugLogger.log("ReadFileAction", "execute", result);
 
     if (!result.success || !result.data) {
@@ -130,23 +90,10 @@ export class ReadFileAction extends BaseAction {
       );
     }
 
-    const fileContent = result.data.toString();
-
-    // Verify all requested files are present in the result
-    const missingFiles = resolvedPaths.filter(
-      (path) => !fileContent.includes(`[File: ${path}]`),
-    );
-
-    if (missingFiles.length > 0) {
-      return this.createErrorResult(
-        `Failed to read files: ${missingFiles.join(", ")}. Try using search_file action to find the proper path.`,
-      );
-    }
-
     this.logSuccess("Action completed successfully. Please wait...\n");
     console.log("-".repeat(50));
 
-    return this.createSuccessResult(fileContent);
+    return this.createSuccessResult(result.data);
   }
 
   private convertFileResult(result: IFileOperationResult): IActionResult {

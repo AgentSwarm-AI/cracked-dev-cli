@@ -80,10 +80,6 @@ describe("FileSearch", () => {
         directory,
       );
 
-      console.log("fast-glob entries:", [file1Path, file2Path]); // Debug logging
-      console.log("fs.readFile calls:", fsMock.readFile.mock.calls); // Debug logging
-      console.log("Results:", JSON.stringify(results, null, 2)); // Debug logging
-
       expect(results).toEqual([
         {
           path: file1Path,
@@ -124,7 +120,7 @@ describe("FileSearch", () => {
 
       const results: string[] = await fileSearch.findByName(name, directory);
 
-      expect(results).toEqual(["mockFile1.txt"]);
+      expect(results).toEqual([expectedFilePath]);
     });
 
     it("returns empty array if no files match name", async () => {
@@ -133,6 +129,47 @@ describe("FileSearch", () => {
       const name = "nonExistent.txt";
 
       fg.mockResolvedValue([]);
+
+      const results: string[] = await fileSearch.findByName(name, directory);
+
+      expect(results).toEqual([]);
+    });
+
+    it("finds files by exact name and directory", async () => {
+      const fileSearch = new FileSearch();
+      const directory = path.resolve(__dirname, "mockDir");
+      const name = "subdir/mockFile1.txt";
+
+      const expectedFilePath = path.join(directory, "subdir/mockFile1.txt");
+
+      fg.mockResolvedValue([expectedFilePath]);
+
+      const results: string[] = await fileSearch.findByName(name, directory);
+
+      expect(results).toEqual([expectedFilePath]);
+    });
+
+    it("finds files by fuzzy name", async () => {
+      const fileSearch = new FileSearch();
+      const directory = path.resolve(__dirname, "mockDir");
+      const name = "mockFile";
+
+      const file1Path = path.join(directory, "mockFile1.txt");
+      const file2Path = path.join(directory, "mockFile2.txt");
+
+      fg.mockResolvedValue([file1Path, file2Path]);
+
+      const results: string[] = await fileSearch.findByName(name, directory);
+
+      expect(results).toEqual([file1Path, file2Path]);
+    });
+
+    it("handles errors in file processing", async () => {
+      const fileSearch = new FileSearch();
+      const directory = path.resolve(__dirname, "mockDir");
+      const name = "mockFile1.txt";
+
+      fg.mockRejectedValue(new Error("Mocked fast-glob error"));
 
       const results: string[] = await fileSearch.findByName(name, directory);
 
