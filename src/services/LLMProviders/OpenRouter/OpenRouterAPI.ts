@@ -11,7 +11,7 @@ import { DebugLogger } from "@services/logging/DebugLogger";
 import { HtmlEntityDecoder } from "@services/text/HTMLEntityDecoder";
 import { autoInjectable } from "tsyringe";
 
-class LLMError extends Error {
+export class LLMError extends Error {
   constructor(
     message: string,
     public readonly type: string,
@@ -92,10 +92,13 @@ export class OpenRouterAPI implements ILLMProvider {
     messages: IMessage[],
     model: string,
   ): IFormattedMessage[] {
-    return messages.map((msg) => ({
-      role: msg.role,
-      content: formatMessageContent(msg.content, model),
-    }));
+    // Filter out messages with empty content before formatting
+    return messages
+      .filter((msg) => msg.content?.trim().length > 0)
+      .map((msg) => ({
+        role: msg.role,
+        content: formatMessageContent(msg.content, model),
+      }));
   }
 
   async sendMessage(
@@ -333,10 +336,11 @@ export class OpenRouterAPI implements ILLMProvider {
             const { content, error } = this.parseStreamChunk(chunk.toString());
 
             if (error) {
+              console.log(JSON.stringify(error));
               const llmError = new LLMError(
                 error.message || "Stream error",
                 "STREAM_ERROR",
-                error,
+                error.details,
               );
               await this.handleStreamError(llmError, message, callback);
               return;
@@ -356,7 +360,7 @@ export class OpenRouterAPI implements ILLMProvider {
               const llmError = new LLMError(
                 error.message || "Stream error",
                 "STREAM_ERROR",
-                error,
+                error.details,
               );
               await this.handleStreamError(llmError, message, callback);
               return;

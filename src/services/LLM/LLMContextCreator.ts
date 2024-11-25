@@ -283,7 +283,7 @@ DO NOT RUN write_file if import issues are not resolved! Use relative_path_looku
   <!-- Before finishing, make sure TASK OBJECTIVE WAS COMPLETED! -->
   <!-- Run tests and type checks to confirm changes before ending -->
   <!-- Ensure all tests and type checks pass or report issues -->
-  <message>Summarize and finalize.</message>
+  Summarize and finalize.
 </end_task> 
  
 ## Environment
