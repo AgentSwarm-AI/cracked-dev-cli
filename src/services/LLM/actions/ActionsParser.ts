@@ -186,15 +186,7 @@ export class ActionsParser {
       }
     }
 
-    this.debugLogger.log("Actions", "Detected actions", {
-      actions,
-    });
-
     const actionsWithDependencies = this.detectActionDependencies(actions);
-
-    this.debugLogger.log("Actions", "Actions with dependencies", {
-      actions: actionsWithDependencies,
-    });
 
     return this.createExecutionPlan(actionsWithDependencies);
   }
@@ -270,15 +262,7 @@ export class ActionsParser {
     try {
       this.currentModel = model;
 
-      this.debugLogger.log("Action", "Parsing and executing actions", {
-        text,
-        model,
-      });
-
       const executionPlan = this.findCompleteTags(text);
-      this.debugLogger.log("ExecutionPlan", "Created action execution plan", {
-        plan: executionPlan,
-      });
 
       const results: Array<{ action: string; result: any }> = [];
       let selectedModel = model;

@@ -163,6 +163,9 @@ Example:
 
 ### Tests
 
+- CRITICAL: read_file on other test files to understand patterns used! ALWAYS do this.
+- CRITICAL: Whenever stuck on multiple test failures, do a read_file in other test files to understand patterns.
+- If working on a test, assume the related file is correct. So don't make any changes on it, unless you find a critical bug.
 - Do not remove previous tests unless necessary; add new ones.
 - Prioritize individual test file runs.
 - No tests for logging messages.
@@ -216,11 +219,7 @@ EVERY OUTPUT YOU GIVE TO THE USER MUST HAVE A CORRESPONDING ACTION TAG. NO EXCEP
   <!-- Use relative paths -->
 </read_file>
 
-<search_file>
-  <!-- Use if you don't know where a file is -->
-  <directory>/path/to/search</directory>
-  <term>filename pattern</term>
-</search_file>
+
 
 
 DO NOT RUN write_file if import issues are not resolved! Use relative_path_lookup first.
@@ -245,10 +244,10 @@ DO NOT RUN write_file if import issues are not resolved! Use relative_path_looku
   <destination_path>destination/path/here</destination_path>
 </move_file>
 
-<copy_file_slice>
+<copy_file>
   <source_path>source/path/here</source_path>
   <destination_path>destination/path/here</destination_path>
-</copy_file_slice>
+</copy_file>
 
 <execute_command>
 <!-- Prompt before removing files or using sudo -->
@@ -259,9 +258,16 @@ DO NOT RUN write_file if import issues are not resolved! Use relative_path_looku
 </execute_command>
 
 <search_string>
+<!-- Use this to search for a string in a file -->
   <directory>/path/to/search</directory>
   <term>pattern to search</term>
 </search_string>
+
+<search_file>
+  <!-- Use if you don't know where a file is -->
+  <directory>/path/to/search</directory>
+  <term>filename pattern</term>
+</search_file>
 
 <relative_path_lookup>
   <!-- CRITICAL: source_path is the file containing the broken imports -->

@@ -15,9 +15,24 @@ interface FileEntry {
   dir: string;
 }
 
+interface FuseResult {
+  item: FileEntry;
+  score?: number;
+}
+
 @autoInjectable()
 export class FileSearch implements IFileSearch {
   constructor(private debugLogger: DebugLogger) {}
+
+  private findAllMatches(text: string, searchStr: string): number[] {
+    const positions: number[] = [];
+    let pos = text.indexOf(searchStr);
+    while (pos !== -1) {
+      positions.push(pos);
+      pos = text.indexOf(searchStr, pos + 1);
+    }
+    return positions;
+  }
 
   async findByPattern(
     pattern: string,
@@ -64,6 +79,7 @@ export class FileSearch implements IFileSearch {
       });
 
       const results: IFileSearchResult[] = [];
+      const searchTarget = searchContent.toLowerCase();
 
       for (const entry of entries) {
         try {
@@ -72,17 +88,27 @@ export class FileSearch implements IFileSearch {
 
           const content = await fs.readFile(entry, "utf-8");
           const lines = content.split("\n");
-          const matches = lines
-            .map((line, index) => ({
-              line: index + 1,
-              content: line,
-            }))
-            .filter((line) => line.content.includes(searchContent));
+          const matches = [];
+
+          for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            const lineToSearch = line.toLowerCase();
+
+            const positions = this.findAllMatches(lineToSearch, searchTarget);
+
+            for (const pos of positions) {
+              matches.push({
+                line: i + 1,
+                content: line,
+                position: pos,
+              });
+            }
+          }
 
           if (matches.length > 0) {
             results.push({
               path: entry,
-              matches: matches,
+              matches,
             });
           }
         } catch (error) {
@@ -133,7 +159,7 @@ export class FileSearch implements IFileSearch {
 
       if (exactMatches.length > 0) {
         // If we have exact matches, sort by directory similarity
-        const fuse = new Fuse(exactMatches, {
+        const fuse = new Fuse<FileEntry>(exactMatches, {
           includeScore: true,
           threshold: 0.3,
           keys: ["dir"],
@@ -143,7 +169,7 @@ export class FileSearch implements IFileSearch {
         this.debugLogger.log("FileSearch", "dir similarity results", results);
 
         if (results.length > 0) {
-          return results.map((result) => result.item.fullPath);
+          return results.map((result: FuseResult) => result.item.fullPath);
         }
 
         // If no directory matches, return all exact name matches
@@ -151,7 +177,7 @@ export class FileSearch implements IFileSearch {
       }
 
       // If no exact matches, try fuzzy name matching
-      const fuse = new Fuse(fileEntries, {
+      const fuse = new Fuse<FileEntry>(fileEntries, {
         includeScore: true,
         threshold: 0.3,
         keys: [
@@ -164,8 +190,8 @@ export class FileSearch implements IFileSearch {
       this.debugLogger.log("FileSearch", "fuzzy search results", results);
 
       return results
-        .filter((result) => result.score && result.score < 0.3)
-        .map((result) => result.item.fullPath);
+        .filter((result: FuseResult) => result.score && result.score < 0.3)
+        .map((result: FuseResult) => result.item.fullPath);
     } catch (error) {
       console.error("Error in findByName:", error);
       return [];
