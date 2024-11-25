@@ -8,8 +8,6 @@ import { DebugLogger } from "@services/logging/DebugLogger";
 import { HtmlEntityDecoder } from "@services/text/HTMLEntityDecoder";
 import { autoInjectable } from "tsyringe";
 
-const ANTHROPIC_MAX_BLOCKS = 4;
-
 class LLMError extends Error {
   constructor(
     message: string,
@@ -82,6 +80,13 @@ export class OpenRouterAPI implements ILLMProvider {
       return error;
     }
 
+    if (error?.message?.includes("Content cannot be empty")) {
+      return new LLMError(
+        "User message cannot be empty or contain only whitespace",
+        "VALIDATION_ERROR",
+      );
+    }
+
     return new LLMError(
       error?.message || "An unknown error occurred",
       "UNKNOWN_ERROR",
@@ -96,39 +101,14 @@ export class OpenRouterAPI implements ILLMProvider {
     );
   }
 
-  private formatMessages(
+  private async formatMessages(
     messages: IMessage[],
     model: string,
-  ): IFormattedMessage[] {
+  ): Promise<IFormattedMessage[]> {
     // Filter out empty messages
     const validMessages = messages.filter((msg) => msg.content.trim());
 
-    // For Anthropic models, limit to last 4 messages if needed
-    if (
-      this.isAnthropicModel(model) &&
-      validMessages.length > ANTHROPIC_MAX_BLOCKS
-    ) {
-      this.debugLogger.log("Model", "Limiting context for Anthropic model", {
-        originalLength: validMessages.length,
-        limitedLength: ANTHROPIC_MAX_BLOCKS,
-      });
-
-      // Keep system message if present, plus last messages up to limit
-      const systemMessage = validMessages.find((msg) => msg.role === "system");
-      const nonSystemMessages = validMessages.filter(
-        (msg) => msg.role !== "system",
-      );
-      const recentMessages = nonSystemMessages.slice(-ANTHROPIC_MAX_BLOCKS);
-
-      return [...(systemMessage ? [systemMessage] : []), ...recentMessages].map(
-        (msg) => ({
-          role: msg.role,
-          content: formatMessageContent(msg.content, model),
-        }),
-      );
-    }
-
-    return validMessages.map((msg) => ({
+    return validMessages.map((msg, index) => ({
       role: msg.role,
       content: formatMessageContent(msg.content, model),
     }));
@@ -153,7 +133,7 @@ export class OpenRouterAPI implements ILLMProvider {
         );
       }
 
-      const formattedMessages = this.formatMessages(
+      const formattedMessages = await this.formatMessages(
         [...messages, { role: "user", content: message }],
         currentModel,
       );
@@ -301,12 +281,12 @@ export class OpenRouterAPI implements ILLMProvider {
   } {
     try {
       const jsonStr = message.replace(/^data: /, "").trim();
-      if (
-        !jsonStr ||
-        jsonStr === "[DONE]" ||
-        !jsonStr.startsWith("{") ||
-        !jsonStr.endsWith("}")
-      ) {
+      if (!jsonStr || jsonStr === "[DONE]") {
+        return { content: "" };
+      }
+
+      // Skip non-JSON messages
+      if (!jsonStr.startsWith("{") || !jsonStr.endsWith("}")) {
         return { content: "" };
       }
 
@@ -334,7 +314,6 @@ export class OpenRouterAPI implements ILLMProvider {
       }
 
       const decodedContent = this.htmlEntityDecoder.decode(deltaContent);
-
       return { content: decodedContent };
     } catch (e) {
       this.debugLogger.log("Model", "Error processing stream chunk", {
@@ -364,10 +343,17 @@ export class OpenRouterAPI implements ILLMProvider {
         });
         break;
       }
-      content += result.content;
+      // Only append non-empty content
+      if (result.content) {
+        content += result.content;
+      }
     }
 
-    return { content, error };
+    // Only return if we have content or an error
+    if (content || error) {
+      return { content, error };
+    }
+    return { content: "" };
   }
 
   async streamMessage(
@@ -393,7 +379,7 @@ export class OpenRouterAPI implements ILLMProvider {
         );
       }
 
-      const formattedMessages = this.formatMessages(
+      const formattedMessages = await this.formatMessages(
         [...messages, { role: "user", content: message }],
         currentModel,
       );
@@ -432,6 +418,7 @@ export class OpenRouterAPI implements ILLMProvider {
               return;
             }
 
+            // Only call callback for non-empty content
             if (content) {
               assistantMessage += content;
               callback(content);
@@ -451,6 +438,7 @@ export class OpenRouterAPI implements ILLMProvider {
               await this.handleStreamError(llmError, message, callback);
               return;
             }
+            // Only append and callback for non-empty content
             if (content) {
               assistantMessage += content;
               callback(content);

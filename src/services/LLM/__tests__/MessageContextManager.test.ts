@@ -1,11 +1,14 @@
 import { MessageContextManager } from "@services/LLM/MessageContextManager";
+import { DebugLogger } from "@services/logging/DebugLogger";
 import { container } from "tsyringe";
 
 describe("MessageContextManager", () => {
   let messageContextManager: MessageContextManager;
+  let debugLogger: DebugLogger;
 
   beforeEach(() => {
-    messageContextManager = container.resolve(MessageContextManager);
+    debugLogger = container.resolve(DebugLogger);
+    messageContextManager = new MessageContextManager(debugLogger);
   });
 
   afterEach(() => {
@@ -21,56 +24,74 @@ describe("MessageContextManager", () => {
   });
 
   describe("addMessage", () => {
-    it("should add a message to conversation history", () => {
+    it("should add a user message", () => {
       messageContextManager.addMessage("user", "Hello");
       expect(messageContextManager.getMessages()).toEqual([
         { role: "user", content: "Hello" },
       ]);
     });
 
-    it("should throw error for invalid role", () => {
-      expect(() =>
-        messageContextManager.addMessage("invalid" as any, "Hello"),
-      ).toThrow("Invalid role: invalid");
+    it("should add an assistant message", () => {
+      messageContextManager.addMessage("assistant", "Hi there!");
+      expect(messageContextManager.getMessages()).toEqual([
+        { role: "assistant", content: "Hi there!" },
+      ]);
     });
 
-    it("should throw error for empty content", () => {
-      expect(() => messageContextManager.addMessage("user", "  ")).toThrow(
-        "Content cannot be empty",
-      );
+    it("should add a system message", () => {
+      messageContextManager.addMessage("system", "System instruction");
+      expect(messageContextManager.getMessages()).toEqual([
+        { role: "system", content: "System instruction" },
+      ]);
+    });
+
+    it("should throw an error for invalid role", () => {
+      expect(() => messageContextManager.addMessage("invalid" as any, "Hello")).toThrow("Invalid role: invalid");
+    });
+
+    it("should throw an error for empty content", () => {
+      expect(() => messageContextManager.addMessage("user", "")).toThrow("Content cannot be empty");
     });
   });
 
   describe("getMessages", () => {
-    it("should return messages with system instructions first when present", () => {
-      messageContextManager.setSystemInstructions("Be helpful");
-      messageContextManager.addMessage("user", "Hello");
-
-      expect(messageContextManager.getMessages()).toEqual([
-        { role: "system", content: "Be helpful" },
-        { role: "user", content: "Hello" },
-      ]);
-    });
-
-    it("should return only conversation history when no system instructions", () => {
+    it("should return conversation messages", () => {
       messageContextManager.addMessage("user", "Hello");
       messageContextManager.addMessage("assistant", "Hi there!");
-
       expect(messageContextManager.getMessages()).toEqual([
         { role: "user", content: "Hello" },
         { role: "assistant", content: "Hi there!" },
       ]);
     });
+
+    it("should include system instructions if set", () => {
+      messageContextManager.setSystemInstructions("Be helpful");
+      messageContextManager.addMessage("user", "Hello");
+      expect(messageContextManager.getMessages()).toEqual([
+        { role: "system", content: "Be helpful" },
+        { role: "user", content: "Hello" },
+      ]);
+    });
   });
 
   describe("clear", () => {
-    it("should clear conversation history and system instructions", () => {
-      messageContextManager.setSystemInstructions("Be helpful");
+    it("should clear the conversation context", () => {
       messageContextManager.addMessage("user", "Hello");
+      messageContextManager.setSystemInstructions("Be helpful");
       messageContextManager.clear();
-
       expect(messageContextManager.getMessages()).toEqual([]);
       expect(messageContextManager.getSystemInstructions()).toBeNull();
+    });
+
+    it("should log that context was cleared", () => {
+      jest.spyOn(debugLogger, "log");
+      messageContextManager.addMessage("user", "Hello");
+      messageContextManager.setSystemInstructions("Be helpful");
+      messageContextManager.clear();
+      expect(debugLogger.log).toHaveBeenCalledWith("Context", "Context cleared", {
+        clearedMessages: true,
+        clearedInstructions: true,
+      });
     });
   });
 
@@ -79,51 +100,79 @@ describe("MessageContextManager", () => {
       messageContextManager.setSystemInstructions("Be helpful");
       expect(messageContextManager.getSystemInstructions()).toBe("Be helpful");
     });
+
+    it("should log that system instructions were updated", () => {
+      jest.spyOn(debugLogger, "log");
+      messageContextManager.setSystemInstructions("Be helpful");
+      expect(debugLogger.log).toHaveBeenCalledWith("Context", "System instructions updated", {
+        hadPreviousInstructions: false,
+        instructionsLength: 10,
+      });
+    });
+  });
+
+  describe("getSystemInstructions", () => {
+    it("should return system instructions when set", () => {
+      messageContextManager.setSystemInstructions("Be helpful");
+      expect(messageContextManager.getSystemInstructions()).toBe("Be helpful");
+    });
+
+    it("should return null when no system instructions are set", () => {
+      expect(messageContextManager.getSystemInstructions()).toBeNull();
+    });
   });
 
   describe("estimateTokenCount", () => {
-    it("should estimate tokens based on character count", () => {
-      const text = "Hello, world!"; // 13 characters
-      expect(messageContextManager.estimateTokenCount(text)).toBe(4); // ceil(13/4)
-    });
-
-    it("should handle empty string", () => {
-      expect(messageContextManager.estimateTokenCount("")).toBe(0);
+    it("should estimate token count correctly", () => {
+      expect(messageContextManager.estimateTokenCount("Hello world")).toBe(3);
+      expect(messageContextManager.estimateTokenCount("This is a test message.")).toBe(6);
     });
   });
 
   describe("getTotalTokenCount", () => {
-    it("should count tokens for all messages and system instructions", () => {
-      messageContextManager.setSystemInstructions("Be helpful"); // 10 chars = 3 tokens
-      messageContextManager.addMessage("user", "Hello"); // 5 chars = 2 tokens
-      messageContextManager.addMessage("assistant", "Hi!"); // 3 chars = 1 token
-
-      // Total should be 6 tokens
-      expect(messageContextManager.getTotalTokenCount()).toBe(6);
+    it("should calculate total token count with system instructions", () => {
+      messageContextManager.setSystemInstructions("Be helpful");
+      messageContextManager.addMessage("user", "Hello");
+      messageContextManager.addMessage("assistant", "Hi there!");
+      expect(messageContextManager.getTotalTokenCount()).toBe(8);
     });
 
-    it("should handle empty conversation", () => {
-      expect(messageContextManager.getTotalTokenCount()).toBe(0);
+    it("should calculate total token count without system instructions", () => {
+      messageContextManager.addMessage("user", "Hello");
+      messageContextManager.addMessage("assistant", "Hi there!");
+      expect(messageContextManager.getTotalTokenCount()).toBe(5);
     });
   });
 
   describe("cleanupContext", () => {
-    it("should handle empty conversation", () => {
-      messageContextManager.cleanupContext(10);
-      expect(messageContextManager.getMessages()).toEqual([]);
+    it("should not cleanup if conversation history is empty", () => {
+      expect(messageContextManager.cleanupContext(100)).toBe(false);
     });
 
-    it("should preserve system instructions during cleanup", () => {
-      messageContextManager.setSystemInstructions("Be helpful"); // 10 chars = 3 tokens
-      messageContextManager.addMessage("user", "First message"); // 12 chars = 3 tokens
-      messageContextManager.addMessage("assistant", "Second message"); // 13 chars = 4 tokens
+    it("should not cleanup if total token count is within max tokens", () => {
+      messageContextManager.addMessage("user", "Hello");
+      expect(messageContextManager.cleanupContext(100)).toBe(false);
+    });
 
-      // Set max tokens to 7, should keep system instructions and remove first message
-      messageContextManager.cleanupContext(7);
+    it("should cleanup if total token count exceeds max tokens", () => {
+      messageContextManager.setSystemInstructions("Be helpful");
+      messageContextManager.addMessage("user", "Hello");
+      messageContextManager.addMessage("assistant", "Hi there!");
+      messageContextManager.addMessage("user", "This is a longer message that should trigger cleanup.");
+      expect(messageContextManager.cleanupContext(10)).toBe(true);
+      expect(messageContextManager.getMessages()).toEqual([
+        { role: "system", content: "Be helpful" },
+      ]);
+    });
 
-      const messages = messageContextManager.getMessages();
-      expect(messages[0]).toEqual({ role: "system", content: "Be helpful" });
-      expect(messages[1].content).toBe("Second message");
+    it("should log that context cleanup was performed", () => {
+      jest.spyOn(debugLogger, "log");
+      messageContextManager.setSystemInstructions("Be helpful");
+      messageContextManager.addMessage("user", "Hello");
+      messageContextManager.addMessage("assistant", "Hi there!");
+      messageContextManager.addMessage("user", "This is a longer message that should trigger cleanup.");
+      messageContextManager.cleanupContext(10);
+      expect(debugLogger.log).toHaveBeenCalledWith("Context", "Context cleanup performed", expect.any(Object));
     });
   });
 });

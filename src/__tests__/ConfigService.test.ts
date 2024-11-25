@@ -1,3 +1,4 @@
+import { DEFAULT_INITIAL_MODEL } from "@constants/models";
 import chalk from "chalk";
 import fs from "fs";
 import path from "path";
@@ -11,6 +12,7 @@ describe("ConfigService", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    process.env.OPENROUTER_API_KEY = ""; // Mock the environment variable to be an empty string
   });
 
   describe("createDefaultConfig", () => {
@@ -25,7 +27,7 @@ describe("ConfigService", () => {
         mockConfigPath,
         JSON.stringify(
           {
-            model: "qwen/qwen-2.5-coder-32b-instruct",
+            model: DEFAULT_INITIAL_MODEL,
             provider: "open-router",
             customInstructions: "Follow clean code principles",
             interactive: true,
@@ -35,6 +37,10 @@ describe("ConfigService", () => {
               "temperature=0,top_p=0.1,top_k=1,frequence_penalty=0.0,presence_penalty=0.0,repetition_penalty=1.0",
             openRouterApiKey: "",
             autoScaler: true,
+            modelContextWindows: {
+              [DEFAULT_INITIAL_MODEL]: 32000,
+              "anthropic/claude-3.5-sonnet:beta": 32000,
+            },
           },
           null,
           4,

@@ -28,15 +28,12 @@ export const formatMessageContent = (
   }
 
   // For Anthropic models, if content is large enough to benefit from caching (e.g. > 1000 chars)
-  // wrap it in a cache control structure
   if (content.length > 1000) {
     return [
       {
         type: "text",
         text: content,
-        cache_control: {
-          type: "ephemeral",
-        },
+        cache_control: { type: "ephemeral" },
       },
     ];
   }

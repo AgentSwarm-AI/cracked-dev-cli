@@ -1,5 +1,7 @@
 import { IMessage } from "@services/LLM/ILLMProvider";
 import { DebugLogger } from "@services/logging/DebugLogger";
+import * as fs from "fs";
+import * as path from "path";
 import { autoInjectable, singleton } from "tsyringe";
 
 @singleton()
@@ -8,8 +10,39 @@ export class MessageContextManager {
   private conversationHistory: IMessage[] = [];
   private systemInstructions: string | null = null;
   private currentModel: string | null = null;
+  private readonly logPath = path.join(
+    process.cwd(),
+    "logs",
+    "conversation.log",
+  );
 
-  constructor(private debugLogger: DebugLogger) {}
+  constructor(private debugLogger: DebugLogger) {
+    // Clean up log file on startup, but not in test environment
+    if (process.env.NODE_ENV !== "test") {
+      this.cleanupLogFile();
+    }
+  }
+
+  private cleanupLogFile(): void {
+    try {
+      fs.writeFileSync(this.logPath, "", "utf8");
+    } catch (error) {
+      this.debugLogger.log("Context", "Error cleaning up log file", { error });
+    }
+  }
+
+  private logMessage(message: IMessage): void {
+    // Skip logging in test environment
+    if (process.env.NODE_ENV === "test") return;
+
+    try {
+      const timestamp = new Date().toISOString();
+      const logEntry = `[${timestamp}] ${message.role}: ${message.content}\n`;
+      fs.appendFileSync(this.logPath, logEntry, "utf8");
+    } catch (error) {
+      this.debugLogger.log("Context", "Error writing to log file", { error });
+    }
+  }
 
   setCurrentModel(model: string): void {
     this.currentModel = model;
@@ -24,7 +57,9 @@ export class MessageContextManager {
       throw new Error("Content cannot be empty");
     }
 
-    this.conversationHistory.push({ role, content });
+    const message = { role, content };
+    this.conversationHistory.push(message);
+    this.logMessage(message);
 
     return true;
   }

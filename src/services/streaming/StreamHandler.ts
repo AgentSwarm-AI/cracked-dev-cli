@@ -1,16 +1,10 @@
 /**
  * StreamHandler manages and processes streaming data chunks, handles errors, and triggers action execution based on the parsed content.
  * It ensures that the stream is handled efficiently and that any actions within the stream are executed correctly.
- */
-import { ActionsParser } from "@services/LLM/actions/ActionsParser";
+ */ import { ActionsParser } from "@services/LLM/actions/ActionsParser";
 import { DebugLogger } from "@services/logging/DebugLogger";
 import { autoInjectable } from "tsyringe";
 import { WriteStream } from "tty";
-
-// 10MB default max buffer size
-const MAX_BUFFER_SIZE = 10 * 1024 * 1024;
-// 1MB chunk size for processing
-const CHUNK_SIZE = 1024 * 1024;
 
 export interface StreamCallback {
   (message: string): Promise<string>;
@@ -42,7 +36,6 @@ export class StreamHandler {
   private responseBuffer: string = "";
   private isStreamComplete: boolean = false;
   private lastActivityTimestamp: number = Date.now();
-  private bufferSize: number = 0;
 
   constructor(
     private debugLogger: DebugLogger,
@@ -53,7 +46,6 @@ export class StreamHandler {
     this.responseBuffer = "";
     this.isStreamComplete = false;
     this.lastActivityTimestamp = Date.now();
-    this.bufferSize = 0;
     this.actionsParser.reset();
   }
 
@@ -76,19 +68,13 @@ export class StreamHandler {
       case "RATE_LIMIT_EXCEEDED":
         return {
           title: "Rate Limit Exceeded",
-          details: `API rate limit reached.${
-            error.details?.retryAfter
-              ? ` Try again in ${error.details.retryAfter} seconds.`
-              : ""
-          }`,
+          details: `API rate limit reached.${error.details?.retryAfter ? ` Try again in ${error.details.retryAfter} seconds.` : ""}`,
           suggestion: "Please wait before making another request.",
         };
       case "MODEL_ERROR":
         return {
           title: "Model Error",
-          details: `Error with model${
-            error.details?.modelId ? ` ${error.details.modelId}` : ""
-          }: ${error.message}`,
+          details: `Error with model${error.details?.modelId ? ` ${error.details.modelId}` : ""}: ${error.message}`,
           suggestion:
             "Try using a different model or reducing the complexity of your request.",
         };
@@ -117,13 +103,6 @@ export class StreamHandler {
           details: error.message,
           suggestion:
             "Try your request again with a different prompt or model.",
-        };
-      case "BUFFER_OVERFLOW":
-        return {
-          title: "Buffer Overflow",
-          details: "The stream buffer has exceeded its maximum size limit.",
-          suggestion:
-            "Try processing the stream in smaller chunks or increase the buffer size limit.",
         };
       default:
         return {
@@ -154,9 +133,6 @@ export class StreamHandler {
 
     this.safeWriteToStdout("\x1b[0m");
     this.safeWriteToStdout("\n");
-
-    // Log error to debug logger
-    this.debugLogger.log("Error", details, { title, suggestion });
   }
 
   private safeWriteToStdout(text: string) {
@@ -185,35 +161,6 @@ export class StreamHandler {
     } catch (error) {
       console.error("Error moving cursor", error);
     }
-  }
-
-  private processChunk(chunk: string): string[] {
-    if (!chunk) return [""];
-
-    const chunks: string[] = [];
-    let remainingChunk = chunk;
-
-    while (remainingChunk.length > 0) {
-      const chunkToProcess = remainingChunk.slice(0, CHUNK_SIZE);
-      chunks.push(chunkToProcess);
-      remainingChunk = remainingChunk.slice(CHUNK_SIZE);
-    }
-
-    return chunks;
-  }
-
-  private handleBufferOverflow() {
-    // Keep the last 1MB of data when overflow occurs
-    const keepSize = 1024 * 1024;
-    this.responseBuffer = this.responseBuffer.slice(-keepSize);
-    this.bufferSize = this.responseBuffer.length;
-    this.actionsParser.clearBuffer();
-    this.actionsParser.appendToBuffer(this.responseBuffer);
-
-    this.debugLogger.log("Buffer Overflow", "Buffer size limit exceeded", {
-      maxSize: MAX_BUFFER_SIZE,
-      currentSize: this.bufferSize,
-    });
   }
 
   async handleChunk(
@@ -246,26 +193,9 @@ export class StreamHandler {
       }
     }
 
-    // Process chunk in smaller pieces if it's large
-    const chunks = this.processChunk(chunk);
-
-    for (const subChunk of chunks) {
-      // Check if adding this chunk would exceed buffer size
-      if (this.bufferSize + subChunk.length > MAX_BUFFER_SIZE) {
-        this.handleBufferOverflow();
-        this.displayError(
-          new LLMError("Buffer size limit exceeded", "BUFFER_OVERFLOW", {
-            maxSize: MAX_BUFFER_SIZE,
-            currentSize: this.bufferSize,
-          }),
-        );
-      }
-
-      this.safeWriteToStdout(subChunk);
-      this.actionsParser.appendToBuffer(subChunk);
-      this.responseBuffer += subChunk;
-      this.bufferSize += subChunk.length;
-    }
+    this.safeWriteToStdout(chunk);
+    this.actionsParser.appendToBuffer(chunk);
+    this.responseBuffer += chunk;
 
     const isMessageComplete = this.actionsParser.isCompleteMessage(
       this.actionsParser.buffer,
@@ -296,20 +226,7 @@ export class StreamHandler {
               this.lastActivityTimestamp = Date.now();
             });
 
-            // Check buffer size after action response
-            if (this.bufferSize + actionResponse.length > MAX_BUFFER_SIZE) {
-              this.handleBufferOverflow();
-              this.displayError(
-                new LLMError(
-                  "Buffer size limit exceeded after action",
-                  "BUFFER_OVERFLOW",
-                  { maxSize: MAX_BUFFER_SIZE, currentSize: this.bufferSize },
-                ),
-              );
-            }
-
             this.responseBuffer += actionResponse;
-            this.bufferSize += actionResponse.length;
             return actionResponse;
           },
         );
@@ -320,9 +237,9 @@ export class StreamHandler {
         this.actionsParser.isComplete = false;
         this.isStreamComplete = false;
         this.lastActivityTimestamp = Date.now();
-        this.bufferSize = 0;
 
         // Refresh terminal state for new input
+
         this.safeWriteToStdout("\n");
         this.safeWriteToStdout("\x1B[?25h");
         this.safeClearLine();
@@ -331,7 +248,6 @@ export class StreamHandler {
 
         return actionResult.actions;
       } catch (error) {
-        this.debugLogger.log("Error", "Error processing actions", { error });
         if (error instanceof LLMError) {
           this.displayError(error);
         } else {
@@ -344,7 +260,7 @@ export class StreamHandler {
           );
         }
         this.reset();
-        return [];
+        throw error;
       }
     }
 
