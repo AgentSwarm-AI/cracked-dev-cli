@@ -1,5 +1,4 @@
 import { DirectoryScanner } from "@services/FileManagement/DirectoryScanner";
-import fs from "fs";
 import { container } from "tsyringe";
 
 describe("DirectoryScanner.ts", () => {
@@ -20,19 +19,13 @@ describe("DirectoryScanner.ts", () => {
     // Verify paths are relative and clean
     paths.forEach((path) => {
       expect(path).not.toContain("/home");
-      // Only check if directory for paths that exist
-      if (fs.existsSync(path)) {
-        if (fs.statSync(path).isDirectory()) {
-          expect(path).toMatch(/\/$/);
-        }
-      }
+      // Verify no directory paths are included in output
+      expect(path).not.toMatch(/\/$/);
     });
 
     // Verify required folders are always ignored
     expect(paths).not.toContain("node_modules");
-    expect(paths).not.toContain("node_modules/");
     expect(paths).not.toContain(".git");
-    expect(paths).not.toContain(".git/");
   });
 
   it("should allow custom ignores while maintaining required ignores", async () => {
@@ -45,12 +38,9 @@ describe("DirectoryScanner.ts", () => {
 
     // Custom ignore should work
     expect(paths).not.toContain("docs");
-    expect(paths).not.toContain("docs/");
 
     // Required ignores should still apply
     expect(paths).not.toContain("node_modules");
-    expect(paths).not.toContain("node_modules/");
     expect(paths).not.toContain(".git");
-    expect(paths).not.toContain(".git/");
   });
 });

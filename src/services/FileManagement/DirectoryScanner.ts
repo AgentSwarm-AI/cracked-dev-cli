@@ -27,6 +27,7 @@ export class DirectoryScanner implements IDirectoryScanner {
     noreport: true,
     base: ".",
     directoryFirst: true,
+    excludeDirectories: false,
   };
 
   private getAllFiles(
@@ -48,7 +49,6 @@ export class DirectoryScanner implements IDirectoryScanner {
       const relativePath = path.relative(basePath, fullPath);
 
       if (fs.statSync(fullPath).isDirectory()) {
-        arrayOfFiles.push(`${relativePath}/`);
         this.getAllFiles(
           fullPath,
           basePath,

@@ -21,4 +21,5 @@ export interface TreeOptions {
   noreport?: boolean;
   base?: string;
   directoryFirst?: boolean;
+  excludeDirectories?: boolean;
 }
