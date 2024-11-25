@@ -1,20 +1,21 @@
+import { ConfigService } from "@services/ConfigService";
 import { DirectoryScanner } from "@services/FileManagement/DirectoryScanner";
 import { ActionExecutor } from "@services/LLM/actions/ActionExecutor";
 import { LLMContextCreator } from "@services/LLM/LLMContextCreator";
 import { ProjectInfo } from "@services/LLM/utils/ProjectInfo";
 import { container } from "tsyringe";
-
-jest.mock("@services/FileManagement/DirectoryScanner");
-jest.mock("../actions/ActionExecutor");
-jest.mock("../utils/ProjectInfo");
+import { UnitTestMocker } from "../../../jest/mocks/UnitTestMocker";
 
 describe("LLMContextCreator", () => {
   let contextCreator: LLMContextCreator;
   let mockDirectoryScanner: jest.Mocked<DirectoryScanner>;
   let mockActionExecutor: jest.Mocked<ActionExecutor>;
   let mockProjectInfo: jest.Mocked<ProjectInfo>;
+  let mockConfigService: jest.Mocked<ConfigService>;
+  let mocker: UnitTestMocker;
 
   beforeEach(() => {
+    mocker = new UnitTestMocker();
     mockDirectoryScanner = container.resolve(
       DirectoryScanner,
     ) as jest.Mocked<DirectoryScanner>;
@@ -24,11 +25,18 @@ describe("LLMContextCreator", () => {
     mockProjectInfo = container.resolve(
       ProjectInfo,
     ) as jest.Mocked<ProjectInfo>;
-    contextCreator = new LLMContextCreator(
-      mockDirectoryScanner,
-      mockActionExecutor,
-      mockProjectInfo,
-    );
+    mockConfigService = container.resolve(
+      ConfigService,
+    ) as jest.Mocked<ConfigService>;
+
+    mocker.spyOnPrototypeMethod(DirectoryScanner, "scan");
+    mocker.spyOnPrototypeMethod(ActionExecutor, "executeAction");
+    mocker.spyOnPrototypeMethod(ProjectInfo, "gatherProjectInfo");
+    mocker.spyOnPrototypeAndReturn(ConfigService, "getConfig", {
+      includeAllFilesOnEnvToContext: true,
+    });
+
+    contextCreator = container.resolve(LLMContextCreator);
   });
 
   describe("create", () => {
@@ -48,8 +56,12 @@ describe("LLMContextCreator", () => {
         dependencyFile: "package.json",
       };
 
-      mockDirectoryScanner.scan.mockResolvedValue(scanResult);
-      mockProjectInfo.gatherProjectInfo.mockResolvedValue(projectInfoResult);
+      mocker.spyOnPrototypeAndReturn(DirectoryScanner, "scan", scanResult);
+      mocker.spyOnPrototypeAndReturn(
+        ProjectInfo,
+        "gatherProjectInfo",
+        projectInfoResult,
+      );
 
       const result = await contextCreator.create(message, root, true);
 
@@ -78,8 +90,12 @@ describe("LLMContextCreator", () => {
         scripts: {},
       };
 
-      mockDirectoryScanner.scan.mockResolvedValue(scanResult);
-      mockProjectInfo.gatherProjectInfo.mockResolvedValue(projectInfoResult);
+      mocker.spyOnPrototypeAndReturn(DirectoryScanner, "scan", scanResult);
+      mocker.spyOnPrototypeAndReturn(
+        ProjectInfo,
+        "gatherProjectInfo",
+        projectInfoResult,
+      );
 
       const result = await contextCreator.create(message, root, true);
 
@@ -109,7 +125,7 @@ describe("LLMContextCreator", () => {
       const root = "/test/root";
       const error = new Error("Scan failed");
 
-      mockDirectoryScanner.scan.mockResolvedValue({
+      mocker.spyOnPrototypeAndReturn(DirectoryScanner, "scan", {
         success: false,
         error,
       });
@@ -118,5 +134,40 @@ describe("LLMContextCreator", () => {
         "Failed to scan directory",
       );
     });
+
+    it("should not include environment details when config flag is false", async () => {
+      const message = "test message";
+      const root = "/test/root";
+      const scanResult = {
+        success: true,
+        data: "file1\nfile2",
+      };
+      const projectInfoResult = {
+        mainDependencies: ["dep1"],
+        scripts: { test: "jest" },
+        dependencyFile: "package.json",
+      };
+
+      mocker.spyOnPrototypeAndReturn(ConfigService, "getConfig", {
+        includeAllFilesOnEnvToContext: false,
+      });
+      mocker.spyOnPrototypeAndReturn(DirectoryScanner, "scan", scanResult);
+      mocker.spyOnPrototypeAndReturn(
+        ProjectInfo,
+        "gatherProjectInfo",
+        projectInfoResult,
+      );
+
+      const result = await contextCreator.create(message, root, true);
+
+      expect(result).toContain("# Your Task");
+      expect(result).toContain(message);
+      expect(result).not.toContain(scanResult.data);
+      expect(mockDirectoryScanner.scan).toHaveBeenCalledWith(root);
+    });
+  });
+
+  afterEach(() => {
+    mocker.clearAllMocks();
   });
 });

@@ -9,9 +9,11 @@ jest.mock("chalk");
 describe("ConfigService", () => {
   const mockConfigPath = path.resolve("crkdrc.json");
   const mockGitignorePath = path.resolve(".gitignore");
+  let configService: ConfigService;
 
   beforeEach(() => {
     jest.clearAllMocks();
+    configService = new ConfigService();
   });
 
   describe("createDefaultConfig", () => {
@@ -22,7 +24,7 @@ describe("ConfigService", () => {
       (fs.writeFileSync as jest.Mock).mockImplementation(() => {});
       (fs.readFileSync as jest.Mock).mockReturnValue("");
 
-      ConfigService.createDefaultConfig();
+      configService.createDefaultConfig();
 
       expect(fs.existsSync).toHaveBeenCalledWith(mockConfigPath);
       expect(fs.writeFileSync).toHaveBeenCalledWith(
@@ -39,6 +41,7 @@ describe("ConfigService", () => {
               "temperature=0,top_p=0.1,top_k=1,frequence_penalty=0.0,presence_penalty=0.0,repetition_penalty=1.0",
             openRouterApiKey: "",
             autoScaler: true,
+            includeAllFilesOnEnvToContext: false,
           },
           null,
           4,
@@ -46,7 +49,7 @@ describe("ConfigService", () => {
       );
       expect(fs.writeFileSync).toHaveBeenCalledWith(
         mockGitignorePath,
-        "crkdrc.json\n"
+        "crkdrc.json\n",
       );
       expect(chalk.green).toHaveBeenCalledWith(
         "CrackedDevCLI config generated. Please, add Provider, Model, and API Key to crkdrc.json.",
@@ -56,14 +59,14 @@ describe("ConfigService", () => {
     it("should not create a default config file if it already exists", () => {
       (fs.existsSync as jest.Mock).mockReturnValue(true);
 
-      ConfigService.createDefaultConfig();
+      configService.createDefaultConfig();
 
       expect(fs.existsSync).toHaveBeenCalledWith(mockConfigPath);
       expect(fs.writeFileSync).not.toHaveBeenCalled();
     });
   });
 
-  describe("loadConfig", () => {
+  describe("getConfig", () => {
     it("should load a valid config file", () => {
       const mockConfig = {
         model: "qwen/qwen-2.5-coder-32b-instruct",
@@ -75,6 +78,8 @@ describe("ConfigService", () => {
         options:
           "temperature=0,top_p=0.1,top_k=1,frequence_penalty=0.0,presence_penalty=0.0,repetition_penalty=1.0",
         openRouterApiKey: "test-key",
+        autoScaler: true,
+        includeAllFilesOnEnvToContext: false,
       };
 
       (fs.existsSync as jest.Mock).mockReturnValue(true);
@@ -82,7 +87,7 @@ describe("ConfigService", () => {
         JSON.stringify(mockConfig),
       );
 
-      const config = ConfigService.loadConfig();
+      const config = configService.getConfig();
 
       expect(fs.existsSync).toHaveBeenCalledWith(mockConfigPath);
       expect(fs.readFileSync).toHaveBeenCalledWith(mockConfigPath, "utf-8");
@@ -106,7 +111,7 @@ describe("ConfigService", () => {
         JSON.stringify(mockInvalidConfig),
       );
 
-      expect(() => ConfigService.loadConfig()).toThrow(
+      expect(() => configService.getConfig()).toThrow(
         /Invalid configuration in crkdrc.json/,
       );
     });
@@ -114,7 +119,7 @@ describe("ConfigService", () => {
     it("should return an empty object if the config file does not exist", () => {
       (fs.existsSync as jest.Mock).mockReturnValue(false);
 
-      const config = ConfigService.loadConfig();
+      const config = configService.getConfig();
 
       expect(fs.existsSync).toHaveBeenCalledWith(mockConfigPath);
       expect(config).toEqual({});

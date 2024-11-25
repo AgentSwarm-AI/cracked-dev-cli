@@ -1,9 +1,12 @@
 import { appEnv } from "@config/appEnv";
 import { ConfigService } from "@services/ConfigService";
 import axios, { AxiosInstance } from "axios";
+import { container } from "tsyringe";
 
 export const createOpenRouterClient = (baseURL: string): AxiosInstance => {
-  const config = ConfigService.loadConfig();
+  const configService = container.resolve(ConfigService);
+
+  const config = configService.getConfig();
 
   return axios.create({
     baseURL,

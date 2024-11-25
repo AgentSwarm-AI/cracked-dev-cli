@@ -16,7 +16,7 @@ export class LLMError extends Error {
   constructor(
     message: string,
     public readonly type: string,
-    public readonly details?: any,
+    public readonly details: Record<string, unknown> = {},
   ) {
     super(message);
     this.name = "LLMError";
@@ -26,6 +26,11 @@ export class LLMError extends Error {
 interface IFormattedMessage {
   role: string;
   content: string | IMessageContent[];
+}
+
+interface IStreamError {
+  message?: string;
+  details?: Record<string, unknown>;
 }
 
 @autoInjectable()
@@ -56,15 +61,20 @@ export class OpenRouterAPI implements ILLMProvider {
     }
   }
 
-  private async handleLLMError(error: any): Promise<LLMError> {
-    if (error?.response?.data) {
-      const data = error.response.data;
+  private async handleLLMError(
+    error: Error | LLMError | unknown,
+  ): Promise<LLMError> {
+    if ((error as any)?.response?.data) {
+      const data = (error as any).response.data;
 
       if (data.error?.message) {
         return new LLMError(data.error.message, "API_ERROR", data.error);
       }
 
-      if (data.error?.includes("context length")) {
+      if (
+        typeof data.error === "string" &&
+        data.error.includes("context length")
+      ) {
         const model = this.modelScaler.getCurrentModel();
         const contextLimit = await this.modelInfo.getModelContextLength(model);
         return new LLMError(
@@ -83,9 +93,9 @@ export class OpenRouterAPI implements ILLMProvider {
     }
 
     return new LLMError(
-      error?.message || "An unknown error occurred",
+      (error as Error)?.message || "An unknown error occurred",
       "UNKNOWN_ERROR",
-      error,
+      { originalError: error },
     );
   }
 
@@ -205,8 +215,9 @@ export class OpenRouterAPI implements ILLMProvider {
     });
 
     if (error.type === "CONTEXT_LENGTH_EXCEEDED") {
-      const cleaned = await this.messageContextManager.cleanupContext();
-      if (cleaned) {
+      const wasContextCleaned =
+        await this.messageContextManager.cleanupContext();
+      if (wasContextCleaned) {
         await this.streamMessage(
           this.modelScaler.getCurrentModel(),
           message,
@@ -238,7 +249,7 @@ export class OpenRouterAPI implements ILLMProvider {
     }
   }
 
-  private isRetryableError(error: any): boolean {
+  private isRetryableError(error: unknown): boolean {
     if (error instanceof LLMError) {
       return (
         error.type === "NETWORK_ERROR" ||
@@ -246,17 +257,18 @@ export class OpenRouterAPI implements ILLMProvider {
         error.type === "RATE_LIMIT_EXCEEDED"
       );
     }
-    return (
-      error.code === "ECONNRESET" ||
-      error.code === "ETIMEDOUT" ||
-      error.message?.includes("network") ||
-      error.message?.includes("timeout")
+    const err = error as { code?: string; message?: string };
+    return !!(
+      err.code === "ECONNRESET" ||
+      err.code === "ETIMEDOUT" ||
+      err.message?.includes("network") ||
+      err.message?.includes("timeout")
     );
   }
 
   private processCompleteMessage(message: string): {
     content: string;
-    error?: any;
+    error?: IStreamError;
   } {
     try {
       const jsonStr = message.replace(/^data: /, "").trim();
@@ -288,7 +300,10 @@ export class OpenRouterAPI implements ILLMProvider {
     }
   }
 
-  private parseStreamChunk(chunk: string): { content: string; error?: any } {
+  private parseStreamChunk(chunk: string): {
+    content: string;
+    error?: IStreamError;
+  } {
     this.streamBuffer += chunk;
 
     let content = "";
@@ -392,7 +407,7 @@ export class OpenRouterAPI implements ILLMProvider {
               resolve();
             });
 
-            stream.on("error", (err: any) => {
+            stream.on("error", (err: Error) => {
               reject(err);
             });
           });

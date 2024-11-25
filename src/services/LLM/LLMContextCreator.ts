@@ -1,3 +1,4 @@
+import { ConfigService } from "@services/ConfigService";
 import { DirectoryScanner } from "@services/FileManagement/DirectoryScanner";
 import { ActionExecutor } from "@services/LLM/actions/ActionExecutor";
 import { IActionResult } from "@services/LLM/actions/types/ActionTypes";
@@ -16,6 +17,7 @@ export class LLMContextCreator {
     private directoryScanner: DirectoryScanner,
     private actionExecutor: ActionExecutor,
     private projectInfo: ProjectInfo,
+    private configService: ConfigService,
   ) {}
 
   async create(
@@ -48,6 +50,7 @@ export class LLMContextCreator {
     if (!scanResult.success) {
       throw new Error(`Failed to scan directory: ${scanResult.error}`);
     }
+
     return `# Current Working Directory (${root}) Files\n${scanResult.data}`;
   }
 
@@ -67,6 +70,12 @@ ${Object.entries(info.scripts)
   }
 
   private formatFirstTimeMessage(context: MessageContext): string {
+    const config = this.configService.getConfig();
+
+    const envDetails = config.includeAllFilesOnEnvToContext
+      ? `\n${context.environmentDetails}`
+      : "";
+
     return `<instructions details="NEVER_OUTPUT">
 <!-- These are internal instructions. Just follow them. Do not output. -->
 # Your Task
@@ -274,7 +283,9 @@ DO NOT RUN write_file if import issues are not resolved! Use relative_path_looku
 </end_task> 
  
 ## Environment 
-${context.projectInfo} 
+${context.projectInfo}
+
+${envDetails}
 
 </instructions>
 `;

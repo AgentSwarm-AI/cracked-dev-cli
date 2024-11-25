@@ -1,9 +1,18 @@
 import { Args, Command, Flags } from "@oclif/core";
-import { CrackedAgent } from "@services/CrackedAgent";
+import { CrackedAgent, CrackedAgentOptions } from "@services/CrackedAgent";
 import { LLMProviderType } from "@services/LLM/LLMProvider";
 import * as readline from "readline";
 import { container } from "tsyringe";
-import { ConfigService } from "../services/ConfigService";
+import { Config, ConfigService } from "../services/ConfigService";
+
+// Ensure required properties while keeping the rest flexible
+type CrkdOptions = {
+  model: string; // Required by CrackedAgentOptions
+  provider: LLMProviderType;
+  options: Record<string, unknown>;
+} & Partial<Omit<Config, "model" | "provider" | "options">> & {
+    [key: string]: unknown;
+  };
 
 export class Crkd extends Command {
   static description = "AI agent for performing operations on local projects";
@@ -32,6 +41,13 @@ export class Crkd extends Command {
       required: false,
     }),
   };
+
+  private configService: ConfigService;
+
+  constructor(argv: string[], config: any) {
+    super(argv, config);
+    this.configService = container.resolve(ConfigService);
+  }
 
   private parseOptions(optionsString: string): Record<string, unknown> {
     const options: Record<string, unknown> = {};
@@ -63,7 +79,10 @@ export class Crkd extends Command {
     });
   }
 
-  private async startInteractiveMode(agent: CrackedAgent, options: any) {
+  private async startInteractiveMode(
+    agent: CrackedAgent,
+    options: CrackedAgentOptions,
+  ) {
     const rl = this.createReadlineInterface();
     console.log(
       'Interactive mode started. Type "exit" or press Ctrl+C to quit.',
@@ -110,11 +129,11 @@ export class Crkd extends Command {
     }
 
     if (flags.init) {
-      ConfigService.createDefaultConfig(flags.openRouterApiKey);
+      this.configService.createDefaultConfig(flags.openRouterApiKey);
       return;
     }
 
-    const config = ConfigService.loadConfig();
+    const config = this.configService.getConfig();
     const isInteractive = config.interactive ?? false;
 
     if (isInteractive && args.message) {
@@ -126,14 +145,19 @@ export class Crkd extends Command {
     }
 
     try {
-      const options = {
+      if (!config.model) {
+        throw new Error("Model is required in configuration");
+      }
+
+      const options: CrackedAgentOptions = {
         ...config,
+        model: config.model,
         options: this.parseOptions(config.options || ""),
         provider: config.provider as LLMProviderType,
-      } as any;
+      };
 
       // Validate provider
-      if (!Object.values(LLMProviderType).includes(options.provider)) {
+      if (!Object.values(LLMProviderType).includes(options.provider!)) {
         throw new Error(`Invalid provider: ${options.provider}`);
       }
 

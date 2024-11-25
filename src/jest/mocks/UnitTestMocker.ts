@@ -22,6 +22,7 @@ export class UnitTestMocker {
 
   /**
    * Spies on a prototype method of a class and mocks its return value.
+   * Automatically detects if the method returns a Promise and uses the appropriate mock.
    * @param Class The class constructor.
    * @param method The method name to spy on.
    * @param returnValue The value to return when the method is called.
@@ -31,10 +32,19 @@ export class UnitTestMocker {
     Class: new (...args: any[]) => T,
     method: keyof T,
     returnValue: R,
-  ): MockedMethod<R> {
-    const spy = jest
-      .spyOn(Class.prototype, method as string)
-      .mockResolvedValue(returnValue);
+  ): jest.SpyInstance<R> {
+    const prototype = Class.prototype;
+    const descriptor = Object.getOwnPropertyDescriptor(prototype, method);
+    const isAsync =
+      descriptor?.value?.constructor?.name === "AsyncFunction" ||
+      returnValue instanceof Promise;
+
+    const spy = jest.spyOn(prototype, method as string);
+    if (isAsync) {
+      spy.mockResolvedValue(returnValue);
+    } else {
+      spy.mockReturnValue(returnValue);
+    }
 
     if (!this.classMocks.has(Class)) {
       this.classMocks.set(Class, []);

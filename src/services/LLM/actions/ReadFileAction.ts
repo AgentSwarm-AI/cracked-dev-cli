@@ -8,7 +8,7 @@ import { readFileActionBlueprint as blueprint } from "./blueprints/readFileActio
 import { BaseAction } from "./core/BaseAction";
 import { IActionBlueprint } from "./core/IAction";
 
-interface ReadFileParams {
+interface IReadFileParams {
   path: string[];
 }
 
@@ -26,7 +26,7 @@ export class ReadFileAction extends BaseAction {
     return blueprint;
   }
 
-  protected validateParams(params: Record<string, any>): string | null {
+  protected validateParams(params: IReadFileParams): string | null {
     const paths = params.path;
 
     if (!paths || !Array.isArray(paths) || paths.length === 0) {
@@ -58,7 +58,7 @@ export class ReadFileAction extends BaseAction {
   }
 
   protected async executeInternal(
-    params: Record<string, any>,
+    params: IReadFileParams,
   ): Promise<IActionResult> {
     // Extract paths either from path tags or from raw content
     const filePaths = Array.isArray(params.path) ? params.path : [params.path];

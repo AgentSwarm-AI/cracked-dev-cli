@@ -9,7 +9,7 @@ export const autoScaleAvailableModels: IModelConfig[] = [
   {
     id: "qwen/qwen-2.5-coder-32b-instruct",
     description: "Cheap, fast, slightly better than GPT4o-mini",
-    maxWriteTries: 3,
+    maxWriteTries: 5,
     maxGlobalTries: 10,
   },
   {
