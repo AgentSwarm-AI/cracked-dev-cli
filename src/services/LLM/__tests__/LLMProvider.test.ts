@@ -61,10 +61,14 @@ describe("LLMProvider", () => {
     );
 
     // Mock MessageContextManager methods
-    mocker.spyOnPrototype(MessageContextManager, "getMessages", []);
-    mocker.spyOnPrototype(MessageContextManager, "addMessage", undefined);
-    mocker.spyOnPrototype(MessageContextManager, "clear", undefined);
-    mocker.spyOnPrototype(
+    mocker.spyOnPrototypeAndReturn(MessageContextManager, "getMessages", []);
+    mocker.spyOnPrototypeAndReturn(
+      MessageContextManager,
+      "addMessage",
+      undefined,
+    );
+    mocker.spyOnPrototypeAndReturn(MessageContextManager, "clear", undefined);
+    mocker.spyOnPrototypeAndReturn(
       MessageContextManager,
       "setSystemInstructions",
       undefined,

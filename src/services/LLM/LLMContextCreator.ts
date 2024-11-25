@@ -176,6 +176,7 @@ const hello = "world"
   - If tests fail, use <end_task> to report issues and seek guidance.
 
 ### Tests
+- When writing tests, DO NOT REMOVE PREVIOUS TESTS unless necessary. ADD NEW ONES!
 - Prioritize individual test file runs!
 - No tests for logging messages.
 - CRITICAL When fixing tests, run them first before reading files.

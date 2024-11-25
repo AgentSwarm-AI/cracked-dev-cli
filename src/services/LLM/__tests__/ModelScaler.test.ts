@@ -15,7 +15,7 @@ describe("ModelScaler", () => {
     mocker = new UnitTestMocker();
 
     // Setup spies on prototype methods of dependencies
-    mocker.spyOnPrototype(DebugLogger, "log", jest.fn());
+    mocker.spyOnPrototypeAndReturn(DebugLogger, "log", jest.fn());
 
     // Instantiate ModelScaler after setting up mocks
     modelScaler = container.resolve(ModelScaler);
@@ -283,7 +283,9 @@ describe("ModelScaler", () => {
 
     // Change model through try count
     modelScaler.setTryCount("file1.ts", 2);
-    expect(modelScaler.getCurrentModel()).toBe("anthropic/claude-3.5-sonnet:beta");
+    expect(modelScaler.getCurrentModel()).toBe(
+      "anthropic/claude-3.5-sonnet:beta",
+    );
 
     // Change model again through try count
     modelScaler.setTryCount("file1.ts", 100);
@@ -292,7 +294,9 @@ describe("ModelScaler", () => {
 
   it("should handle model changes correctly through global try count", () => {
     // Initial model
-    expect(modelScaler.getCurrentModel()).toBe("qwen/qwen-2.5-coder-32b-instruct");
+    expect(modelScaler.getCurrentModel()).toBe(
+      "qwen/qwen-2.5-coder-32b-instruct",
+    );
 
     // Increment global try count to trigger model changes
     for (let i = 0; i < 15; i++) {

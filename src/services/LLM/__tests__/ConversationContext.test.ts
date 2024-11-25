@@ -11,24 +11,32 @@ describe("ConversationContext", () => {
     mocker = new UnitTestMocker();
 
     // Spy on MessageContextManager methods
-    mocker.spyOnPrototype(
+    mocker.spyOnPrototypeAndReturn(
       MessageContextManager,
       "getMessages",
       jest.fn().mockReturnValue([]),
     );
-    mocker.spyOnPrototype(MessageContextManager, "addMessage", jest.fn());
-    mocker.spyOnPrototype(MessageContextManager, "clear", jest.fn());
-    mocker.spyOnPrototype(
+    mocker.spyOnPrototypeAndReturn(
+      MessageContextManager,
+      "addMessage",
+      jest.fn(),
+    );
+    mocker.spyOnPrototypeAndReturn(MessageContextManager, "clear", jest.fn());
+    mocker.spyOnPrototypeAndReturn(
       MessageContextManager,
       "setSystemInstructions",
       jest.fn(),
     );
-    mocker.spyOnPrototype(
+    mocker.spyOnPrototypeAndReturn(
       MessageContextManager,
       "getSystemInstructions",
       jest.fn().mockReturnValue(null), // Ensure it returns null by default
     );
-    mocker.spyOnPrototype(MessageContextManager, "setCurrentModel", jest.fn());
+    mocker.spyOnPrototypeAndReturn(
+      MessageContextManager,
+      "setCurrentModel",
+      jest.fn(),
+    );
 
     // Resolve ConversationContext from the container
     conversationContext = container.resolve(ConversationContext);

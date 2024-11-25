@@ -6,6 +6,20 @@ export class UnitTestMocker {
   private classMocks: Map<any, MockedMethod<any>[]> = new Map();
   private functionMocks: Map<any, jest.SpyInstance<any>[]> = new Map();
 
+  spyOnPrototypeMethod<T, R>(
+    Class: new (...args: any[]) => T,
+    method: keyof T,
+  ): jest.SpyInstance<R> {
+    const spy = jest.spyOn(Class.prototype, method as string);
+
+    if (!this.functionMocks.has(module)) {
+      this.functionMocks.set(module, []);
+    }
+    this.functionMocks.get(module)?.push(spy);
+
+    return spy;
+  }
+
   /**
    * Spies on a prototype method of a class and mocks its return value.
    * @param Class The class constructor.
@@ -13,7 +27,7 @@ export class UnitTestMocker {
    * @param returnValue The value to return when the method is called.
    * @returns The jest spy instance.
    */
-  spyOnPrototype<T, R>(
+  spyOnPrototypeAndReturn<T, R>(
     Class: new (...args: any[]) => T,
     method: keyof T,
     returnValue: R,
