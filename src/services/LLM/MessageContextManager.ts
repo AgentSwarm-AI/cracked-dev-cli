@@ -1,4 +1,5 @@
 import { IMessage } from "@services/LLM/ILLMProvider";
+import { ModelInfo } from "@services/LLM/ModelInfo";
 import { DebugLogger } from "@services/logging/DebugLogger";
 import * as fs from "fs";
 import * as path from "path";
@@ -16,7 +17,10 @@ export class MessageContextManager {
     "conversation.log",
   );
 
-  constructor(private debugLogger: DebugLogger) {
+  constructor(
+    private debugLogger: DebugLogger,
+    private modelInfo: ModelInfo,
+  ) {
     // Clean up log file on startup, but not in test environment
     if (process.env.NODE_ENV !== "test") {
       this.cleanupLogFile();
@@ -46,6 +50,7 @@ export class MessageContextManager {
 
   setCurrentModel(model: string): void {
     this.currentModel = model;
+    this.modelInfo.setCurrentModel(model);
     this.debugLogger.log("Context", "Model updated", { model });
   }
 
@@ -129,11 +134,12 @@ export class MessageContextManager {
     );
   }
 
-  cleanupContext(maxTokens: number): boolean {
+  async cleanupContext(): Promise<boolean> {
     if (this.conversationHistory.length === 0) {
       return false;
     }
 
+    const maxTokens = await this.modelInfo.getCurrentModelContextLength();
     const systemTokens = this.systemInstructions
       ? this.estimateTokenCount(this.systemInstructions)
       : 0;
@@ -145,14 +151,41 @@ export class MessageContextManager {
     }
 
     const initialMessageCount = this.conversationHistory.length;
+
+    // Find first user message index
+    const firstUserMessageIndex = this.conversationHistory.findIndex(
+      (msg) => msg.role === "user",
+    );
+
+    // Keep track of protected messages (first user message and subsequent message)
+    const protectedMessages =
+      firstUserMessageIndex >= 0
+        ? this.conversationHistory.slice(
+            firstUserMessageIndex,
+            firstUserMessageIndex + 2,
+          )
+        : [];
+    const protectedTokens = protectedMessages.reduce(
+      (total, msg) => total + this.estimateTokenCount(msg.content),
+      0,
+    );
+
+    // Remove messages from the middle, keeping protected messages
     while (
-      conversationTokens > availableTokens &&
-      this.conversationHistory.length > 0
+      conversationTokens - protectedTokens >
+        availableTokens - protectedTokens &&
+      this.conversationHistory.length > protectedMessages.length
     ) {
-      const oldestMessage = this.conversationHistory[0];
-      const oldestTokens = this.estimateTokenCount(oldestMessage.content);
-      this.conversationHistory.shift();
-      conversationTokens -= oldestTokens;
+      // Start removing from after protected messages
+      const indexToRemove = firstUserMessageIndex + 2;
+      if (indexToRemove >= this.conversationHistory.length) {
+        break;
+      }
+
+      const messageToRemove = this.conversationHistory[indexToRemove];
+      const messageTokens = this.estimateTokenCount(messageToRemove.content);
+      this.conversationHistory.splice(indexToRemove, 1);
+      conversationTokens -= messageTokens;
     }
 
     const removedCount = initialMessageCount - this.conversationHistory.length;
@@ -162,8 +195,10 @@ export class MessageContextManager {
       initialMessageCount,
       remainingMessages: this.conversationHistory.length,
       removedMessages: removedCount,
+      protectedMessages: protectedMessages.length,
     });
 
+    await this.modelInfo.logCurrentModelUsage(this.getTotalTokenCount());
     return true;
   }
 }

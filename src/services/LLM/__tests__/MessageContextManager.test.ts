@@ -1,14 +1,19 @@
 import { MessageContextManager } from "@services/LLM/MessageContextManager";
 import { DebugLogger } from "@services/logging/DebugLogger";
+import { ModelInfo } from "@services/LLM/ModelInfo";
 import { container } from "tsyringe";
 
 describe("MessageContextManager", () => {
   let messageContextManager: MessageContextManager;
   let debugLogger: DebugLogger;
+  let modelInfo: ModelInfo;
 
   beforeEach(() => {
     debugLogger = container.resolve(DebugLogger);
-    messageContextManager = new MessageContextManager(debugLogger);
+    modelInfo = container.resolve(ModelInfo);
+    jest.spyOn(modelInfo, 'getCurrentModelContextLength').mockResolvedValue(100);
+    jest.spyOn(modelInfo, 'logCurrentModelUsage').mockResolvedValue();
+    messageContextManager = new MessageContextManager(debugLogger, modelInfo);
   });
 
   afterEach(() => {
@@ -145,33 +150,37 @@ describe("MessageContextManager", () => {
   });
 
   describe("cleanupContext", () => {
-    it("should not cleanup if conversation history is empty", () => {
-      expect(messageContextManager.cleanupContext(100)).toBe(false);
+    it("should not cleanup if conversation history is empty", async () => {
+      expect(await messageContextManager.cleanupContext()).toBe(false);
     });
 
-    it("should not cleanup if total token count is within max tokens", () => {
+    it("should not cleanup if total token count is within max tokens", async () => {
       messageContextManager.addMessage("user", "Hello");
-      expect(messageContextManager.cleanupContext(100)).toBe(false);
+      expect(await messageContextManager.cleanupContext()).toBe(false);
     });
 
-    it("should cleanup if total token count exceeds max tokens", () => {
+    it("should cleanup if total token count exceeds max tokens", async () => {
+      jest.spyOn(modelInfo, 'getCurrentModelContextLength').mockResolvedValue(10);
       messageContextManager.setSystemInstructions("Be helpful");
       messageContextManager.addMessage("user", "Hello");
       messageContextManager.addMessage("assistant", "Hi there!");
       messageContextManager.addMessage("user", "This is a longer message that should trigger cleanup.");
-      expect(messageContextManager.cleanupContext(10)).toBe(true);
+      expect(await messageContextManager.cleanupContext()).toBe(true);
       expect(messageContextManager.getMessages()).toEqual([
         { role: "system", content: "Be helpful" },
+        { role: "user", content: "Hello" },
+        { role: "assistant", content: "Hi there!" },
       ]);
     });
 
-    it("should log that context cleanup was performed", () => {
+    it("should log that context cleanup was performed", async () => {
+      jest.spyOn(modelInfo, 'getCurrentModelContextLength').mockResolvedValue(10);
       jest.spyOn(debugLogger, "log");
       messageContextManager.setSystemInstructions("Be helpful");
       messageContextManager.addMessage("user", "Hello");
       messageContextManager.addMessage("assistant", "Hi there!");
       messageContextManager.addMessage("user", "This is a longer message that should trigger cleanup.");
-      messageContextManager.cleanupContext(10);
+      await messageContextManager.cleanupContext();
       expect(debugLogger.log).toHaveBeenCalledWith("Context", "Context cleanup performed", expect.any(Object));
     });
   });

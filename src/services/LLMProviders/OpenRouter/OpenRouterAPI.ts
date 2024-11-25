@@ -3,7 +3,10 @@ import { ILLMProvider, IMessage } from "@services/LLM/ILLMProvider";
 import { MessageContextManager } from "@services/LLM/MessageContextManager";
 import { ModelInfo } from "@services/LLM/ModelInfo";
 import { ModelScaler } from "@services/LLM/ModelScaler";
-import { formatMessageContent } from "@services/LLM/utils/ModelUtils";
+import {
+  formatMessageContent,
+  IMessageContent,
+} from "@services/LLM/utils/ModelUtils";
 import { DebugLogger } from "@services/logging/DebugLogger";
 import { HtmlEntityDecoder } from "@services/text/HTMLEntityDecoder";
 import { autoInjectable } from "tsyringe";
@@ -21,9 +24,7 @@ class LLMError extends Error {
 
 interface IFormattedMessage {
   role: string;
-  content:
-    | string
-    | { type: string; text: string; cache_control?: { type: "ephemeral" } }[];
+  content: string | IMessageContent[];
 }
 
 @autoInjectable()
@@ -80,13 +81,6 @@ export class OpenRouterAPI implements ILLMProvider {
       return error;
     }
 
-    if (error?.message?.includes("Content cannot be empty")) {
-      return new LLMError(
-        "User message cannot be empty or contain only whitespace",
-        "VALIDATION_ERROR",
-      );
-    }
-
     return new LLMError(
       error?.message || "An unknown error occurred",
       "UNKNOWN_ERROR",
@@ -94,21 +88,11 @@ export class OpenRouterAPI implements ILLMProvider {
     );
   }
 
-  private isAnthropicModel(model: string): boolean {
-    return (
-      model.toLowerCase().includes("anthropic") ||
-      model.toLowerCase().includes("claude")
-    );
-  }
-
-  private async formatMessages(
+  private formatMessages(
     messages: IMessage[],
     model: string,
-  ): Promise<IFormattedMessage[]> {
-    // Filter out empty messages
-    const validMessages = messages.filter((msg) => msg.content.trim());
-
-    return validMessages.map((msg, index) => ({
+  ): IFormattedMessage[] {
+    return messages.map((msg) => ({
       role: msg.role,
       content: formatMessageContent(msg.content, model),
     }));
@@ -125,23 +109,10 @@ export class OpenRouterAPI implements ILLMProvider {
     try {
       await this.modelInfo.setCurrentModel(currentModel);
 
-      // Ensure message is not empty
-      if (!message.trim()) {
-        throw new LLMError(
-          "Message content cannot be empty",
-          "VALIDATION_ERROR",
-        );
-      }
-
-      const formattedMessages = await this.formatMessages(
+      const formattedMessages = this.formatMessages(
         [...messages, { role: "user", content: message }],
         currentModel,
       );
-
-      // Ensure we have at least one message
-      if (!formattedMessages.length) {
-        throw new LLMError("No valid messages to send", "VALIDATION_ERROR");
-      }
 
       const response = await this.httpClient.post("/chat/completions", {
         model: currentModel,
@@ -176,9 +147,9 @@ export class OpenRouterAPI implements ILLMProvider {
     return this.sendMessage(model, message, options);
   }
 
-  clearConversationContext(): void {
+  async clearConversationContext(): Promise<void> {
     this.messageContextManager.clear();
-    this.modelScaler?.reset();
+    await this.modelScaler?.reset();
   }
 
   getConversationContext(): IMessage[] {
@@ -186,10 +157,6 @@ export class OpenRouterAPI implements ILLMProvider {
   }
 
   addSystemInstructions(instructions: string): void {
-    if (!instructions.trim()) {
-      this.debugLogger.log("Warning", "Empty system instructions ignored");
-      return;
-    }
     this.messageContextManager.setSystemInstructions(instructions);
     this.modelInfo.logCurrentModelUsage(
       this.messageContextManager.getTotalTokenCount(),
@@ -221,18 +188,17 @@ export class OpenRouterAPI implements ILLMProvider {
   ): Promise<void> {
     this.debugLogger.log("Model", "Stream error", {
       error: error.type,
-      message: error.message,
-      details: error.details,
+      message,
     });
 
     if (error.type === "CONTEXT_LENGTH_EXCEEDED") {
-      const currentModel = this.modelScaler.getCurrentModel();
-      const maxTokens =
-        await this.modelInfo.getModelContextLength(currentModel);
-
-      const cleaned = this.messageContextManager.cleanupContext(maxTokens);
+      const cleaned = await this.messageContextManager.cleanupContext();
       if (cleaned) {
-        await this.streamMessage(currentModel, message, callback);
+        await this.streamMessage(
+          this.modelScaler.getCurrentModel(),
+          message,
+          callback,
+        );
         return;
       }
     }
@@ -281,31 +247,19 @@ export class OpenRouterAPI implements ILLMProvider {
   } {
     try {
       const jsonStr = message.replace(/^data: /, "").trim();
-      if (!jsonStr || jsonStr === "[DONE]") {
-        return { content: "" };
-      }
-
-      // Skip non-JSON messages
-      if (!jsonStr.startsWith("{") || !jsonStr.endsWith("}")) {
+      if (
+        !jsonStr ||
+        jsonStr === "[DONE]" ||
+        !jsonStr.startsWith("{") ||
+        !jsonStr.endsWith("}")
+      ) {
         return { content: "" };
       }
 
       const parsed = JSON.parse(jsonStr);
 
       if (parsed.error) {
-        const errorDetails =
-          typeof parsed.error === "string"
-            ? { message: parsed.error }
-            : parsed.error;
-
-        return {
-          content: "",
-          error: {
-            message: errorDetails.message || "Unknown API error",
-            type: errorDetails.type || "API_ERROR",
-            details: errorDetails,
-          },
-        };
+        return { content: "", error: parsed.error };
       }
 
       const deltaContent = parsed.choices?.[0]?.delta?.content;
@@ -314,12 +268,9 @@ export class OpenRouterAPI implements ILLMProvider {
       }
 
       const decodedContent = this.htmlEntityDecoder.decode(deltaContent);
+
       return { content: decodedContent };
     } catch (e) {
-      this.debugLogger.log("Model", "Error processing stream chunk", {
-        error: e,
-        message: message,
-      });
       return { content: "" };
     }
   }
@@ -335,25 +286,11 @@ export class OpenRouterAPI implements ILLMProvider {
 
     for (const message of messages) {
       const result = this.processCompleteMessage(message);
-      if (result.error) {
-        error = result.error;
-        this.debugLogger.log("Model", "Stream chunk error", {
-          error: result.error,
-          message: message,
-        });
-        break;
-      }
-      // Only append non-empty content
-      if (result.content) {
-        content += result.content;
-      }
+      if (result.error) error = result.error;
+      content += result.content;
     }
 
-    // Only return if we have content or an error
-    if (content || error) {
-      return { content, error };
-    }
-    return { content: "" };
+    return { content, error };
   }
 
   async streamMessage(
@@ -371,23 +308,10 @@ export class OpenRouterAPI implements ILLMProvider {
     try {
       await this.modelInfo.setCurrentModel(currentModel);
 
-      // Ensure message is not empty
-      if (!message.trim()) {
-        throw new LLMError(
-          "Message content cannot be empty",
-          "VALIDATION_ERROR",
-        );
-      }
-
-      const formattedMessages = await this.formatMessages(
+      const formattedMessages = this.formatMessages(
         [...messages, { role: "user", content: message }],
         currentModel,
       );
-
-      // Ensure we have at least one message
-      if (!formattedMessages.length) {
-        throw new LLMError("No valid messages to send", "VALIDATION_ERROR");
-      }
 
       const streamOperation = async () => {
         const response = await this.httpClient.post(
@@ -411,14 +335,13 @@ export class OpenRouterAPI implements ILLMProvider {
             if (error) {
               const llmError = new LLMError(
                 error.message || "Stream error",
-                error.type || "STREAM_ERROR",
-                error.details,
+                "STREAM_ERROR",
+                error,
               );
               await this.handleStreamError(llmError, message, callback);
               return;
             }
 
-            // Only call callback for non-empty content
             if (content) {
               assistantMessage += content;
               callback(content);
@@ -432,13 +355,12 @@ export class OpenRouterAPI implements ILLMProvider {
             if (error) {
               const llmError = new LLMError(
                 error.message || "Stream error",
-                error.type || "STREAM_ERROR",
-                error.details,
+                "STREAM_ERROR",
+                error,
               );
               await this.handleStreamError(llmError, message, callback);
               return;
             }
-            // Only append and callback for non-empty content
             if (content) {
               assistantMessage += content;
               callback(content);

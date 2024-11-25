@@ -35,7 +35,7 @@ export class ModelScaler {
     return this.currentModel;
   }
 
-  setAutoScaler(enabled: boolean, userModel?: string): void {
+  async setAutoScaler(enabled: boolean, userModel?: string): Promise<void> {
     this.autoScalerEnabled = enabled;
     if (!enabled) {
       // Store user specified model when disabling auto-scaler
@@ -46,7 +46,7 @@ export class ModelScaler {
       const newModel =
         this.userSpecifiedModel ||
         getModelForTryCount(null, this.globalTryCount);
-      this.handleModelChange(newModel);
+      await this.handleModelChange(newModel);
       this.debugLogger.log(
         "Model",
         "Auto scaler disabled, using specified model",
@@ -61,7 +61,7 @@ export class ModelScaler {
       this.tryCountMap.clear();
       this.globalTryCount = 0;
       const baseModel = getModelForTryCount(null, this.globalTryCount);
-      this.handleModelChange(baseModel);
+      await this.handleModelChange(baseModel);
     }
     this.debugLogger.log("Model", "Auto scaler setting updated", {
       enabled,
@@ -73,7 +73,7 @@ export class ModelScaler {
     return this.autoScalerEnabled;
   }
 
-  incrementTryCount(filePath: string): void {
+  async incrementTryCount(filePath: string): Promise<void> {
     if (!this.autoScalerEnabled) return;
 
     this.globalTryCount++; // Increment global try count first
@@ -98,7 +98,7 @@ export class ModelScaler {
     });
 
     // Handle model change if needed
-    this.handleModelChange(newModel);
+    await this.handleModelChange(newModel);
   }
 
   private async handleModelChange(newModel: string): Promise<void> {
@@ -108,19 +108,14 @@ export class ModelScaler {
     this.currentModel = newModel;
     await this.modelInfo.setCurrentModel(newModel);
 
-    // Get context limit for new model
-    const contextLimit = await this.modelInfo.getModelContextLength(newModel);
-
     this.debugLogger.log("Model", "Checking context for model change", {
       oldModel,
       newModel,
-      contextLimit,
       currentTokens: this.messageContextManager.getTotalTokenCount(),
     });
 
     // Clean up context if needed for new model
-    const wasCleanupPerformed =
-      this.conversationContext.cleanupContext(contextLimit);
+    const wasCleanupPerformed = await this.conversationContext.cleanupContext();
 
     if (wasCleanupPerformed) {
       this.debugLogger.log("Model", "Context cleaned up for model change", {
@@ -135,7 +130,7 @@ export class ModelScaler {
     );
   }
 
-  setTryCount(filePath: string, count: number): void {
+  async setTryCount(filePath: string, count: number): Promise<void> {
     if (!this.autoScalerEnabled) return;
 
     this.debugLogger.log("Model", "Setting try count", {
@@ -154,10 +149,10 @@ export class ModelScaler {
     );
 
     // Handle model change if needed
-    this.handleModelChange(newModel);
+    await this.handleModelChange(newModel);
   }
 
-  reset(): void {
+  async reset(): Promise<void> {
     this.tryCountMap.clear();
     this.globalTryCount = 0;
     // When resetting, respect user specified model if auto-scaler is disabled
@@ -173,7 +168,7 @@ export class ModelScaler {
     });
 
     // Handle model change if needed
-    this.handleModelChange(newModel);
+    await this.handleModelChange(newModel);
   }
 
   getTryCount(filePath: string): number {

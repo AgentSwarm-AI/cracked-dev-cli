@@ -92,17 +92,16 @@ export class ConversationContext {
 
   /**
    * Cleans up old messages if the context window is exceeded while preserving system instructions
-   * @param maxTokens - Maximum number of tokens allowed
+   * and first user message
    * @returns true if cleanup was performed, false otherwise
    */
-  cleanupContext(maxTokens: number): boolean {
+  async cleanupContext(): Promise<boolean> {
     this.debugLogger.log("Context", "Initiating context cleanup", {
-      maxTokens,
       currentTokens: this.getTotalTokenCount(),
     });
 
     const wasCleanupPerformed =
-      this.messageContextManager.cleanupContext(maxTokens);
+      await this.messageContextManager.cleanupContext();
 
     if (wasCleanupPerformed) {
       this.debugLogger.log("Context", "Context cleanup completed", {
