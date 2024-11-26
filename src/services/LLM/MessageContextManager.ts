@@ -5,6 +5,11 @@ import * as fs from "fs";
 import * as path from "path";
 import { autoInjectable, singleton } from "tsyringe";
 
+interface FileOperation {
+  type: "read_file" | "write_file";
+  path: string;
+}
+
 @singleton()
 @autoInjectable()
 export class MessageContextManager {
@@ -48,6 +53,99 @@ export class MessageContextManager {
     }
   }
 
+  private updateLogFile(): void {
+    // Skip logging in test environment
+    if (process.env.NODE_ENV === "test") return;
+
+    try {
+      // Clear the log file
+      fs.writeFileSync(this.logPath, "", "utf8");
+
+      // Write system instructions if present
+      if (this.systemInstructions) {
+        const timestamp = new Date().toISOString();
+        fs.appendFileSync(
+          this.logPath,
+          `[${timestamp}] system: ${this.systemInstructions}\n`,
+          "utf8",
+        );
+      }
+
+      // Write all conversation messages
+      this.conversationHistory.forEach((message) => {
+        const timestamp = new Date().toISOString();
+        fs.appendFileSync(
+          this.logPath,
+          `[${timestamp}] ${message.role}: ${message.content}\n`,
+          "utf8",
+        );
+      });
+    } catch (error) {
+      this.debugLogger.log("Context", "Error updating log file", { error });
+    }
+  }
+
+  private extractFileOperations(content: string): FileOperation[] {
+    const operations: FileOperation[] = [];
+
+    // Extract write_file operations
+    const writeMatches = Array.from(
+      content.matchAll(/<write_file>[\s\S]*?<path>(.*?)<\/path>/g),
+    );
+    writeMatches.forEach((match) => {
+      if (match[1]) {
+        operations.push({
+          type: "write_file",
+          path: match[1],
+        });
+      }
+    });
+
+    // Extract read_file operations
+    const readMatches = Array.from(
+      content.matchAll(/<read_file>[\s\S]*?<path>(.*?)<\/path>/g),
+    );
+    readMatches.forEach((match) => {
+      if (match[1]) {
+        operations.push({
+          type: "read_file",
+          path: match[1],
+        });
+      }
+    });
+
+    return operations;
+  }
+
+  private removeOldFileOperations(newMessage: IMessage): void {
+    this.debugLogger.log("Context", "Removing old file operations");
+
+    const newOperations = this.extractFileOperations(newMessage.content);
+    if (newOperations.length === 0) return;
+
+    this.conversationHistory = this.conversationHistory.filter((msg) => {
+      // Keep non-file operation messages
+      if (
+        !msg.content.includes("<read_file>") &&
+        !msg.content.includes("<write_file>")
+      ) {
+        return true;
+      }
+
+      const msgOperations = this.extractFileOperations(msg.content);
+
+      // Remove message only if ALL its operations are superseded by new operations
+      return !msgOperations.every((msgOp) =>
+        newOperations.some(
+          (newOp) => newOp.type === msgOp.type && newOp.path === msgOp.path,
+        ),
+      );
+    });
+
+    // Update the log file with current conversation history
+    this.updateLogFile();
+  }
+
   setCurrentModel(model: string): void {
     this.currentModel = model;
     this.modelInfo.setCurrentModel(model);
@@ -63,6 +161,12 @@ export class MessageContextManager {
     }
 
     const message = { role, content };
+
+    // Remove old file operations for the same path and type before adding new message
+    if (role === "user" || role === "assistant") {
+      this.removeOldFileOperations(message);
+    }
+
     this.conversationHistory.push(message);
     this.logMessage(message);
 
@@ -86,6 +190,9 @@ export class MessageContextManager {
     this.conversationHistory = [];
     this.systemInstructions = null;
 
+    // Update the log file when clearing context
+    this.updateLogFile();
+
     this.debugLogger.log("Context", "Context cleared", {
       clearedMessages: hadMessages,
       clearedInstructions: hadInstructions,
@@ -95,6 +202,10 @@ export class MessageContextManager {
   setSystemInstructions(instructions: string): void {
     const hadPreviousInstructions = this.systemInstructions !== null;
     this.systemInstructions = instructions;
+
+    // Update the log file when system instructions change
+    this.updateLogFile();
+
     this.debugLogger.log("Context", "System instructions updated", {
       hadPreviousInstructions,
       instructionsLength: instructions.length,
@@ -187,6 +298,9 @@ export class MessageContextManager {
       this.conversationHistory.splice(indexToRemove, 1);
       conversationTokens -= messageTokens;
     }
+
+    // Update the log file after cleanup
+    this.updateLogFile();
 
     const removedCount = initialMessageCount - this.conversationHistory.length;
     this.debugLogger.log("Context", "Context cleanup performed", {

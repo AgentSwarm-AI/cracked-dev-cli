@@ -1,6 +1,7 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 import { MessageContextManager } from "@services/LLM/MessageContextManager";
-import { DebugLogger } from "@services/logging/DebugLogger";
 import { ModelInfo } from "@services/LLM/ModelInfo";
+import { DebugLogger } from "@services/logging/DebugLogger";
 import { container } from "tsyringe";
 
 describe("MessageContextManager", () => {
@@ -11,8 +12,10 @@ describe("MessageContextManager", () => {
   beforeEach(() => {
     debugLogger = container.resolve(DebugLogger);
     modelInfo = container.resolve(ModelInfo);
-    jest.spyOn(modelInfo, 'getCurrentModelContextLength').mockResolvedValue(100);
-    jest.spyOn(modelInfo, 'logCurrentModelUsage').mockResolvedValue();
+    jest
+      .spyOn(modelInfo, "getCurrentModelContextLength")
+      .mockResolvedValue(100);
+    jest.spyOn(modelInfo, "logCurrentModelUsage").mockResolvedValue();
     messageContextManager = new MessageContextManager(debugLogger, modelInfo);
   });
 
@@ -51,11 +54,15 @@ describe("MessageContextManager", () => {
     });
 
     it("should throw an error for invalid role", () => {
-      expect(() => messageContextManager.addMessage("invalid" as any, "Hello")).toThrow("Invalid role: invalid");
+      expect(() =>
+        messageContextManager.addMessage("invalid" as any, "Hello"),
+      ).toThrow("Invalid role: invalid");
     });
 
     it("should throw an error for empty content", () => {
-      expect(() => messageContextManager.addMessage("user", "")).toThrow("Content cannot be empty");
+      expect(() => messageContextManager.addMessage("user", "")).toThrow(
+        "Content cannot be empty",
+      );
     });
   });
 
@@ -93,10 +100,14 @@ describe("MessageContextManager", () => {
       messageContextManager.addMessage("user", "Hello");
       messageContextManager.setSystemInstructions("Be helpful");
       messageContextManager.clear();
-      expect(debugLogger.log).toHaveBeenCalledWith("Context", "Context cleared", {
-        clearedMessages: true,
-        clearedInstructions: true,
-      });
+      expect(debugLogger.log).toHaveBeenCalledWith(
+        "Context",
+        "Context cleared",
+        {
+          clearedMessages: true,
+          clearedInstructions: true,
+        },
+      );
     });
   });
 
@@ -109,10 +120,14 @@ describe("MessageContextManager", () => {
     it("should log that system instructions were updated", () => {
       jest.spyOn(debugLogger, "log");
       messageContextManager.setSystemInstructions("Be helpful");
-      expect(debugLogger.log).toHaveBeenCalledWith("Context", "System instructions updated", {
-        hadPreviousInstructions: false,
-        instructionsLength: 10,
-      });
+      expect(debugLogger.log).toHaveBeenCalledWith(
+        "Context",
+        "System instructions updated",
+        {
+          hadPreviousInstructions: false,
+          instructionsLength: 10,
+        },
+      );
     });
   });
 
@@ -130,7 +145,9 @@ describe("MessageContextManager", () => {
   describe("estimateTokenCount", () => {
     it("should estimate token count correctly", () => {
       expect(messageContextManager.estimateTokenCount("Hello world")).toBe(3);
-      expect(messageContextManager.estimateTokenCount("This is a test message.")).toBe(6);
+      expect(
+        messageContextManager.estimateTokenCount("This is a test message."),
+      ).toBe(6);
     });
   });
 
@@ -160,11 +177,16 @@ describe("MessageContextManager", () => {
     });
 
     it("should cleanup if total token count exceeds max tokens", async () => {
-      jest.spyOn(modelInfo, 'getCurrentModelContextLength').mockResolvedValue(10);
+      jest
+        .spyOn(modelInfo, "getCurrentModelContextLength")
+        .mockResolvedValue(10);
       messageContextManager.setSystemInstructions("Be helpful");
       messageContextManager.addMessage("user", "Hello");
       messageContextManager.addMessage("assistant", "Hi there!");
-      messageContextManager.addMessage("user", "This is a longer message that should trigger cleanup.");
+      messageContextManager.addMessage(
+        "user",
+        "This is a longer message that should trigger cleanup.",
+      );
       expect(await messageContextManager.cleanupContext()).toBe(true);
       expect(messageContextManager.getMessages()).toEqual([
         { role: "system", content: "Be helpful" },
@@ -174,14 +196,210 @@ describe("MessageContextManager", () => {
     });
 
     it("should log that context cleanup was performed", async () => {
-      jest.spyOn(modelInfo, 'getCurrentModelContextLength').mockResolvedValue(10);
+      jest
+        .spyOn(modelInfo, "getCurrentModelContextLength")
+        .mockResolvedValue(10);
       jest.spyOn(debugLogger, "log");
       messageContextManager.setSystemInstructions("Be helpful");
       messageContextManager.addMessage("user", "Hello");
       messageContextManager.addMessage("assistant", "Hi there!");
-      messageContextManager.addMessage("user", "This is a longer message that should trigger cleanup.");
+      messageContextManager.addMessage(
+        "user",
+        "This is a longer message that should trigger cleanup.",
+      );
       await messageContextManager.cleanupContext();
-      expect(debugLogger.log).toHaveBeenCalledWith("Context", "Context cleanup performed", expect.any(Object));
+      expect(debugLogger.log).toHaveBeenCalledWith(
+        "Context",
+        "Context cleanup performed",
+        expect.any(Object),
+      );
+    });
+  });
+
+  describe("extractFileOperations", () => {
+    it("should extract write_file operations", () => {
+      const content = `
+        <write_file>
+          <path>/path/to/file1</path>
+        </write_file>
+        <write_file>
+          <path>/path/to/file2</path>
+        </write_file>
+      `;
+      //@ts-expect-error
+      const operations = messageContextManager.extractFileOperations(content);
+      expect(operations).toEqual([
+        { type: "write_file", path: "/path/to/file1" },
+        { type: "write_file", path: "/path/to/file2" },
+      ]);
+    });
+
+    it("should extract read_file operations", () => {
+      const content = `
+        <read_file>
+          <path>/path/to/file1</path>
+        </read_file>
+        <read_file>
+          <path>/path/to/file2</path>
+        </read_file>
+      `;
+      //@ts-expect-error
+      const operations = messageContextManager.extractFileOperations(content);
+      expect(operations).toEqual([
+        { type: "read_file", path: "/path/to/file1" },
+        { type: "read_file", path: "/path/to/file2" },
+      ]);
+    });
+
+    it("should extract both write_file and read_file operations", () => {
+      const content = `
+        <write_file>
+          <path>/path/to/file1</path>
+        </write_file>
+        <read_file>
+          <path>/path/to/file2</path>
+        </read_file>
+      `;
+      //@ts-expect-error
+      const operations = messageContextManager.extractFileOperations(content);
+      expect(operations).toEqual([
+        { type: "write_file", path: "/path/to/file1" },
+        { type: "read_file", path: "/path/to/file2" },
+      ]);
+    });
+
+    it("should return an empty array if no file operations are present", () => {
+      const content = "No file operations here";
+      //@ts-expect-error
+      const operations = messageContextManager.extractFileOperations(content);
+      expect(operations).toEqual([]);
+    });
+  });
+
+  describe("removeOldFileOperations", () => {
+    it("should remove old file operations if new message has the same operations", () => {
+      messageContextManager.addMessage(
+        "user",
+        `
+        <write_file>
+          <path>/path/to/file1</path>
+        </write_file>
+        <read_file>
+          <path>/path/to/file2</path>
+        </read_file>
+        `,
+      );
+
+      messageContextManager.addMessage(
+        "assistant",
+        `
+        <write_file>
+          <path>/path/to/file1</path>
+        </write_file>
+        <read_file>
+          <path>/path/to/file2</path>
+        </read_file>
+        `,
+      );
+
+      expect(messageContextManager.getMessages()).toEqual([
+        {
+          role: "assistant",
+          content: `
+        <write_file>
+          <path>/path/to/file1</path>
+        </write_file>
+        <read_file>
+          <path>/path/to/file2</path>
+        </read_file>
+        `,
+        },
+      ]);
+    });
+
+    it("should not remove old file operations if new message has different operations", () => {
+      messageContextManager.addMessage(
+        "user",
+        `
+        <write_file>
+          <path>/path/to/file1</path>
+        </write_file>
+        <read_file>
+          <path>/path/to/file2</path>
+        </read_file>
+        `,
+      );
+
+      messageContextManager.addMessage(
+        "assistant",
+        `
+        <write_file>
+          <path>/path/to/file3</path>
+        </write_file>
+        <read_file>
+          <path>/path/to/file4</path>
+        </read_file>
+        `,
+      );
+
+      expect(messageContextManager.getMessages()).toEqual([
+        {
+          role: "user",
+          content: `
+        <write_file>
+          <path>/path/to/file1</path>
+        </write_file>
+        <read_file>
+          <path>/path/to/file2</path>
+        </read_file>
+        `,
+        },
+        {
+          role: "assistant",
+          content: `
+        <write_file>
+          <path>/path/to/file3</path>
+        </write_file>
+        <read_file>
+          <path>/path/to/file4</path>
+        </read_file>
+        `,
+        },
+      ]);
+    });
+
+    it("should not remove old file operations if new message has no file operations", () => {
+      messageContextManager.addMessage(
+        "user",
+        `
+        <write_file>
+          <path>/path/to/file1</path>
+        </write_file>
+        <read_file>
+          <path>/path/to/file2</path>
+        </read_file>
+        `,
+      );
+
+      messageContextManager.addMessage("assistant", "No file operations here.");
+
+      expect(messageContextManager.getMessages()).toEqual([
+        {
+          role: "user",
+          content: `
+        <write_file>
+          <path>/path/to/file1</path>
+        </write_file>
+        <read_file>
+          <path>/path/to/file2</path>
+        </read_file>
+        `,
+        },
+        {
+          role: "assistant",
+          content: "No file operations here.",
+        },
+      ]);
     });
   });
 });
