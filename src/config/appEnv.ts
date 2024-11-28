@@ -28,13 +28,6 @@ if (!openRouterApiKey) {
   openRouterApiKey = parsedEnv.data.OPENROUTER_API_KEY;
 }
 
-if (!openRouterApiKey) {
-  console.error(
-    "OPENROUTER_API_KEY is not set in crkdrc.json or environment variables",
-  );
-  throw new Error("OPENROUTER_API_KEY is not set");
-}
-
 export const appEnv = {
   ...parsedEnv.data,
   OPENROUTER_API_KEY: openRouterApiKey,

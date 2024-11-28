@@ -3,6 +3,7 @@ import { CrackedAgent, CrackedAgentOptions } from "@services/CrackedAgent";
 import { LLMProviderType } from "@services/LLM/LLMProvider";
 import * as readline from "readline";
 import { container } from "tsyringe";
+import { appEnv } from "../config/appEnv";
 import { ConfigService } from "../services/ConfigService";
 
 export class Run extends Command {
@@ -21,7 +22,6 @@ export class Run extends Command {
     }),
     openRouterApiKey: Flags.string({
       description: "OpenRouter API key to use for initialization",
-      dependsOn: ["init"],
       required: false,
     }),
   };
@@ -113,14 +113,17 @@ export class Run extends Command {
   async run(): Promise<void> {
     const { args, flags } = await this.parse(Run);
 
-    if (flags.init && !flags.openRouterApiKey) {
+    // Handle API key logic
+    const openRouterApiKey =
+      flags.openRouterApiKey || appEnv.OPENROUTER_API_KEY;
+    if (!openRouterApiKey) {
       this.error(
-        "Must provide OpenRouter API key (--openRouterApiKey) when initializing configuration",
+        "OpenRouter API key is required. Either provide it via --openRouterApiKey flag or set OPENROUTER_API_KEY in .env",
       );
     }
 
     if (flags.init) {
-      this.configService.createDefaultConfig(flags.openRouterApiKey);
+      this.configService.createDefaultConfig(openRouterApiKey);
       return;
     }
 
