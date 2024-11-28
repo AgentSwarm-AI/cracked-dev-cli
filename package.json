@@ -7,7 +7,7 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "crkd": "./bin/run.js"
+    "run": "./bin/run.js"
   },
   "files": [
     "dist",
@@ -41,8 +41,8 @@
     "cli:init": "node ./bin/run.js init"
   },
   "oclif": {
-    "bin": "crkd",
-    "dirname": "crkd",
+    "bin": "run",
+    "dirname": "run",
     "commands": "./dist/commands",
     "plugins": [
       "@oclif/plugin-help"

@@ -3,24 +3,15 @@ import { CrackedAgent, CrackedAgentOptions } from "@services/CrackedAgent";
 import { LLMProviderType } from "@services/LLM/LLMProvider";
 import * as readline from "readline";
 import { container } from "tsyringe";
-import { Config, ConfigService } from "../services/ConfigService";
+import { ConfigService } from "../services/ConfigService";
 
-// Ensure required properties while keeping the rest flexible
-type CrkdOptions = {
-  model: string; // Required by CrackedAgentOptions
-  provider: LLMProviderType;
-  options: Record<string, unknown>;
-} & Partial<Omit<Config, "model" | "provider" | "options">> & {
-    [key: string]: unknown;
-  };
-
-export class Crkd extends Command {
+export class Run extends Command {
   static description = "AI agent for performing operations on local projects";
 
   static examples = [
-    "$ crkd 'Add error handling'",
-    "$ crkd --interactive # Start interactive mode",
-    "$ crkd --init --openRouterApiKey YOUR_API_KEY # Initialize configuration with API key",
+    "$ run 'Add error handling'",
+    "$ run --interactive # Start interactive mode",
+    "$ run --init --openRouterApiKey YOUR_API_KEY # Initialize configuration with API key",
   ];
 
   static flags = {
@@ -120,7 +111,7 @@ export class Crkd extends Command {
   }
 
   async run(): Promise<void> {
-    const { args, flags } = await this.parse(Crkd);
+    const { args, flags } = await this.parse(Run);
 
     if (flags.init && !flags.openRouterApiKey) {
       this.error(
