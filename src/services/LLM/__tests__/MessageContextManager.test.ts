@@ -223,7 +223,7 @@ describe("MessageContextManager", () => {
     });
   });
 
-  describe("extractFileOperations", () => {
+  describe("extractOperations", () => {
     it("should extract write_file operations", () => {
       const content = `
         <write_file>
@@ -233,8 +233,8 @@ describe("MessageContextManager", () => {
           <path>/path/to/file2</path>
         </write_file>
       `;
-      //@ts-expect-error
-      const operations = messageContextManager.extractFileOperations(content);
+      // @ts-ignore: Testing private method
+      const operations = messageContextManager.extractOperations(content);
       expect(operations).toEqual([
         { type: "write_file", path: "/path/to/file1" },
         { type: "write_file", path: "/path/to/file2" },
@@ -250,8 +250,8 @@ describe("MessageContextManager", () => {
           <path>/path/to/file2</path>
         </read_file>
       `;
-      //@ts-expect-error
-      const operations = messageContextManager.extractFileOperations(content);
+      // @ts-ignore: Testing private method
+      const operations = messageContextManager.extractOperations(content);
       expect(operations).toEqual([
         { type: "read_file", path: "/path/to/file1" },
         { type: "read_file", path: "/path/to/file2" },
@@ -267,8 +267,8 @@ describe("MessageContextManager", () => {
           <path>/path/to/file2</path>
         </read_file>
       `;
-      //@ts-expect-error
-      const operations = messageContextManager.extractFileOperations(content);
+      // @ts-ignore: Testing private method
+      const operations = messageContextManager.extractOperations(content);
       expect(operations).toEqual([
         { type: "write_file", path: "/path/to/file1" },
         { type: "read_file", path: "/path/to/file2" },
@@ -277,13 +277,13 @@ describe("MessageContextManager", () => {
 
     it("should return an empty array if no file operations are present", () => {
       const content = "No file operations here";
-      //@ts-expect-error
-      const operations = messageContextManager.extractFileOperations(content);
+      // @ts-ignore: Testing private method
+      const operations = messageContextManager.extractOperations(content);
       expect(operations).toEqual([]);
     });
   });
 
-  describe("removeOldFileOperations", () => {
+  describe("removeOldOperations", () => {
     it("should remove old file operations if new message has the same operations", () => {
       messageContextManager.addMessage(
         "user",

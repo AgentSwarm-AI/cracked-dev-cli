@@ -7,8 +7,9 @@ import * as path from "path";
 import { autoInjectable, singleton } from "tsyringe";
 
 interface FileOperation {
-  type: "read_file" | "write_file";
-  path: string;
+  type: "read_file" | "write_file" | "execute_command";
+  path?: string;
+  command?: string;
 }
 
 @singleton()
@@ -94,7 +95,7 @@ export class MessageContextManager {
     }
   }
 
-  private extractFileOperations(content: string): FileOperation[] {
+  private extractOperations(content: string): FileOperation[] {
     const operations: FileOperation[] = [];
 
     // Extract write_file operations
@@ -123,31 +124,51 @@ export class MessageContextManager {
       }
     });
 
+    // Extract execute_command operations
+    const commandMatches = Array.from(
+      content.matchAll(/<execute_command>[\s\S]*?<command>(.*?)<\/command>/g),
+    );
+    commandMatches.forEach((match) => {
+      if (match[1]) {
+        operations.push({
+          type: "execute_command",
+          command: match[1],
+        });
+      }
+    });
+
     return operations;
   }
 
-  private removeOldFileOperations(newMessage: IMessage): void {
-    this.debugLogger.log("Context", "Removing old file operations");
+  private removeOldOperations(newMessage: IMessage): void {
+    this.debugLogger.log("Context", "Removing old operations");
 
-    const newOperations = this.extractFileOperations(newMessage.content);
+    const newOperations = this.extractOperations(newMessage.content);
     if (newOperations.length === 0) return;
 
     this.conversationHistory = this.conversationHistory.filter((msg) => {
-      // Keep non-file operation messages
+      // Keep messages without operations
       if (
         !msg.content.includes("<read_file>") &&
-        !msg.content.includes("<write_file>")
+        !msg.content.includes("<write_file>") &&
+        !msg.content.includes("<execute_command>")
       ) {
         return true;
       }
 
-      const msgOperations = this.extractFileOperations(msg.content);
+      const msgOperations = this.extractOperations(msg.content);
 
-      // Remove message only if ALL its operations are superseded by new operations
-      return !msgOperations.every((msgOp) =>
-        newOperations.some(
-          (newOp) => newOp.type === msgOp.type && newOp.path === msgOp.path,
-        ),
+      // Remove message if it has any matching operations
+      return !msgOperations.some((msgOp) =>
+        newOperations.some((newOp) => {
+          if (
+            newOp.type === "execute_command" &&
+            msgOp.type === "execute_command"
+          ) {
+            return newOp.command === msgOp.command;
+          }
+          return newOp.type === msgOp.type && newOp.path === msgOp.path;
+        }),
       );
     });
 
@@ -171,9 +192,9 @@ export class MessageContextManager {
 
     const message = { role, content };
 
-    // Remove old file operations for the same path and type before adding new message
+    // Remove old operations before adding new message
     if (role === "user" || role === "assistant") {
-      this.removeOldFileOperations(message);
+      this.removeOldOperations(message);
     }
 
     this.conversationHistory.push(message);
