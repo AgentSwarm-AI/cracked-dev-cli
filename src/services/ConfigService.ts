@@ -60,10 +60,10 @@ export class ConfigService {
         options:
           "temperature=0,top_p=0.1,top_k=1,frequence_penalty=0.0,presence_penalty=0.0,repetition_penalty=1.0",
         openRouterApiKey: "",
-        appUrl: "",
-        appName: "",
+        appUrl: "https://localhost:8080",
+        appName: "MyCrackedApp",
         autoScaler: true,
-        includeAllFilesOnEnvToContext: false,
+        includeAllFilesOnEnvToContext: true,
         runAllTestsCmd: "yarn test",
         runOneTestCmd: "yarn test {relativeTestPath}",
         runTypeCheckCmd: "yarn typecheck",
