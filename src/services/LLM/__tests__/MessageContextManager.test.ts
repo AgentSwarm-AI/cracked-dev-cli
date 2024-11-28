@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
+import { ConfigService } from "@services/ConfigService";
 import { MessageContextManager } from "@services/LLM/MessageContextManager";
 import { ModelInfo } from "@services/LLM/ModelInfo";
 import { DebugLogger } from "@services/logging/DebugLogger";
@@ -8,15 +9,21 @@ describe("MessageContextManager", () => {
   let messageContextManager: MessageContextManager;
   let debugLogger: DebugLogger;
   let modelInfo: ModelInfo;
+  let configService: ConfigService;
 
   beforeEach(() => {
     debugLogger = container.resolve(DebugLogger);
     modelInfo = container.resolve(ModelInfo);
+    configService = container.resolve(ConfigService);
     jest
       .spyOn(modelInfo, "getCurrentModelContextLength")
       .mockResolvedValue(100);
     jest.spyOn(modelInfo, "logCurrentModelUsage").mockResolvedValue();
-    messageContextManager = new MessageContextManager(debugLogger, modelInfo);
+    messageContextManager = new MessageContextManager(
+      debugLogger,
+      modelInfo,
+      configService,
+    );
   });
 
   afterEach(() => {

@@ -19,6 +19,7 @@ const configSchema = z.object({
   runAllTestsCmd: z.string().optional(),
   runOneTestCmd: z.string().optional(),
   runTypeCheckCmd: z.string().optional(),
+  enableConversationLog: z.boolean().optional(),
 });
 
 export type Config = z.infer<typeof configSchema>;
@@ -61,8 +62,9 @@ export class ConfigService {
         autoScaler: true,
         includeAllFilesOnEnvToContext: false,
         runAllTestsCmd: "yarn test",
-        runOneTestCmd: "yarn test {testPath}",
+        runOneTestCmd: "yarn test {relativeTestPath}",
         runTypeCheckCmd: "yarn typecheck",
+        enableConversationLog: false,
       };
       fs.writeFileSync(
         this.CONFIG_PATH,

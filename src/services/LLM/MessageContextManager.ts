@@ -1,3 +1,4 @@
+import { ConfigService } from "@services/ConfigService";
 import { IMessage } from "@services/LLM/ILLMProvider";
 import { ModelInfo } from "@services/LLM/ModelInfo";
 import { DebugLogger } from "@services/logging/DebugLogger";
@@ -25,6 +26,7 @@ export class MessageContextManager {
   constructor(
     private debugLogger: DebugLogger,
     private modelInfo: ModelInfo,
+    private configService: ConfigService,
   ) {
     // Clean up log file on startup, but not in test environment
     if (process.env.NODE_ENV !== "test") {
@@ -33,6 +35,8 @@ export class MessageContextManager {
   }
 
   private cleanupLogFile(): void {
+    if (!this.isLoggingEnabled()) return;
+
     try {
       fs.writeFileSync(this.logPath, "", "utf8");
     } catch (error) {
@@ -40,9 +44,14 @@ export class MessageContextManager {
     }
   }
 
+  private isLoggingEnabled(): boolean {
+    const config = this.configService.getConfig();
+    return config.enableConversationLog ?? true;
+  }
+
   private logMessage(message: IMessage): void {
-    // Skip logging in test environment
-    if (process.env.NODE_ENV === "test") return;
+    // Skip logging in test environment or if disabled
+    if (process.env.NODE_ENV === "test" || !this.isLoggingEnabled()) return;
 
     try {
       const timestamp = new Date().toISOString();
@@ -54,8 +63,8 @@ export class MessageContextManager {
   }
 
   private updateLogFile(): void {
-    // Skip logging in test environment
-    if (process.env.NODE_ENV === "test") return;
+    // Skip logging in test environment or if disabled
+    if (process.env.NODE_ENV === "test" || !this.isLoggingEnabled()) return;
 
     try {
       // Clear the log file
