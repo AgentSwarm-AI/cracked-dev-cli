@@ -37,6 +37,16 @@ describe("ConversationContext", () => {
       "setCurrentModel",
       jest.fn(),
     );
+    mocker.spyOnPrototypeAndReturn(
+      MessageContextManager,
+      "getTotalTokenCount",
+      jest.fn().mockReturnValue(0),
+    );
+    mocker.spyOnPrototypeAndReturn(
+      MessageContextManager,
+      "cleanupContext",
+      jest.fn().mockReturnValue(false),
+    );
 
     // Resolve ConversationContext from the container
     conversationContext = container.resolve(ConversationContext);
@@ -79,6 +89,18 @@ describe("ConversationContext", () => {
       expect(MessageContextManager.prototype.addMessage).toHaveBeenCalledWith(
         "system",
         "System instruction",
+      );
+    });
+
+    it("should throw an error if the role is invalid", async () => {
+      await expect(conversationContext.addMessage("invalid" as any, "Hello")).rejects.toThrow(
+        "Invalid role. Must be 'user', 'assistant', or 'system'.",
+      );
+    });
+
+    it("should throw an error if the content is empty", async () => {
+      await expect(conversationContext.addMessage("user", "")).rejects.toThrow(
+        "Content cannot be empty.",
       );
     });
   });
@@ -140,6 +162,108 @@ describe("ConversationContext", () => {
       expect(
         MessageContextManager.prototype.getSystemInstructions,
       ).toHaveBeenCalled();
+    });
+  });
+
+  describe("getTotalTokenCount", () => {
+    it("should return the total token count", () => {
+      const tokenCount = 100;
+      (
+        MessageContextManager.prototype.getTotalTokenCount as jest.Mock
+      ).mockReturnValue(tokenCount);
+
+      const result = conversationContext.getTotalTokenCount();
+      expect(result).toBe(tokenCount);
+      expect(
+        MessageContextManager.prototype.getTotalTokenCount,
+      ).toHaveBeenCalled();
+    });
+  });
+
+  describe("cleanupContext", () => {
+    it("should perform cleanup if context window is exceeded", async () => {
+      (
+        MessageContextManager.prototype.getTotalTokenCount as jest.Mock
+      ).mockReturnValue(2000);
+      (
+        MessageContextManager.prototype.cleanupContext as jest.Mock
+      ).mockReturnValue(true);
+      (
+        MessageContextManager.prototype.getMessages as jest.Mock
+      ).mockReturnValue([
+        { role: "user", content: "First message" },
+        { role: "assistant", content: "Response to first message" },
+      ]);
+
+      const result = await conversationContext.cleanupContext();
+      expect(result).toBe(true);
+      expect(
+        MessageContextManager.prototype.cleanupContext,
+      ).toHaveBeenCalled();
+    });
+
+    it("should not perform cleanup if context window is not exceeded", async () => {
+      (
+        MessageContextManager.prototype.getTotalTokenCount as jest.Mock
+      ).mockReturnValue(1000);
+      (
+        MessageContextManager.prototype.cleanupContext as jest.Mock
+      ).mockReturnValue(false);
+
+      const result = await conversationContext.cleanupContext();
+      expect(result).toBe(false);
+      expect(
+        MessageContextManager.prototype.cleanupContext,
+      ).toHaveBeenCalled();
+    });
+
+    it("should preserve system instructions during cleanup", async () => {
+      const systemInstructions = "Be helpful";
+      (
+        MessageContextManager.prototype.getSystemInstructions as jest.Mock
+      ).mockReturnValue(systemInstructions);
+      (
+        MessageContextManager.prototype.getTotalTokenCount as jest.Mock
+      ).mockReturnValue(2000);
+      (
+        MessageContextManager.prototype.cleanupContext as jest.Mock
+      ).mockReturnValue(true);
+      (
+        MessageContextManager.prototype.getMessages as jest.Mock
+      ).mockReturnValue([
+        { role: "user", content: "First message" },
+        { role: "assistant", content: "Response to first message" },
+      ]);
+
+      await conversationContext.cleanupContext();
+
+      expect(
+        MessageContextManager.prototype.setSystemInstructions,
+      ).toHaveBeenCalledWith(systemInstructions);
+    });
+
+    it("should preserve the first user message during cleanup", async () => {
+      const messages = [
+        { role: "user", content: "First message" },
+        { role: "assistant", content: "Response to first message" },
+        { role: "user", content: "Second message" },
+      ];
+      (
+        MessageContextManager.prototype.getMessages as jest.Mock
+      ).mockReturnValue(messages);
+      (
+        MessageContextManager.prototype.getTotalTokenCount as jest.Mock
+      ).mockReturnValue(2000);
+      (
+        MessageContextManager.prototype.cleanupContext as jest.Mock
+      ).mockReturnValue(true);
+
+      await conversationContext.cleanupContext();
+
+      expect(MessageContextManager.prototype.addMessage).toHaveBeenCalledWith(
+        "user",
+        "First message",
+      );
     });
   });
 });
