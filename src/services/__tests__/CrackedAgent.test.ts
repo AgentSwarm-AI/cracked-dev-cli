@@ -185,6 +185,314 @@ describe("CrackedAgent", () => {
         "Invalid model: unsupported-model. Available models: model1, model2",
       );
     });
+
+    it("should enable streaming if stream is true", async () => {
+      const options = {
+        model: "model1",
+        provider: LLMProviderType.OpenRouter,
+        stream: true,
+        debug: false,
+        clearContext: false,
+        autoScaler: false,
+      };
+
+      await crackedAgent.execute("Mock message", options);
+
+      expect(mockLLMProvider.streamMessage).toHaveBeenCalled();
+    });
+
+    it("should not enable streaming if stream is false", async () => {
+      const options = {
+        model: "model1",
+        provider: LLMProviderType.OpenRouter,
+        stream: false,
+        debug: false,
+        clearContext: false,
+        autoScaler: false,
+      };
+
+      await crackedAgent.execute("Mock message", options);
+
+      expect(mockLLMProvider.sendMessage).toHaveBeenCalled();
+      expect(mockLLMProvider.streamMessage).not.toHaveBeenCalled();
+    });
+
+    it("should enable debug logging if debug is true", async () => {
+      const options = {
+        model: "model1",
+        provider: LLMProviderType.OpenRouter,
+        stream: false,
+        debug: true,
+        clearContext: false,
+        autoScaler: false,
+      };
+
+      await crackedAgent.execute("Mock message", options);
+
+      expect(DebugLogger.prototype.setDebug).toHaveBeenCalledWith(true);
+    });
+
+    it("should not enable debug logging if debug is false", async () => {
+      const options = {
+        model: "model1",
+        provider: LLMProviderType.OpenRouter,
+        stream: false,
+        debug: false,
+        clearContext: false,
+        autoScaler: false,
+      };
+
+      await crackedAgent.execute("Mock message", options);
+
+      expect(DebugLogger.prototype.setDebug).toHaveBeenCalledWith(false);
+    });
+
+    it("should enable auto-scaling if autoScaler is true", async () => {
+      const options = {
+        model: "model1",
+        provider: LLMProviderType.OpenRouter,
+        stream: false,
+        debug: false,
+        clearContext: false,
+        autoScaler: true,
+      };
+
+      await crackedAgent.execute("Mock message", options);
+
+      expect(ModelScaler.prototype.setAutoScaler).toHaveBeenCalledWith(
+        true,
+        "model1",
+      );
+    });
+
+    it("should not enable auto-scaling if autoScaler is false", async () => {
+      const options = {
+        model: "model1",
+        provider: LLMProviderType.OpenRouter,
+        stream: false,
+        debug: false,
+        clearContext: false,
+        autoScaler: false,
+      };
+
+      await crackedAgent.execute("Mock message", options);
+
+      expect(ModelScaler.prototype.setAutoScaler).toHaveBeenCalledWith(
+        false,
+        "model1",
+      );
+    });
+
+    it("should handle different models", async () => {
+      const options = {
+        model: "model2",
+        provider: LLMProviderType.OpenRouter,
+        stream: false,
+        debug: false,
+        clearContext: false,
+        autoScaler: false,
+      };
+
+      await crackedAgent.execute("Mock message", options);
+
+      expect(mockLLMProvider.validateModel).toHaveBeenCalledWith("model2");
+      expect(mockLLMProvider.sendMessage).toHaveBeenCalledWith(
+        "model2",
+        "Mock formatted message",
+        {},
+      );
+    });
+
+    it("should handle different providers", async () => {
+      const options = {
+        model: "model1",
+        provider: LLMProviderType.OpenRouter,
+        stream: false,
+        debug: false,
+        clearContext: false,
+        autoScaler: false,
+      };
+
+      await crackedAgent.execute("Mock message", options);
+
+      expect(LLMProvider.getInstance).toHaveBeenCalledWith(
+        LLMProviderType.OpenRouter,
+      );
+    });
+
+    it("should handle root option", async () => {
+      const options = {
+        model: "model1",
+        provider: LLMProviderType.OpenRouter,
+        stream: false,
+        debug: false,
+        clearContext: false,
+        autoScaler: false,
+        root: "/custom/root",
+      };
+
+      await crackedAgent.execute("Mock message", options);
+
+      expect(LLMContextCreator.prototype.create).toHaveBeenCalledWith(
+        "Mock message",
+        "/custom/root",
+        true,
+      );
+    });
+
+    it("should handle options object", async () => {
+      const options = {
+        model: "model1",
+        provider: LLMProviderType.OpenRouter,
+        stream: false,
+        debug: false,
+        clearContext: false,
+        autoScaler: false,
+        options: { key: "value" },
+      };
+
+      await crackedAgent.execute("Mock message", options);
+
+      expect(mockLLMProvider.sendMessage).toHaveBeenCalledWith(
+        "model1",
+        "Mock formatted message",
+        { key: "value" },
+      );
+    });
+
+    it("should handle empty message", async () => {
+      const options = {
+        model: "model1",
+        provider: LLMProviderType.OpenRouter,
+        stream: false,
+        debug: false,
+        clearContext: false,
+        autoScaler: false,
+      };
+
+      await crackedAgent.execute("", options);
+
+      expect(mockLLMProvider.sendMessage).toHaveBeenCalledWith(
+        "model1",
+        "Mock formatted message",
+        {},
+      );
+    });
+
+    it("should handle null message", async () => {
+      const options = {
+        model: "model1",
+        provider: LLMProviderType.OpenRouter,
+        stream: false,
+        debug: false,
+        clearContext: false,
+        autoScaler: false,
+      };
+
+      await crackedAgent.execute(null as any, options);
+
+      expect(mockLLMProvider.sendMessage).toHaveBeenCalledWith(
+        "model1",
+        "Mock formatted message",
+        {},
+      );
+    });
+
+    it("should handle empty instructionsPath", async () => {
+      const options = {
+        model: "model1",
+        provider: LLMProviderType.OpenRouter,
+        stream: false,
+        debug: false,
+        clearContext: false,
+        autoScaler: false,
+        instructionsPath: "",
+      };
+
+      await crackedAgent.execute("Mock message", options);
+
+      expect(FileReader.prototype.readInstructionsFile).not.toHaveBeenCalled();
+      expect(mockLLMProvider.addSystemInstructions).toHaveBeenCalledWith(
+        DEFAULT_INSTRUCTIONS,
+      );
+    });
+
+    it("should handle null instructionsPath", async () => {
+      const options = {
+        model: "model1",
+        provider: LLMProviderType.OpenRouter,
+        stream: false,
+        debug: false,
+        clearContext: false,
+        autoScaler: false,
+        instructionsPath: null as any,
+      };
+
+      await crackedAgent.execute("Mock message", options);
+
+      expect(FileReader.prototype.readInstructionsFile).not.toHaveBeenCalled();
+      expect(mockLLMProvider.addSystemInstructions).toHaveBeenCalledWith(
+        DEFAULT_INSTRUCTIONS,
+      );
+    });
+
+    it("should handle empty instructions", async () => {
+      const options = {
+        model: "model1",
+        provider: LLMProviderType.OpenRouter,
+        stream: false,
+        debug: false,
+        clearContext: false,
+        autoScaler: false,
+        instructions: "",
+      };
+
+      await crackedAgent.execute("Mock message", options);
+
+      expect(FileReader.prototype.readInstructionsFile).not.toHaveBeenCalled();
+      expect(mockLLMProvider.addSystemInstructions).toHaveBeenCalledWith(
+        DEFAULT_INSTRUCTIONS,
+      );
+    });
+
+    it("should handle null instructions", async () => {
+      const options = {
+        model: "model1",
+        provider: LLMProviderType.OpenRouter,
+        stream: false,
+        debug: false,
+        clearContext: false,
+        autoScaler: false,
+        instructions: null as any,
+      };
+
+      await crackedAgent.execute("Mock message", options);
+
+      expect(FileReader.prototype.readInstructionsFile).not.toHaveBeenCalled();
+      expect(mockLLMProvider.addSystemInstructions).toHaveBeenCalledWith(
+        DEFAULT_INSTRUCTIONS,
+      );
+    });
+
+    it("should handle empty options object", async () => {
+      const options = {
+        model: "model1",
+        provider: LLMProviderType.OpenRouter,
+        stream: false,
+        debug: false,
+        clearContext: false,
+        autoScaler: false,
+        options: {},
+      };
+
+      await crackedAgent.execute("Mock message", options);
+
+      expect(mockLLMProvider.sendMessage).toHaveBeenCalledWith(
+        "model1",
+        "Mock formatted message",
+        {},
+      );
+    });
   });
 
   describe("getConversationHistory", () => {
