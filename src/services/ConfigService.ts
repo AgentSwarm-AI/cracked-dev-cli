@@ -16,6 +16,9 @@ const configSchema = z.object({
   openRouterApiKey: z.string(),
   autoScaler: z.boolean().optional(),
   includeAllFilesOnEnvToContext: z.boolean().optional(),
+  runAllTestsCmd: z.string().optional(),
+  runOneTestCmd: z.string().optional(),
+  runTypeCheckCmd: z.string().optional(),
 });
 
 export type Config = z.infer<typeof configSchema>;
@@ -57,6 +60,9 @@ export class ConfigService {
         openRouterApiKey: apiKey,
         autoScaler: true,
         includeAllFilesOnEnvToContext: false,
+        runAllTestsCmd: "yarn test",
+        runOneTestCmd: "yarn test {testPath}",
+        runTypeCheckCmd: "yarn typecheck",
       };
       fs.writeFileSync(
         this.CONFIG_PATH,

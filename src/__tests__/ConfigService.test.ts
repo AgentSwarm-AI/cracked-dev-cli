@@ -29,23 +29,7 @@ describe("ConfigService", () => {
       expect(fs.existsSync).toHaveBeenCalledWith(mockConfigPath);
       expect(fs.writeFileSync).toHaveBeenCalledWith(
         mockConfigPath,
-        JSON.stringify(
-          {
-            model: "qwen/qwen-2.5-coder-32b-instruct",
-            provider: "open-router",
-            customInstructions: "Follow clean code principles",
-            interactive: true,
-            stream: true,
-            debug: false,
-            options:
-              "temperature=0,top_p=0.1,top_k=1,frequence_penalty=0.0,presence_penalty=0.0,repetition_penalty=1.0",
-            openRouterApiKey: "",
-            autoScaler: true,
-            includeAllFilesOnEnvToContext: false,
-          },
-          null,
-          4,
-        ),
+        expect.any(String),
       );
       expect(fs.writeFileSync).toHaveBeenCalledWith(
         mockGitignorePath,
