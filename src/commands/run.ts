@@ -3,7 +3,6 @@ import { CrackedAgent, CrackedAgentOptions } from "@services/CrackedAgent";
 import { LLMProviderType } from "@services/LLM/LLMProvider";
 import * as readline from "readline";
 import { container } from "tsyringe";
-import { appEnv } from "../config/appEnv";
 import { ConfigService } from "../services/ConfigService";
 
 export class Run extends Command {
@@ -12,17 +11,13 @@ export class Run extends Command {
   static examples = [
     "$ run 'Add error handling'",
     "$ run --interactive # Start interactive mode",
-    "$ run --init --openRouterApiKey YOUR_API_KEY # Initialize configuration with API key",
+    "$ run --init # Initialize configuration",
   ];
 
   static flags = {
     init: Flags.boolean({
       description: "Initialize a default crkdrc.json configuration file",
       exclusive: ["interactive"],
-    }),
-    openRouterApiKey: Flags.string({
-      description: "OpenRouter API key to use for initialization",
-      required: false,
     }),
   };
 
@@ -113,21 +108,19 @@ export class Run extends Command {
   async run(): Promise<void> {
     const { args, flags } = await this.parse(Run);
 
-    // Handle API key logic
-    const openRouterApiKey =
-      flags.openRouterApiKey || appEnv.OPENROUTER_API_KEY;
-    if (!openRouterApiKey) {
-      this.error(
-        "OpenRouter API key is required. Either provide it via --openRouterApiKey flag or set OPENROUTER_API_KEY in .env",
-      );
-    }
-
     if (flags.init) {
-      this.configService.createDefaultConfig(openRouterApiKey);
+      this.configService.createDefaultConfig();
       return;
     }
 
     const config = this.configService.getConfig();
+
+    if (!config.openRouterApiKey) {
+      this.error(
+        "OpenRouter API key is required. Please add it to crkdrc.json",
+      );
+    }
+
     const isInteractive = config.interactive ?? false;
 
     if (isInteractive && args.message) {
