@@ -1,13 +1,13 @@
 {
   "name": "cracked-dev-cli",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "AI-powered CLI tool for software development",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "run": "./bin/run.js"
+    "crkd": "./bin/run.js"
   },
   "files": [
     "dist",
@@ -41,8 +41,8 @@
     "cli:init": "node ./bin/run.js init"
   },
   "oclif": {
-    "bin": "run",
-    "dirname": "run",
+    "bin": "crkd",
+    "dirname": "crkd",
     "commands": "./dist/commands",
     "plugins": [
       "@oclif/plugin-help"
