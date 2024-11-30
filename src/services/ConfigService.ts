@@ -15,7 +15,18 @@ const configSchema = z.object({
   options: z.string(),
   openRouterApiKey: z.string(),
   autoScaler: z.boolean().optional(),
+  autoScaleMaxTryPerModel: z.number().optional(),
   includeAllFilesOnEnvToContext: z.boolean().optional(),
+  autoScaleAvailableModels: z
+    .array(
+      z.object({
+        id: z.string(),
+        description: z.string(),
+        maxWriteTries: z.number(),
+        maxGlobalTries: z.number(),
+      }),
+    )
+    .optional(),
 });
 
 export type Config = z.infer<typeof configSchema>;
@@ -56,7 +67,28 @@ export class ConfigService {
           "temperature=0,top_p=0.1,top_k=1,frequence_penalty=0.0,presence_penalty=0.0,repetition_penalty=1.0",
         openRouterApiKey: apiKey,
         autoScaler: true,
+        autoScaleMaxTryPerModel: 2,
         includeAllFilesOnEnvToContext: false,
+        autoScaleAvailableModels: [
+          {
+            id: "qwen/qwen-2.5-coder-32b-instruct",
+            description: "Cheap, fast, slightly better than GPT4o-mini",
+            maxWriteTries: 5,
+            maxGlobalTries: 10,
+          },
+          {
+            id: "anthropic/claude-3.5-sonnet:beta",
+            description: "Scaled model for retry attempts",
+            maxWriteTries: 5,
+            maxGlobalTries: 15,
+          },
+          {
+            id: "openai/gpt-4o-2024-11-20",
+            description: "Scaled model for retry attempts",
+            maxWriteTries: 2,
+            maxGlobalTries: 20,
+          },
+        ],
       };
       fs.writeFileSync(
         this.CONFIG_PATH,
