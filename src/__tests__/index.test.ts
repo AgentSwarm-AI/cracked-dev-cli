@@ -1,7 +1,7 @@
 import "reflect-metadata";
 import { container } from "tsyringe";
+import { Run } from "../commands/run.js";
 import { CrackedAgent } from "../services/CrackedAgent.js";
-import { Crkd } from "../commands/crkd.js";
 
 describe("src/index.ts", () => {
   test("should resolve a CrackedAgent instance", () => {
@@ -9,7 +9,7 @@ describe("src/index.ts", () => {
     expect(crackedAgent).toBeInstanceOf(CrackedAgent);
   });
 
-  test("should export Crkd command", () => {
-    expect(Crkd).toBeDefined();
+  test("should export Run command", () => {
+    expect(Run).toBeDefined();
   });
 });

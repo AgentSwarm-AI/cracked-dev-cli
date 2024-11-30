@@ -3,35 +3,21 @@ import { CrackedAgent, CrackedAgentOptions } from "@services/CrackedAgent";
 import { LLMProviderType } from "@services/LLM/LLMProvider";
 import * as readline from "readline";
 import { container } from "tsyringe";
-import { Config, ConfigService } from "../services/ConfigService";
+import { ConfigService } from "../services/ConfigService";
 
-// Ensure required properties while keeping the rest flexible
-type CrkdOptions = {
-  model: string; // Required by CrackedAgentOptions
-  provider: LLMProviderType;
-  options: Record<string, unknown>;
-} & Partial<Omit<Config, "model" | "provider" | "options">> & {
-    [key: string]: unknown;
-  };
-
-export class Crkd extends Command {
+export class Run extends Command {
   static description = "AI agent for performing operations on local projects";
 
   static examples = [
-    "$ crkd 'Add error handling'",
-    "$ crkd --interactive # Start interactive mode",
-    "$ crkd --init --openRouterApiKey YOUR_API_KEY # Initialize configuration with API key",
+    "$ run 'Add error handling'",
+    "$ run --interactive # Start interactive mode",
+    "$ run --init # Initialize configuration",
   ];
 
   static flags = {
     init: Flags.boolean({
       description: "Initialize a default crkdrc.json configuration file",
       exclusive: ["interactive"],
-    }),
-    openRouterApiKey: Flags.string({
-      description: "OpenRouter API key to use for initialization",
-      dependsOn: ["init"],
-      required: false,
     }),
   };
 
@@ -120,20 +106,21 @@ export class Crkd extends Command {
   }
 
   async run(): Promise<void> {
-    const { args, flags } = await this.parse(Crkd);
-
-    if (flags.init && !flags.openRouterApiKey) {
-      this.error(
-        "Must provide OpenRouter API key (--openRouterApiKey) when initializing configuration",
-      );
-    }
+    const { args, flags } = await this.parse(Run);
 
     if (flags.init) {
-      this.configService.createDefaultConfig(flags.openRouterApiKey);
+      this.configService.createDefaultConfig();
       return;
     }
 
     const config = this.configService.getConfig();
+
+    if (!config.openRouterApiKey) {
+      this.error(
+        "OpenRouter API key is required. Please add it to crkdrc.json",
+      );
+    }
+
     const isInteractive = config.interactive ?? false;
 
     if (isInteractive && args.message) {

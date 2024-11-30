@@ -130,19 +130,21 @@ export class CommandAction extends BaseAction {
             stderrData += this.ansiStripper.strip(stderrBuffer);
           }
 
-          const combinedOutput = stdoutData + stderrData;
+          const extra = `CRITICAL: If you're unsure why the command failed prioritize read_file to get more context from files related to the failure and a better understanding of the problem, instead of jumping to write_file right away with a solution
+            \n\n If you're stuck with the same problem over and over TRY DIFFERENT SOLUTIONS, don't keep trying the same thing over and over again`;
+
+          // Add the exit code message if there's no output
+          const output = stdoutData + stderrData;
+          const combinedOutput =
+            (output || `Command completed with exit code ${exitCode}`) + extra;
+
           this.debugLogger.log("CommandAction", "Command execution completed", {
             command,
             exitCode,
             output: combinedOutput,
           });
 
-          // Always return success with the combined output
-          resolve(
-            this.createSuccessResult(
-              combinedOutput || `Command completed with exit code ${exitCode}`,
-            ),
-          );
+          resolve(this.createSuccessResult(combinedOutput));
         }
       };
 

@@ -14,6 +14,8 @@ const configSchema = z.object({
   debug: z.boolean(),
   options: z.string(),
   openRouterApiKey: z.string(),
+  appUrl: z.string().url().optional(),
+  appName: z.string().optional(),
   autoScaler: z.boolean().optional(),
   autoScaleMaxTryPerModel: z.number().optional(),
   includeAllFilesOnEnvToContext: z.boolean().optional(),
@@ -27,6 +29,10 @@ const configSchema = z.object({
       }),
     )
     .optional(),
+  runAllTestsCmd: z.string().optional(),
+  runOneTestCmd: z.string().optional(),
+  runTypeCheckCmd: z.string().optional(),
+  enableConversationLog: z.boolean().optional(),
 });
 
 export type Config = z.infer<typeof configSchema>;
@@ -51,10 +57,9 @@ export class ConfigService {
     }
   }
 
-  public createDefaultConfig(openRouterApiKey?: string): void {
+  public createDefaultConfig(): void {
     if (!fs.existsSync(this.CONFIG_PATH)) {
       console.log("Creating default crkdrc.json configuration...");
-      const apiKey = openRouterApiKey || process.env.OPENROUTER_API_KEY || "";
 
       const defaultConfig = {
         model: DEFAULT_INITIAL_MODEL,
@@ -65,7 +70,9 @@ export class ConfigService {
         debug: false,
         options:
           "temperature=0,top_p=0.1,top_k=1,frequence_penalty=0.0,presence_penalty=0.0,repetition_penalty=1.0",
-        openRouterApiKey: apiKey,
+        openRouterApiKey: "",
+        appUrl: "https://localhost:8080",
+        appName: "MyCrackedApp",
         autoScaler: true,
         autoScaleMaxTryPerModel: 2,
         includeAllFilesOnEnvToContext: false,
@@ -89,6 +96,10 @@ export class ConfigService {
             maxGlobalTries: 20,
           },
         ],
+        runAllTestsCmd: "yarn test",
+        runOneTestCmd: "yarn test {relativeTestPath}",
+        runTypeCheckCmd: "yarn typecheck",
+        enableConversationLog: false,
       };
       fs.writeFileSync(
         this.CONFIG_PATH,
@@ -97,13 +108,11 @@ export class ConfigService {
       console.log(
         "Default crkdrc.json configuration created. Please adjust it.",
       );
-      if (!apiKey) {
-        console.log(
-          chalk.yellow(
-            "Warning: No OpenRouter API key provided. Please add it to crkdrc.json or .env file.",
-          ),
-        );
-      }
+      console.log(
+        chalk.yellow(
+          "Warning: No OpenRouter API key provided. Please add it to crkdrc.json.",
+        ),
+      );
 
       this.ensureGitIgnore();
 

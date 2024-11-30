@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
+import { ConfigService } from "@services/ConfigService";
 import { MessageContextManager } from "@services/LLM/MessageContextManager";
 import { ModelInfo } from "@services/LLM/ModelInfo";
 import { DebugLogger } from "@services/logging/DebugLogger";
@@ -8,15 +9,21 @@ describe("MessageContextManager", () => {
   let messageContextManager: MessageContextManager;
   let debugLogger: DebugLogger;
   let modelInfo: ModelInfo;
+  let configService: ConfigService;
 
   beforeEach(() => {
     debugLogger = container.resolve(DebugLogger);
     modelInfo = container.resolve(ModelInfo);
+    configService = container.resolve(ConfigService);
     jest
       .spyOn(modelInfo, "getCurrentModelContextLength")
       .mockResolvedValue(100);
     jest.spyOn(modelInfo, "logCurrentModelUsage").mockResolvedValue();
-    messageContextManager = new MessageContextManager(debugLogger, modelInfo);
+    messageContextManager = new MessageContextManager(
+      debugLogger,
+      modelInfo,
+      configService,
+    );
   });
 
   afterEach(() => {
@@ -216,7 +223,7 @@ describe("MessageContextManager", () => {
     });
   });
 
-  describe("extractFileOperations", () => {
+  describe("extractOperations", () => {
     it("should extract write_file operations", () => {
       const content = `
         <write_file>
@@ -226,8 +233,8 @@ describe("MessageContextManager", () => {
           <path>/path/to/file2</path>
         </write_file>
       `;
-      //@ts-expect-error
-      const operations = messageContextManager.extractFileOperations(content);
+      // @ts-ignore: Testing private method
+      const operations = messageContextManager.extractOperations(content);
       expect(operations).toEqual([
         { type: "write_file", path: "/path/to/file1" },
         { type: "write_file", path: "/path/to/file2" },
@@ -243,8 +250,8 @@ describe("MessageContextManager", () => {
           <path>/path/to/file2</path>
         </read_file>
       `;
-      //@ts-expect-error
-      const operations = messageContextManager.extractFileOperations(content);
+      // @ts-ignore: Testing private method
+      const operations = messageContextManager.extractOperations(content);
       expect(operations).toEqual([
         { type: "read_file", path: "/path/to/file1" },
         { type: "read_file", path: "/path/to/file2" },
@@ -260,8 +267,8 @@ describe("MessageContextManager", () => {
           <path>/path/to/file2</path>
         </read_file>
       `;
-      //@ts-expect-error
-      const operations = messageContextManager.extractFileOperations(content);
+      // @ts-ignore: Testing private method
+      const operations = messageContextManager.extractOperations(content);
       expect(operations).toEqual([
         { type: "write_file", path: "/path/to/file1" },
         { type: "read_file", path: "/path/to/file2" },
@@ -270,13 +277,13 @@ describe("MessageContextManager", () => {
 
     it("should return an empty array if no file operations are present", () => {
       const content = "No file operations here";
-      //@ts-expect-error
-      const operations = messageContextManager.extractFileOperations(content);
+      // @ts-ignore: Testing private method
+      const operations = messageContextManager.extractOperations(content);
       expect(operations).toEqual([]);
     });
   });
 
-  describe("removeOldFileOperations", () => {
+  describe("removeOldOperations", () => {
     it("should remove old file operations if new message has the same operations", () => {
       messageContextManager.addMessage(
         "user",

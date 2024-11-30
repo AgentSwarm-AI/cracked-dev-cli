@@ -219,5 +219,191 @@ describe("LLMProvider", () => {
         ),
       ).rejects.toThrow("Model not available");
     });
+
+    it("should handle empty message in sendMessage", async () => {
+      await provider.sendMessage("model", "");
+      expect(OpenRouterAPI.prototype.sendMessage).toHaveBeenCalledWith(
+        "model",
+        "",
+        undefined,
+      );
+    });
+
+    it("should handle empty message in sendMessageWithContext", async () => {
+      await provider.sendMessageWithContext("model", "", "systemInstructions");
+      expect(
+        OpenRouterAPI.prototype.sendMessageWithContext,
+      ).toHaveBeenCalledWith(
+        "model",
+        "",
+        "systemInstructions",
+        undefined,
+      );
+    });
+
+    it("should handle null message in sendMessage", async () => {
+      await provider.sendMessage("model", null as any);
+      expect(OpenRouterAPI.prototype.sendMessage).toHaveBeenCalledWith(
+        "model",
+        null,
+        undefined,
+      );
+    });
+
+    it("should handle null message in sendMessageWithContext", async () => {
+      await provider.sendMessageWithContext("model", null as any, "systemInstructions");
+      expect(
+        OpenRouterAPI.prototype.sendMessageWithContext,
+      ).toHaveBeenCalledWith(
+        "model",
+        null,
+        "systemInstructions",
+        undefined,
+      );
+    });
+
+    it("should handle empty system instructions in sendMessageWithContext", async () => {
+      await provider.sendMessageWithContext("model", "message", "");
+      expect(
+        OpenRouterAPI.prototype.sendMessageWithContext,
+      ).toHaveBeenCalledWith(
+        "model",
+        "message",
+        "",
+        undefined,
+      );
+    });
+
+    it("should handle null system instructions in sendMessageWithContext", async () => {
+      await provider.sendMessageWithContext("model", "message", null as any);
+      expect(
+        OpenRouterAPI.prototype.sendMessageWithContext,
+      ).toHaveBeenCalledWith(
+        "model",
+        "message",
+        null,
+        undefined,
+      );
+    });
+
+    it("should handle empty model in sendMessage", async () => {
+      await provider.sendMessage("", "message");
+      expect(OpenRouterAPI.prototype.sendMessage).toHaveBeenCalledWith(
+        "",
+        "message",
+        undefined,
+      );
+    });
+
+    it("should handle null model in sendMessage", async () => {
+      await provider.sendMessage(null as any, "message");
+      expect(OpenRouterAPI.prototype.sendMessage).toHaveBeenCalledWith(
+        null,
+        "message",
+        undefined,
+      );
+    });
+
+    it("should handle empty model in sendMessageWithContext", async () => {
+      await provider.sendMessageWithContext("", "message", "systemInstructions");
+      expect(
+        OpenRouterAPI.prototype.sendMessageWithContext,
+      ).toHaveBeenCalledWith(
+        "",
+        "message",
+        "systemInstructions",
+        undefined,
+      );
+    });
+
+    it("should handle null model in sendMessageWithContext", async () => {
+      await provider.sendMessageWithContext(null as any, "message", "systemInstructions");
+      expect(
+        OpenRouterAPI.prototype.sendMessageWithContext,
+      ).toHaveBeenCalledWith(
+        null,
+        "message",
+        "systemInstructions",
+        undefined,
+      );
+    });
+
+    it("should handle empty model in getConversationContext", () => {
+      provider.getConversationContext();
+      expect(OpenRouterAPI.prototype.getConversationContext).toHaveBeenCalled();
+    });
+
+    it("should handle null model in getConversationContext", () => {
+      provider.getConversationContext();
+      expect(OpenRouterAPI.prototype.getConversationContext).toHaveBeenCalled();
+    });
+
+    it("should handle empty model in addSystemInstructions", () => {
+      provider.addSystemInstructions("");
+      expect(OpenRouterAPI.prototype.addSystemInstructions).toHaveBeenCalledWith("");
+    });
+
+    it("should handle null model in addSystemInstructions", () => {
+      provider.addSystemInstructions(null as any);
+      expect(OpenRouterAPI.prototype.addSystemInstructions).toHaveBeenCalledWith(null);
+    });
+
+    it("should handle empty model in getAvailableModels", async () => {
+      const models = await provider.getAvailableModels();
+      expect(models).toEqual(["model1", "model2"]);
+      expect(OpenRouterAPI.prototype.getAvailableModels).toHaveBeenCalled();
+    });
+
+    it("should handle null model in getAvailableModels", async () => {
+      const models = await provider.getAvailableModels();
+      expect(models).toEqual(["model1", "model2"]);
+      expect(OpenRouterAPI.prototype.getAvailableModels).toHaveBeenCalled();
+    });
+
+    it("should handle empty model in validateModel", async () => {
+      const isValid = await provider.validateModel("");
+      expect(isValid).toBe(true);
+      expect(OpenRouterAPI.prototype.validateModel).toHaveBeenCalledWith("");
+    });
+
+    it("should handle null model in validateModel", async () => {
+      const isValid = await provider.validateModel(null as any);
+      expect(isValid).toBe(true);
+      expect(OpenRouterAPI.prototype.validateModel).toHaveBeenCalledWith(null);
+    });
+
+    it("should handle empty model in getModelInfo", async () => {
+      const modelInfo = await provider.getModelInfo("");
+      expect(modelInfo).toEqual({});
+      expect(OpenRouterAPI.prototype.getModelInfo).toHaveBeenCalledWith("");
+    });
+
+    it("should handle null model in getModelInfo", async () => {
+      const modelInfo = await provider.getModelInfo(null as any);
+      expect(modelInfo).toEqual({});
+      expect(OpenRouterAPI.prototype.getModelInfo).toHaveBeenCalledWith(null);
+    });
+
+    it("should handle empty model in streamMessage", async () => {
+      const mockCallback = jest.fn();
+      await provider.streamMessage("", "message", mockCallback);
+      expect(OpenRouterAPI.prototype.streamMessage).toHaveBeenCalledWith(
+        "",
+        "message",
+        mockCallback,
+        undefined,
+      );
+    });
+
+    it("should handle null model in streamMessage", async () => {
+      const mockCallback = jest.fn();
+      await provider.streamMessage(null as any, "message", mockCallback);
+      expect(OpenRouterAPI.prototype.streamMessage).toHaveBeenCalledWith(
+        null,
+        "message",
+        mockCallback,
+        undefined,
+      );
+    });
   });
 });

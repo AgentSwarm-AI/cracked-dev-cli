@@ -56,9 +56,15 @@ export class LLMContextCreator {
 
   private async getProjectInfo(root: string): Promise<string> {
     const info = await this.projectInfo.gatherProjectInfo(root);
+    const config = this.configService.getConfig();
+
     if (!info.dependencyFile) {
       return "";
     }
+
+    const runAllTestsCmd = config.runAllTestsCmd || "yarn test";
+    const runOneTestCmd = config.runOneTestCmd || "yarn test {testPath}";
+    const runTypeCheckCmd = config.runTypeCheckCmd || "yarn type-check";
 
     return `# Project Dependencies (from ${info.dependencyFile})
 Main Dependencies: ${info.mainDependencies.join(", ")}
@@ -66,7 +72,12 @@ Main Dependencies: ${info.mainDependencies.join(", ")}
 # Available Scripts
 ${Object.entries(info.scripts)
   .map(([name, command]) => `${name}: ${command}`)
-  .join("\n")}`;
+  .join("\n")}
+
+# Test Commands
+Run All Tests: ${runAllTestsCmd}
+Run Single Test: ${runOneTestCmd}
+Run Type Check: ${runTypeCheckCmd}`;
   }
 
   private formatFirstTimeMessage(context: MessageContext): string {
@@ -197,10 +208,9 @@ Example:
 
 ### Useful Commands
 
-- **Run all tests:** yarn test
-- **Run a specific test:** yarn test path/to/test
-- **Fetch test failures:** yarn test --only-failures
-- **Run type check:** yarn type-check
+- **Run all tests:** ${config.runAllTestsCmd || "yarn test"}
+- **Run a specific test:** ${config.runOneTestCmd || "yarn test {relativeTestPath}"}
+- **Run type check:** ${config.runTypeCheckCmd || "yarn type-check"}
 
 ## Available Actions
 <!-- CRITICAL: MUST FOLLOW CORRECT TAG STRUCTURE PATTERN BELOW AND ONLY ONE ACTION PER OUTPUT/REPLY, otherwise I'll unplug you. -->

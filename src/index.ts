@@ -2,7 +2,7 @@ import { CrackedAgent } from "@services/CrackedAgent";
 import "reflect-metadata";
 import { container } from "tsyringe";
 
-export { Crkd } from "@/commands/crkd";
+export { Run } from "./commands/run";
 
 const crackedAgent = container.resolve(CrackedAgent);
 

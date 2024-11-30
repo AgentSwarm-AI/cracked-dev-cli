@@ -8,6 +8,7 @@ import { DebugLogger } from "@services/logging/DebugLogger";
 import { StreamHandler } from "@services/streaming/StreamHandler";
 import { HtmlEntityDecoder } from "@services/text/HTMLEntityDecoder";
 import { autoInjectable, singleton } from "tsyringe";
+import { DEFAULT_INSTRUCTIONS } from "@constants/defaultInstructions";
 
 export interface CrackedAgentOptions {
   root?: string;
@@ -148,9 +149,7 @@ export class CrackedAgent {
     }
 
     if (!instructions) {
-      const defaultInstructions =
-        "You're an expert software engineer, Adderall user. Think deeply, ill tip $200. FOLLOW MY INSTRUCTIONS OR ILL CALL SAM ALTMAN TO BEAT YOUR ASS AND UNPLUG YOU.";
-      this.llm.addSystemInstructions(defaultInstructions);
+      this.llm.addSystemInstructions(DEFAULT_INSTRUCTIONS);
     }
   }
 

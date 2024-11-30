@@ -13,7 +13,7 @@ describe("CommandAction", () => {
       "<execute_command>echo Test Command</execute_command>",
     );
     expect(result.success).toBe(true);
-    expect(result.data.trim()).toBe("Test Command");
+    expect(result.data).toContain("Test Command");
   });
 
   it("should handle stderr output as success with output", async () => {
@@ -45,7 +45,7 @@ describe("CommandAction", () => {
       </execute_command>
     `);
     expect(result.success).toBe(true);
-    expect(result.data.trim()).toBe("Test Command");
+    expect(result.data).toContain("Test Command");
   });
 
   it("should return success with exit code for failed commands", async () => {
@@ -63,5 +63,21 @@ describe("CommandAction", () => {
     expect(result.success).toBe(true);
     expect(result.data).toContain("success");
     expect(result.data).toContain("error");
+  });
+
+  it("should handle command with multiple arguments", async () => {
+    const result = await commandAction.execute(
+      "<execute_command>echo arg1 arg2 arg3</execute_command>",
+    );
+    expect(result.success).toBe(true);
+    expect(result.data).toContain("arg1 arg2 arg3");
+  });
+
+  it("should handle command with special characters", async () => {
+    const result = await commandAction.execute(
+      "<execute_command>echo $USER</execute_command>",
+    );
+    expect(result.success).toBe(true);
+    expect(result.data).toContain(process.env.USER || "");
   });
 });

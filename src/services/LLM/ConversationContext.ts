@@ -33,6 +33,12 @@ export class ConversationContext {
     role: "user" | "assistant" | "system",
     content: string,
   ): Promise<void> {
+    if (!["user", "assistant", "system"].includes(role)) {
+      throw new Error("Invalid role. Must be 'user', 'assistant', or 'system'.");
+    }
+    if (!content) {
+      throw new Error("Content cannot be empty.");
+    }
     this.messageContextManager.addMessage(role, content);
   }
 
@@ -107,6 +113,33 @@ export class ConversationContext {
       this.debugLogger.log("Context", "Context cleanup completed", {
         newTokenCount: this.getTotalTokenCount(),
       });
+
+      // Restore system instructions if they existed
+      const systemInstructions =
+        this.messageContextManager.getSystemInstructions();
+      if (systemInstructions) {
+        this.messageContextManager.setSystemInstructions(systemInstructions);
+        this.debugLogger.log(
+          "Context",
+          "Restored system instructions after cleanup",
+        );
+      }
+
+      // Restore the first user message if it existed
+      const messages = this.messageContextManager.getMessages();
+      const firstUserMessage = messages.find(
+        (msg) => msg.role === "user",
+      );
+      if (firstUserMessage) {
+        this.messageContextManager.addMessage(
+          firstUserMessage.role,
+          firstUserMessage.content,
+        );
+        this.debugLogger.log(
+          "Context",
+          "Restored first user message after cleanup",
+        );
+      }
     } else {
       this.debugLogger.log("Context", "No cleanup needed", {
         currentTokens: this.getTotalTokenCount(),
