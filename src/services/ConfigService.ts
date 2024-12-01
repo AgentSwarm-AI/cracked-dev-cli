@@ -22,6 +22,18 @@ const configSchema = z.object({
   runOneTestCmd: z.string().optional(),
   runTypeCheckCmd: z.string().optional(),
   enableConversationLog: z.boolean().optional(),
+  directoryScanner: z
+    .object({
+      requiredIgnore: z.array(z.string()),
+      defaultIgnore: z.array(z.string()),
+      allFiles: z.boolean(),
+      maxDepth: z.number(),
+      noreport: z.boolean(),
+      base: z.string(),
+      directoryFirst: z.boolean(),
+      excludeDirectories: z.boolean(),
+    })
+    .optional(),
 });
 
 export type Config = z.infer<typeof configSchema>;
@@ -68,6 +80,23 @@ export class ConfigService {
         runOneTestCmd: "yarn test {relativeTestPath}",
         runTypeCheckCmd: "yarn typecheck",
         enableConversationLog: false,
+        directoryScanner: {
+          requiredIgnore: ["node_modules", ".git"],
+          defaultIgnore: [
+            "dist",
+            "coverage",
+            ".next",
+            "build",
+            ".cache",
+            ".husky",
+          ],
+          allFiles: true,
+          maxDepth: 8,
+          noreport: true,
+          base: ".",
+          directoryFirst: true,
+          excludeDirectories: false,
+        },
       };
       fs.writeFileSync(
         this.CONFIG_PATH,

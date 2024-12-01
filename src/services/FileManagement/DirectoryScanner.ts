@@ -1,3 +1,4 @@
+import { ConfigService } from "@services/ConfigService";
 import {
   IDirectoryScanner,
   TreeOptions,
@@ -5,30 +6,43 @@ import {
 import { IFileOperationResult } from "@services/FileManagement/types/FileManagementTypes";
 import fs from "fs";
 import path from "path";
-import { autoInjectable } from "tsyringe";
+import { autoInjectable, inject } from "tsyringe";
 
 @autoInjectable()
 export class DirectoryScanner implements IDirectoryScanner {
-  private readonly REQUIRED_IGNORE = ["node_modules", ".git"];
+  private readonly configService: ConfigService;
 
-  private readonly DEFAULT_IGNORE = [
-    "dist",
-    "coverage",
-    ".next",
-    "build",
-    ".cache",
-    ".husky",
-  ];
+  private readonly REQUIRED_IGNORE: string[];
+  private readonly DEFAULT_IGNORE: string[];
+  private readonly DEFAULT_OPTIONS: TreeOptions;
 
-  private readonly DEFAULT_OPTIONS: TreeOptions = {
-    ignore: this.DEFAULT_IGNORE,
-    allFiles: true,
-    maxDepth: 8,
-    noreport: true,
-    base: ".",
-    directoryFirst: true,
-    excludeDirectories: false,
-  };
+  constructor(@inject(ConfigService) configService: ConfigService) {
+    this.configService = configService;
+
+    const config = this.configService.getConfig().directoryScanner;
+    this.REQUIRED_IGNORE = config?.requiredIgnore || ["node_modules", ".git"];
+    this.DEFAULT_IGNORE = config?.defaultIgnore || [
+      "dist",
+      "coverage",
+      ".next",
+      "build",
+      ".cache",
+      ".husky",
+    ];
+    this.DEFAULT_OPTIONS = {
+      ignore: this.REQUIRED_IGNORE,
+      allFiles: config?.allFiles !== undefined ? config.allFiles : true,
+      maxDepth: config?.maxDepth !== undefined ? config.maxDepth : 8,
+      noreport: config?.noreport !== undefined ? config.noreport : true,
+      base: config?.base || ".",
+      directoryFirst:
+        config?.directoryFirst !== undefined ? config.directoryFirst : true,
+      excludeDirectories:
+        config?.excludeDirectories !== undefined
+          ? config.excludeDirectories
+          : false,
+    };
+  }
 
   private getAllFiles(
     dirPath: string,
