@@ -64,7 +64,10 @@ describe("ConfigService", () => {
         openRouterApiKey: "test-key",
         autoScaler: true,
         includeAllFilesOnEnvToContext: false,
+        appName: "MyApp",
+        appUrl: "https://localhost:8080",
         directoryScanner: {
+          allFiles: true,
           defaultIgnore: [
             "dist",
             "coverage",
@@ -73,10 +76,9 @@ describe("ConfigService", () => {
             ".cache",
             ".husky",
           ],
-          maxDepth: 8,
-          allFiles: true,
           directoryFirst: true,
           excludeDirectories: false,
+          maxDepth: 8,
         },
       };
 
@@ -114,53 +116,15 @@ describe("ConfigService", () => {
       );
     });
 
-    it("should create default config if the config file does not exist", () => {
-      (fs.existsSync as jest.Mock)
-        .mockReturnValueOnce(false) // First check
-        .mockReturnValueOnce(false) // gitignore check
-        .mockReturnValueOnce(true); // Second check after creation
+    it("should throw an error if the config file does not exist or is empty", () => {
+      (fs.existsSync as jest.Mock).mockReturnValue(false);
+      (fs.readFileSync as jest.Mock).mockReturnValue("{}");
 
-      const defaultConfig = {
-        model: "qwen/qwen-2.5-coder-32b-instruct",
-        provider: "open-router",
-        customInstructions: "Follow clean code principles",
-        interactive: true,
-        stream: true,
-        debug: false,
-        options:
-          "temperature=0,top_p=0.1,top_k=1,frequence_penalty=0.0,presence_penalty=0.0,repetition_penalty=1.0",
-        openRouterApiKey: "",
-        appUrl: "https://localhost:8080",
-        appName: "MyCrackedApp",
-        autoScaler: true,
-        autoScaleMaxTryPerModel: 2,
-        includeAllFilesOnEnvToContext: false,
-        directoryScanner: {
-          defaultIgnore: [
-            "dist",
-            "coverage",
-            ".next",
-            "build",
-            ".cache",
-            ".husky",
-          ],
-          maxDepth: 8,
-          allFiles: true,
-          directoryFirst: true,
-          excludeDirectories: false,
-        },
-      };
-
-      (fs.readFileSync as jest.Mock).mockReturnValue(
-        JSON.stringify(defaultConfig),
+      expect(() => configService.getConfig()).toThrow(
+        "Invalid configuration in crkdrc.json",
       );
 
-      const config = configService.getConfig();
-      expect(config).toEqual(defaultConfig);
-      expect(fs.writeFileSync).toHaveBeenCalledWith(
-        mockConfigPath,
-        expect.any(String),
-      );
+      expect(fs.existsSync).toHaveBeenCalledWith(mockConfigPath);
     });
   });
 });

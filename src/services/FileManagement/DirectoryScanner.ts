@@ -68,13 +68,14 @@ export class DirectoryScanner implements IDirectoryScanner {
 
   public async scan(
     dirPath: string,
-    options?: Partial<TreeOptions>,
+    options: Partial<TreeOptions> = {},
   ): Promise<IFileOperationResult> {
     try {
-      const scanOptions = { ...this.defaultOptions, ...options };
+      const defaultOptions = this.defaultOptions;
+      const scanOptions = { ...defaultOptions, ...options };
       const ignore = [
         ...this.REQUIRED_IGNORE,
-        ...(options?.ignore ?? this.defaultOptions.ignore ?? []),
+        ...(options.ignore || defaultOptions.ignore),
       ];
       const absolutePath = path.resolve(dirPath);
 

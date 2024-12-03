@@ -15,7 +15,7 @@ export interface IDirectoryScanner {
 }
 
 export interface TreeOptions {
-  ignore?: string[];
+  ignore: string[];
   allFiles?: boolean;
   maxDepth?: number;
   noreport?: boolean;

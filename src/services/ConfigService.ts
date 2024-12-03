@@ -14,8 +14,8 @@ const configSchema = z.object({
   debug: z.boolean(),
   options: z.string(),
   openRouterApiKey: z.string(),
-  appUrl: z.string().optional(),
-  appName: z.string().optional(),
+  appUrl: z.string().optional().default("https://localhost:8080"),
+  appName: z.string().optional().default("MyApp"),
   autoScaler: z.boolean().optional(),
   autoScaleMaxTryPerModel: z.number().optional(),
   includeAllFilesOnEnvToContext: z.boolean().optional(),
@@ -43,7 +43,13 @@ const configSchema = z.object({
       directoryFirst: z.boolean().default(true),
       excludeDirectories: z.boolean().default(false),
     })
-    .default({}),
+    .default({
+      defaultIgnore: ["dist", "coverage", ".next", "build", ".cache", ".husky"],
+      maxDepth: 8,
+      allFiles: true,
+      directoryFirst: true,
+      excludeDirectories: false,
+    }),
 });
 
 export type Config = z.infer<typeof configSchema>;
