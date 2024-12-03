@@ -14,7 +14,7 @@ const configSchema = z.object({
   debug: z.boolean(),
   options: z.string(),
   openRouterApiKey: z.string(),
-  appUrl: z.string().url().optional(),
+  appUrl: z.string().optional(),
   appName: z.string().optional(),
   autoScaler: z.boolean().optional(),
   autoScaleMaxTryPerModel: z.number().optional(),
