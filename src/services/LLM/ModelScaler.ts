@@ -3,14 +3,15 @@ import { ConversationContext } from "@services/LLM/ConversationContext";
 import { ModelInfo } from "@services/LLM/ModelInfo";
 import { DebugLogger } from "@services/logging/DebugLogger";
 import { singleton } from "tsyringe";
+import { ConfigService } from "../ConfigService";
 import { MessageContextManager } from "./MessageContextManager";
 
 @singleton()
 export class ModelScaler {
   private tryCountMap: Map<string, number> = new Map();
-  private globalTryCount: number = 0;
+  private globalTryCount: number;
   private currentModel: string;
-  private autoScalerEnabled: boolean = false;
+  private autoScalerEnabled: boolean;
   private userSpecifiedModel: string | null = null;
 
   constructor(
@@ -18,7 +19,15 @@ export class ModelScaler {
     private messageContextManager: MessageContextManager,
     private conversationContext: ConversationContext,
     private modelInfo: ModelInfo,
+    private configService: ConfigService,
   ) {
+    // Set autoScalerEnabled from crkdrc.json
+    const config = this.configService.getConfig();
+    this.autoScalerEnabled = config.autoScaler ?? false;
+
+    // Set autoScaleMaxTryPerModel from crkdrc.json
+    this.globalTryCount = config.autoScaleMaxTryPerModel ?? 0;
+
     // Initialize with base model
     this.currentModel = getModelForTryCount(null, this.globalTryCount);
     this.modelInfo.setCurrentModel(this.currentModel);
