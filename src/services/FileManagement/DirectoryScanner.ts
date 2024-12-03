@@ -1,3 +1,4 @@
+import { ConfigService } from "@services/ConfigService";
 import {
   IDirectoryScanner,
   TreeOptions,
@@ -5,30 +6,30 @@ import {
 import { IFileOperationResult } from "@services/FileManagement/types/FileManagementTypes";
 import fs from "fs";
 import path from "path";
-import { autoInjectable } from "tsyringe";
+import { autoInjectable, inject } from "tsyringe";
 
 @autoInjectable()
 export class DirectoryScanner implements IDirectoryScanner {
   private readonly REQUIRED_IGNORE = ["node_modules", ".git"];
 
-  private readonly DEFAULT_IGNORE = [
-    "dist",
-    "coverage",
-    ".next",
-    "build",
-    ".cache",
-    ".husky",
-  ];
+  constructor(@inject(ConfigService) private configService: ConfigService) {
+    if (!configService) {
+      throw new Error("ConfigService is required for DirectoryScanner");
+    }
+  }
 
-  private readonly DEFAULT_OPTIONS: TreeOptions = {
-    ignore: this.DEFAULT_IGNORE,
-    allFiles: true,
-    maxDepth: 8,
-    noreport: true,
-    base: ".",
-    directoryFirst: true,
-    excludeDirectories: false,
-  };
+  private get defaultOptions(): TreeOptions {
+    const config = this.configService.getConfig();
+    return {
+      ignore: config.directoryScanner.defaultIgnore,
+      allFiles: config.directoryScanner.allFiles,
+      maxDepth: config.directoryScanner.maxDepth,
+      noreport: true,
+      base: ".",
+      directoryFirst: config.directoryScanner.directoryFirst,
+      excludeDirectories: config.directoryScanner.excludeDirectories,
+    };
+  }
 
   private getAllFiles(
     dirPath: string,
@@ -70,12 +71,10 @@ export class DirectoryScanner implements IDirectoryScanner {
     options?: Partial<TreeOptions>,
   ): Promise<IFileOperationResult> {
     try {
-      const scanOptions = { ...this.DEFAULT_OPTIONS, ...options };
-      // Only combine required ignores with user provided ignores if they exist
-      // otherwise use required + default ignores
+      const scanOptions = { ...this.defaultOptions, ...options };
       const ignore = [
         ...this.REQUIRED_IGNORE,
-        ...(options?.ignore || this.DEFAULT_IGNORE),
+        ...(options?.ignore ?? this.defaultOptions.ignore ?? []),
       ];
       const absolutePath = path.resolve(dirPath);
 

@@ -33,6 +33,17 @@ const configSchema = z.object({
   runOneTestCmd: z.string().optional(),
   runTypeCheckCmd: z.string().optional(),
   enableConversationLog: z.boolean().optional(),
+  directoryScanner: z
+    .object({
+      defaultIgnore: z
+        .array(z.string())
+        .default(["dist", "coverage", ".next", "build", ".cache", ".husky"]),
+      maxDepth: z.number().default(8),
+      allFiles: z.boolean().default(true),
+      directoryFirst: z.boolean().default(true),
+      excludeDirectories: z.boolean().default(false),
+    })
+    .default({}),
 });
 
 export type Config = z.infer<typeof configSchema>;
@@ -100,6 +111,20 @@ export class ConfigService {
         runOneTestCmd: "yarn test {relativeTestPath}",
         runTypeCheckCmd: "yarn typecheck",
         enableConversationLog: false,
+        directoryScanner: {
+          defaultIgnore: [
+            "dist",
+            "coverage",
+            ".next",
+            "build",
+            ".cache",
+            ".husky",
+          ],
+          maxDepth: 8,
+          allFiles: true,
+          directoryFirst: true,
+          excludeDirectories: false,
+        },
       };
       fs.writeFileSync(
         this.CONFIG_PATH,
@@ -123,22 +148,23 @@ export class ConfigService {
   }
 
   public getConfig(): Config {
-    if (fs.existsSync(this.CONFIG_PATH)) {
-      const rawData = fs.readFileSync(this.CONFIG_PATH, "utf-8");
-      const config = JSON.parse(rawData);
-
-      const parsedConfig = configSchema.safeParse(config);
-
-      if (!parsedConfig.success) {
-        console.error(
-          "Invalid configuration in crkdrc.json:",
-          parsedConfig.error,
-        );
-        throw new Error("Invalid configuration in crkdrc.json");
-      }
-
-      return parsedConfig.data;
+    if (!fs.existsSync(this.CONFIG_PATH)) {
+      this.createDefaultConfig();
     }
-    return {} as Config;
+
+    const rawData = fs.readFileSync(this.CONFIG_PATH, "utf-8");
+    const config = JSON.parse(rawData);
+
+    const parsedConfig = configSchema.safeParse(config);
+
+    if (!parsedConfig.success) {
+      console.error(
+        "Invalid configuration in crkdrc.json:",
+        parsedConfig.error,
+      );
+      throw new Error("Invalid configuration in crkdrc.json");
+    }
+
+    return parsedConfig.data;
   }
 }
