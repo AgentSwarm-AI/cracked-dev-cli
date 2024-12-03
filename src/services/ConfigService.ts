@@ -14,26 +14,42 @@ const configSchema = z.object({
   debug: z.boolean(),
   options: z.string(),
   openRouterApiKey: z.string(),
-  appUrl: z.string().url().optional(),
-  appName: z.string().optional(),
+  appUrl: z.string().optional().default("https://localhost:8080"),
+  appName: z.string().optional().default("MyApp"),
   autoScaler: z.boolean().optional(),
+  autoScaleMaxTryPerModel: z.number().optional(),
   includeAllFilesOnEnvToContext: z.boolean().optional(),
+  autoScaleAvailableModels: z
+    .array(
+      z.object({
+        id: z.string(),
+        description: z.string(),
+        maxWriteTries: z.number(),
+        maxGlobalTries: z.number(),
+      }),
+    )
+    .optional(),
   runAllTestsCmd: z.string().optional(),
   runOneTestCmd: z.string().optional(),
   runTypeCheckCmd: z.string().optional(),
   enableConversationLog: z.boolean().optional(),
   directoryScanner: z
     .object({
-      requiredIgnore: z.array(z.string()),
-      defaultIgnore: z.array(z.string()),
-      allFiles: z.boolean(),
-      maxDepth: z.number(),
-      noreport: z.boolean(),
-      base: z.string(),
-      directoryFirst: z.boolean(),
-      excludeDirectories: z.boolean(),
+      defaultIgnore: z
+        .array(z.string())
+        .default(["dist", "coverage", ".next", "build", ".cache", ".husky"]),
+      maxDepth: z.number().default(8),
+      allFiles: z.boolean().default(true),
+      directoryFirst: z.boolean().default(true),
+      excludeDirectories: z.boolean().default(false),
     })
-    .optional(),
+    .default({
+      defaultIgnore: ["dist", "coverage", ".next", "build", ".cache", ".husky"],
+      maxDepth: 8,
+      allFiles: true,
+      directoryFirst: true,
+      excludeDirectories: false,
+    }),
 });
 
 export type Config = z.infer<typeof configSchema>;
@@ -75,13 +91,33 @@ export class ConfigService {
         appUrl: "https://localhost:8080",
         appName: "MyCrackedApp",
         autoScaler: true,
-        includeAllFilesOnEnvToContext: true,
+        autoScaleMaxTryPerModel: 2,
+        includeAllFilesOnEnvToContext: false,
+        autoScaleAvailableModels: [
+          {
+            id: "qwen/qwen-2.5-coder-32b-instruct",
+            description: "Cheap, fast, slightly better than GPT4o-mini",
+            maxWriteTries: 5,
+            maxGlobalTries: 10,
+          },
+          {
+            id: "anthropic/claude-3.5-sonnet:beta",
+            description: "Scaled model for retry attempts",
+            maxWriteTries: 5,
+            maxGlobalTries: 15,
+          },
+          {
+            id: "openai/gpt-4o-2024-11-20",
+            description: "Scaled model for retry attempts",
+            maxWriteTries: 2,
+            maxGlobalTries: 20,
+          },
+        ],
         runAllTestsCmd: "yarn test",
         runOneTestCmd: "yarn test {relativeTestPath}",
         runTypeCheckCmd: "yarn typecheck",
         enableConversationLog: false,
         directoryScanner: {
-          requiredIgnore: ["node_modules", ".git"],
           defaultIgnore: [
             "dist",
             "coverage",
@@ -90,10 +126,8 @@ export class ConfigService {
             ".cache",
             ".husky",
           ],
-          allFiles: true,
           maxDepth: 8,
-          noreport: true,
-          base: ".",
+          allFiles: true,
           directoryFirst: true,
           excludeDirectories: false,
         },
@@ -120,22 +154,23 @@ export class ConfigService {
   }
 
   public getConfig(): Config {
-    if (fs.existsSync(this.CONFIG_PATH)) {
-      const rawData = fs.readFileSync(this.CONFIG_PATH, "utf-8");
-      const config = JSON.parse(rawData);
-
-      const parsedConfig = configSchema.safeParse(config);
-
-      if (!parsedConfig.success) {
-        console.error(
-          "Invalid configuration in crkdrc.json:",
-          parsedConfig.error,
-        );
-        throw new Error("Invalid configuration in crkdrc.json");
-      }
-
-      return parsedConfig.data;
+    if (!fs.existsSync(this.CONFIG_PATH)) {
+      this.createDefaultConfig();
     }
-    return {} as Config;
+
+    const rawData = fs.readFileSync(this.CONFIG_PATH, "utf-8");
+    const config = JSON.parse(rawData);
+
+    const parsedConfig = configSchema.safeParse(config);
+
+    if (!parsedConfig.success) {
+      console.error(
+        "Invalid configuration in crkdrc.json:",
+        parsedConfig.error,
+      );
+      throw new Error("Invalid configuration in crkdrc.json");
+    }
+
+    return parsedConfig.data;
   }
 }

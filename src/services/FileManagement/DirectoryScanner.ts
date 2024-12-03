@@ -10,37 +10,24 @@ import { autoInjectable, inject } from "tsyringe";
 
 @autoInjectable()
 export class DirectoryScanner implements IDirectoryScanner {
-  private readonly configService: ConfigService;
+  private readonly REQUIRED_IGNORE = ["node_modules", ".git"];
 
-  private readonly REQUIRED_IGNORE: string[];
-  private readonly DEFAULT_IGNORE: string[];
-  private readonly DEFAULT_OPTIONS: TreeOptions;
+  constructor(@inject(ConfigService) private configService: ConfigService) {
+    if (!configService) {
+      throw new Error("ConfigService is required for DirectoryScanner");
+    }
+  }
 
-  constructor(@inject(ConfigService) configService: ConfigService) {
-    this.configService = configService;
-
-    const config = this.configService.getConfig().directoryScanner;
-    this.REQUIRED_IGNORE = config?.requiredIgnore || ["node_modules", ".git"];
-    this.DEFAULT_IGNORE = config?.defaultIgnore || [
-      "dist",
-      "coverage",
-      ".next",
-      "build",
-      ".cache",
-      ".husky",
-    ];
-    this.DEFAULT_OPTIONS = {
-      ignore: this.REQUIRED_IGNORE,
-      allFiles: config?.allFiles !== undefined ? config.allFiles : true,
-      maxDepth: config?.maxDepth !== undefined ? config.maxDepth : 8,
-      noreport: config?.noreport !== undefined ? config.noreport : true,
-      base: config?.base || ".",
-      directoryFirst:
-        config?.directoryFirst !== undefined ? config.directoryFirst : true,
-      excludeDirectories:
-        config?.excludeDirectories !== undefined
-          ? config.excludeDirectories
-          : false,
+  private get DEFAULT_OPTIONS(): TreeOptions {
+    const config = this.configService.getConfig();
+    return {
+      ignore: config.directoryScanner.defaultIgnore,
+      allFiles: config.directoryScanner.allFiles,
+      maxDepth: config.directoryScanner.maxDepth,
+      noreport: true,
+      base: ".",
+      directoryFirst: config.directoryScanner.directoryFirst,
+      excludeDirectories: config.directoryScanner.excludeDirectories,
     };
   }
 
@@ -81,15 +68,14 @@ export class DirectoryScanner implements IDirectoryScanner {
 
   public async scan(
     dirPath: string,
-    options?: Partial<TreeOptions>,
+    options: Partial<TreeOptions> = {},
   ): Promise<IFileOperationResult> {
     try {
-      const scanOptions = { ...this.DEFAULT_OPTIONS, ...options };
-      // Only combine required ignores with user provided ignores if they exist
-      // otherwise use required + default ignores
+      const defaultOptions = this.DEFAULT_OPTIONS;
+      const scanOptions = { ...defaultOptions, ...options };
       const ignore = [
         ...this.REQUIRED_IGNORE,
-        ...(options?.ignore || this.DEFAULT_IGNORE),
+        ...(options.ignore || defaultOptions.ignore),
       ];
       const absolutePath = path.resolve(dirPath);
 

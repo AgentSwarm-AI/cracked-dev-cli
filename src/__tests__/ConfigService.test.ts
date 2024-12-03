@@ -64,6 +64,22 @@ describe("ConfigService", () => {
         openRouterApiKey: "test-key",
         autoScaler: true,
         includeAllFilesOnEnvToContext: false,
+        appName: "MyApp",
+        appUrl: "https://localhost:8080",
+        directoryScanner: {
+          allFiles: true,
+          defaultIgnore: [
+            "dist",
+            "coverage",
+            ".next",
+            "build",
+            ".cache",
+            ".husky",
+          ],
+          directoryFirst: true,
+          excludeDirectories: false,
+          maxDepth: 8,
+        },
       };
 
       (fs.existsSync as jest.Mock).mockReturnValue(true);
@@ -100,13 +116,15 @@ describe("ConfigService", () => {
       );
     });
 
-    it("should return an empty object if the config file does not exist", () => {
+    it("should throw an error if the config file does not exist or is empty", () => {
       (fs.existsSync as jest.Mock).mockReturnValue(false);
+      (fs.readFileSync as jest.Mock).mockReturnValue("{}");
 
-      const config = configService.getConfig();
+      expect(() => configService.getConfig()).toThrow(
+        "Invalid configuration in crkdrc.json",
+      );
 
       expect(fs.existsSync).toHaveBeenCalledWith(mockConfigPath);
-      expect(config).toEqual({});
     });
   });
 });
