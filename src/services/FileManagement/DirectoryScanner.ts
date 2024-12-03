@@ -18,7 +18,7 @@ export class DirectoryScanner implements IDirectoryScanner {
     }
   }
 
-  private get DEFAULT_OPTIONS(): TreeOptions {
+  private get defaultOptions(): TreeOptions {
     const config = this.configService.getConfig();
     return {
       ignore: config.directoryScanner.defaultIgnore,
@@ -71,7 +71,7 @@ export class DirectoryScanner implements IDirectoryScanner {
     options: Partial<TreeOptions> = {},
   ): Promise<IFileOperationResult> {
     try {
-      const defaultOptions = this.DEFAULT_OPTIONS;
+      const defaultOptions = this.defaultOptions;
       const scanOptions = { ...defaultOptions, ...options };
       const ignore = [
         ...this.REQUIRED_IGNORE,
