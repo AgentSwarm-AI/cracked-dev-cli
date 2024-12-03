@@ -1,12 +1,14 @@
 import { IActionBlueprint } from "../core/IAction";
 import { SearchAction } from "../SearchAction";
+import { ActionPriority } from "../types/ActionPriority";
 
 export const searchStringActionBlueprint: IActionBlueprint = {
   tag: "search_string",
   class: SearchAction,
   description: "Search for content within files",
-  priority: 0,
+  priority: ActionPriority.HIGH,
   canRunInParallel: true,
+  requiresProcessing: true,
   parameters: [
     {
       name: "directory",
@@ -27,8 +29,9 @@ export const searchFileActionBlueprint: IActionBlueprint = {
   tag: "search_file",
   class: SearchAction,
   description: "Search for files by name",
-  priority: 0,
+  priority: ActionPriority.HIGH,
   canRunInParallel: true,
+  requiresProcessing: true,
   parameters: [
     {
       name: "directory",

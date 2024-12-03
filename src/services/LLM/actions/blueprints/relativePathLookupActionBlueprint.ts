@@ -1,12 +1,14 @@
 import { IActionBlueprint } from "../core/IAction";
 import { RelativePathLookupAction } from "../RelativePathLookupAction";
+import { ActionPriority } from "../types/ActionPriority";
 
 export const relativePathLookupActionBlueprint: IActionBlueprint = {
   tag: "relative_path_lookup",
   class: RelativePathLookupAction,
   description: "Adjust and validate relative file paths",
-  priority: 0,
+  priority: ActionPriority.HIGH,
   canRunInParallel: true,
+  requiresProcessing: true,
   parameters: [
     {
       name: "source_path",

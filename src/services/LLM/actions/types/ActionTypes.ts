@@ -1,10 +1,20 @@
 import { ActionTag } from "../blueprints";
 import { CommandError } from "../errors/CommandError";
 
+export type ValidatorFn = (
+  value: string | number | boolean | unknown,
+) => boolean;
+
+export interface WriteActionData {
+  selectedModel?: string;
+  [key: string]: unknown;
+}
+
 export interface IActionResult {
   success: boolean;
-  data?: any;
+  data?: WriteActionData | unknown;
   error?: Error | CommandError;
+  processedResults?: Map<string, unknown>;
 }
 
 export interface IActionDependency {

@@ -1,12 +1,14 @@
 import { IActionBlueprint } from "../core/IAction";
 import { DeleteFileAction } from "../DeleteFileAction";
+import { ActionPriority } from "../types/ActionPriority";
 
 export const deleteFileActionBlueprint: IActionBlueprint = {
   tag: "delete_file",
   class: DeleteFileAction,
   description: "Delete a file at the specified path",
-  priority: 2, // Higher priority since it's a destructive operation
+  priority: ActionPriority.MEDIUM,
   canRunInParallel: false,
+  requiresProcessing: false,
   parameters: [
     {
       name: "path",

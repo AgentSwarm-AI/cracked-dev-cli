@@ -188,15 +188,16 @@ describe("ActionsParser", () => {
 
     it("should create execution groups with correct parallel flag", () => {
       const text = `
-        <read_file><path>test1.txt</path></read_file>
-        <read_file><path>test2.txt</path></read_file>
-        <write_file><path>test3.txt</path></write_file>
-      `;
+      <read_file><path>test1.txt</path></read_file>
+      <read_file><path>test2.txt</path></read_file>
+      <write_file><path>test3.txt</path></write_file>
+    `;
       const result = actionsParser.findCompleteTags(text);
       expect(result.groups).toHaveLength(2);
       expect(result.groups[0].parallel).toBe(true);
       expect(result.groups[0].actions).toHaveLength(2);
-      expect(result.groups[1].parallel).toBe(true);
+      // Updated expectation: write_file group should have parallel = false
+      expect(result.groups[1].parallel).toBe(false);
       expect(result.groups[1].actions).toHaveLength(1);
     });
   });

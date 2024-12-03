@@ -4,6 +4,7 @@ import {
   IActionDependency,
   IActionExecutionPlan,
   IActionGroup,
+  WriteActionData,
 } from "@services/LLM/actions/types/ActionTypes";
 import { DebugLogger } from "@services/logging/DebugLogger";
 import { HtmlEntityDecoder } from "@services/text/HTMLEntityDecoder";
@@ -74,6 +75,27 @@ export class ActionsParser {
     return urlMatch[1];
   }
 
+  private extractContentFromAction(actionContent: string): string {
+    // First try to find content tag
+    const contentMatch = actionContent.match(/<content>([\s\S]*?)<\/content>/);
+    if (contentMatch) {
+      return contentMatch[1];
+    }
+
+    // If no content tag, try to find path tag for file operations
+    const pathMatch = actionContent.match(/<path>(.*?)<\/path>/);
+    if (pathMatch) {
+      return pathMatch[1];
+    }
+
+    // For read_file actions, we want the entire content for dependency tracking
+    if (actionContent.includes("<read_file>")) {
+      return actionContent;
+    }
+
+    return "";
+  }
+
   private detectActionDependencies(
     actions: IActionDependency[],
   ): IActionDependency[] {
@@ -81,31 +103,29 @@ export class ActionsParser {
       const dependsOn: string[] = [];
 
       if (action.type === "write_file") {
-        const readActions = actions.filter(
-          (a) =>
-            a.type === "read_file" &&
-            action.content.includes(this.extractContentFromAction(a.content)),
-        );
+        // Find read_file actions whose content is used in this write_file
+        const readActions = actions.filter((a) => {
+          if (a.type !== "read_file") return false;
+          const readContent = this.extractContentFromAction(a.content);
+          const writeContent = this.extractContentFromAction(action.content);
+          return writeContent.includes(readContent);
+        });
         dependsOn.push(...readActions.map((a) => a.actionId));
       }
 
-      if (["move_file", "delete_file"].includes(action.type)) {
-        const writeActions = actions.filter(
-          (a) =>
-            a.type === "write_file" &&
-            this.extractFilePath(a.content) ===
-              this.extractFilePath(action.content),
-        );
+      if (["move_file", "delete_file", "copy_file"].includes(action.type)) {
+        // These actions should wait for any write operations on the same file
+        const writeActions = actions.filter((a) => {
+          if (a.type !== "write_file") return false;
+          const writePath = this.extractFilePath(a.content);
+          const actionPath = this.extractFilePath(action.content);
+          return writePath === actionPath;
+        });
         dependsOn.push(...writeActions.map((a) => a.actionId));
       }
 
       return { ...action, dependsOn };
     });
-  }
-
-  private extractContentFromAction(actionContent: string): string {
-    const match = actionContent.match(/<content>([\s\S]*?)<\/content>/);
-    return match ? match[1] : "";
   }
 
   private createExecutionPlan(
@@ -114,10 +134,17 @@ export class ActionsParser {
     const groups: IActionGroup[] = [];
     const unprocessedActions = [...actions];
 
+    // Helper to check if an action can be executed in parallel
+    const canRunInParallel = (action: IActionDependency) => {
+      const blueprint = getBlueprint(action.type);
+      return blueprint.canRunInParallel !== false;
+    };
+
     while (unprocessedActions.length > 0) {
       const currentGroup: IActionDependency[] = [];
       const remainingActions: IActionDependency[] = [];
 
+      // First, find all actions that can be executed (no pending dependencies)
       unprocessedActions.forEach((action) => {
         const canExecute =
           !action.dependsOn?.length ||
@@ -134,16 +161,29 @@ export class ActionsParser {
         }
       });
 
-      const canExecuteInParallel = currentGroup.every(
-        (action) =>
-          !["write_file", "delete_file", "move_file"].includes(action.type) ||
-          currentGroup.length === 1,
-      );
+      // If we have actions that can be executed, split them into parallel and sequential groups
+      if (currentGroup.length > 0) {
+        const parallelActions = currentGroup.filter(canRunInParallel);
+        const sequentialActions = currentGroup.filter(
+          (action) => !canRunInParallel(action),
+        );
 
-      groups.push({
-        actions: currentGroup,
-        parallel: canExecuteInParallel,
-      });
+        // Add parallel actions as one group if there are any
+        if (parallelActions.length > 0) {
+          groups.push({
+            actions: parallelActions,
+            parallel: true,
+          });
+        }
+
+        // Add each sequential action as its own group
+        sequentialActions.forEach((action) => {
+          groups.push({
+            actions: [action],
+            parallel: false,
+          });
+        });
+      }
 
       unprocessedActions.length = 0;
       unprocessedActions.push(...remainingActions);
@@ -165,29 +205,29 @@ export class ActionsParser {
       return { groups: [] };
     }
 
-    // Use getImplementedActions instead of getActionTags to only get fully implemented actions
-    const actionTags = getImplementedActions();
+    // Find all action tags in order of appearance
     const actions: IActionDependency[] = [];
+    const actionTags = getImplementedActions();
+    const allTagsRegex = new RegExp(
+      `<(${actionTags.join("|")})>[\\s\\S]*?</\\1>`,
+      "g",
+    );
+    const matches = Array.from(combinedText.matchAll(allTagsRegex));
 
-    for (const tag of actionTags) {
-      const tagRegex = new RegExp(`<${tag}>[\\s\\S]*?<\\/${tag}>`, "g");
-      const matches = combinedText.matchAll(tagRegex);
-
-      for (const match of matches) {
-        const content = match[0];
-        if (!this.processedTags.includes(content)) {
-          actions.push({
-            actionId: uuidv4(),
-            type: tag,
-            content,
-          });
-          this.processedTags.push(content);
-        }
+    for (const match of matches) {
+      const content = match[0];
+      const type = match[1] as any; // The captured tag name
+      if (!this.processedTags.includes(content)) {
+        actions.push({
+          actionId: uuidv4(),
+          type,
+          content,
+        });
+        this.processedTags.push(content);
       }
     }
 
     const actionsWithDependencies = this.detectActionDependencies(actions);
-
     return this.createExecutionPlan(actionsWithDependencies);
   }
 
@@ -297,18 +337,18 @@ export class ActionsParser {
 
           if (!hasError) {
             for (const result of groupResults) {
-              if (
-                result.action.includes("<write_file>") &&
-                result.result.data?.selectedModel
-              ) {
-                selectedModel = result.result.data.selectedModel;
-                this.debugLogger.log(
-                  "Model",
-                  "Updated model from write action",
-                  {
-                    model: selectedModel,
-                  },
-                );
+              if (result.action.includes("<write_file>")) {
+                const writeData = result.result.data as WriteActionData;
+                if (writeData?.selectedModel) {
+                  selectedModel = writeData.selectedModel;
+                  this.debugLogger.log(
+                    "Model",
+                    "Updated model from write action",
+                    {
+                      model: selectedModel,
+                    },
+                  );
+                }
               }
             }
           }
@@ -334,11 +374,18 @@ export class ActionsParser {
               break;
             }
 
-            if (action.type === "write_file" && result.data?.selectedModel) {
-              selectedModel = result.data.selectedModel;
-              this.debugLogger.log("Model", "Updated model from write action", {
-                model: selectedModel,
-              });
+            if (action.type === "write_file") {
+              const writeData = result.data as WriteActionData;
+              if (writeData?.selectedModel) {
+                selectedModel = writeData.selectedModel;
+                this.debugLogger.log(
+                  "Model",
+                  "Updated model from write action",
+                  {
+                    model: selectedModel,
+                  },
+                );
+              }
             }
           }
         }

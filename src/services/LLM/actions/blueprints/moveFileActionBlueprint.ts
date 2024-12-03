@@ -1,12 +1,14 @@
 import { IActionBlueprint } from "../core/IAction";
 import { MoveFileAction } from "../MoveFileAction";
+import { ActionPriority } from "../types/ActionPriority";
 
 export const moveFileActionBlueprint: IActionBlueprint = {
   tag: "move_file",
   class: MoveFileAction,
   description: "Move a file from source to destination path",
-  priority: 2, // Higher priority since it's a file operation
+  priority: ActionPriority.MEDIUM,
   canRunInParallel: false,
+  requiresProcessing: false,
   parameters: [
     {
       name: "source_path",

@@ -1,17 +1,15 @@
 import { autoInjectable } from "tsyringe";
 import { ActionTag, getBlueprint, getImplementedActions } from "./blueprints";
 import { ActionFactory } from "./core/ActionFactory";
+import { ActionQueue } from "./core/ActionQueue";
 import { IActionResult } from "./types/ActionTypes";
-
-interface IPendingAction {
-  type: string;
-  content: string;
-  priority: number;
-}
 
 @autoInjectable()
 export class ActionExecutor {
-  constructor(private actionFactory: ActionFactory) {}
+  constructor(
+    private actionFactory: ActionFactory,
+    private actionQueue: ActionQueue,
+  ) {}
 
   async executeAction(actionText: string): Promise<IActionResult> {
     try {
@@ -47,31 +45,25 @@ export class ActionExecutor {
         };
       }
 
-      // Collect and sort actions based on blueprint priorities
-      const pendingActions: IPendingAction[] = matches
-        .filter(
-          ([, actionType]) => actionType !== "path" && actionType !== "content",
-        )
-        .map(([fullMatch, actionType]) => {
-          const blueprint = getBlueprint(actionType as ActionTag);
-          return {
-            type: actionType,
-            content: fullMatch,
-            priority: blueprint?.priority || 0,
-          };
-        })
-        .sort((a, b) => (b.priority || 0) - (a.priority || 0));
-
-      // Execute actions in order
-      let lastResult: IActionResult = { success: true };
-      for (const action of pendingActions) {
-        // Validate action type
-        if (!implementedActions.includes(action.type as ActionTag)) {
-          return {
-            success: false,
-            error: new Error(`Unknown action type: ${action.type}`),
-          };
+      // Queue all actions
+      for (const [fullMatch, actionType] of matches) {
+        if (actionType !== "path" && actionType !== "content") {
+          if (implementedActions.includes(actionType as ActionTag)) {
+            this.actionQueue.enqueue(actionType, fullMatch);
+          } else {
+            return {
+              success: false,
+              error: new Error(`Unknown action type: ${actionType}`),
+            };
+          }
         }
+      }
+
+      // Process actions in order
+      let lastResult: IActionResult = { success: true };
+      while (!this.actionQueue.isEmpty()) {
+        const action = this.actionQueue.dequeue();
+        if (!action) continue;
 
         const actionInstance = this.actionFactory.createAction(
           action.type as ActionTag,
@@ -93,14 +85,44 @@ export class ActionExecutor {
           );
         }
 
-        // Execute action with full tag content
+        // Execute action
         lastResult = await actionInstance.execute(action.content);
 
-        if (!lastResult.success) break;
+        // Store result in queue for processing requirements
+        this.actionQueue.setActionResult(
+          action.type,
+          action.content,
+          lastResult,
+        );
+
+        if (!lastResult.success) {
+          // Clear queue on error
+          this.actionQueue.clear();
+          break;
+        }
+
+        // If this action requires processing, include its results in the final output
+        if (blueprint?.requiresProcessing && lastResult.success) {
+          lastResult = {
+            ...lastResult,
+            processedResults: this.actionQueue.getProcessedResults(),
+          };
+        }
       }
 
-      return lastResult;
+      // Get final processed results before clearing
+      const finalProcessedResults = this.actionQueue.getProcessedResults();
+
+      // Clear queue before returning
+      this.actionQueue.clear();
+
+      // Include processed results in final output if there are any
+      return finalProcessedResults.size > 0
+        ? { ...lastResult, processedResults: finalProcessedResults }
+        : lastResult;
     } catch (error) {
+      // Clear queue on error
+      this.actionQueue.clear();
       return {
         success: false,
         error: error as Error,

@@ -136,16 +136,12 @@ describe("FileSearch", () => {
 
   it("should handle special characters in content", async () => {
     const specialContent = "Special @#%&*() content";
-    const result = await fileSearch.findByContent(
-      specialContent,
-      testDir,
-    );
+    const result = await fileSearch.findByContent(specialContent, testDir);
 
     expect(result).toHaveLength(1);
     expect(
-      result
-        .find((res) => res.path.endsWith("special.txt"))
-        ?.matches[0].content,
+      result.find((res) => res.path.endsWith("special.txt"))?.matches[0]
+        .content,
     ).toContain(specialContent);
   });
 
@@ -158,9 +154,7 @@ describe("FileSearch", () => {
 
     expect(result).toHaveLength(1);
     expect(
-      result
-        .find((res) => res.path.endsWith("large.txt"))
-        ?.matches[0].content,
+      result.find((res) => res.path.endsWith("large.txt"))?.matches[0].content,
     ).toContain(largeContent.slice(0, 100));
   });
 
@@ -170,17 +164,21 @@ describe("FileSearch", () => {
       testDir,
     );
 
-    expect(result).toHaveLength(2);
+    // Sort results to ensure consistent ordering
+    const sortedResult = result.sort((a, b) => a.path.localeCompare(b.path));
+
+    expect(sortedResult).toHaveLength(2);
+    expect(sortedResult.map((r) => path.basename(r.path))).toEqual([
+      "test1.txt",
+      "test3.txt",
+    ]);
     expect(
-      result.find((res) => res.path.endsWith("nomatch.txt")),
+      sortedResult.find((res) => res.path.endsWith("nomatch.txt")),
     ).toBeUndefined();
   });
 
   it("should search files correctly by pattern", async () => {
-    const result = await fileSearch.findByPattern(
-      "*.txt",
-      testDir,
-    );
+    const result = await fileSearch.findByPattern("*.txt", testDir);
     expect(result).toHaveLength(6);
     expect(
       result.find((res) => res.path.endsWith("test1.txt")),
@@ -203,46 +201,31 @@ describe("FileSearch", () => {
   });
 
   it("should return an empty array if no files match by pattern", async () => {
-    const result = await fileSearch.findByPattern(
-      "*.md",
-      testDir,
-    );
+    const result = await fileSearch.findByPattern("*.md", testDir);
     expect(result).toEqual([]);
   });
 
   it("should find files by exact name", async () => {
-    const result = await fileSearch.findByName(
-      "test1.txt",
-      testDir,
-    );
+    const result = await fileSearch.findByName("test1.txt", testDir);
     expect(result).toHaveLength(1);
     expect(result[0]).toContain("test1.txt");
   });
 
   it("should find files by fuzzy name", async () => {
-    const result = await fileSearch.findByName(
-      "test1",
-      testDir,
-    );
+    const result = await fileSearch.findByName("test1", testDir);
     expect(result).toContainEqual(expect.stringContaining("test1.txt"));
   });
 
   it("should handle non-existent directory in findByName", async () => {
     const nonExistentDir = path.join(__dirname, "non-existent-dir");
-    const result = await fileSearch.findByName(
-      "test1.txt",
-      nonExistentDir,
-    );
+    const result = await fileSearch.findByName("test1.txt", nonExistentDir);
     expect(result).toEqual([]);
   });
 
   it("should handle empty directory in findByName", async () => {
     const emptyDir = path.join(__dirname, "empty-dir");
     await fs.ensureDir(emptyDir);
-    const result = await fileSearch.findByName(
-      "test1.txt",
-      emptyDir,
-    );
+    const result = await fileSearch.findByName("test1.txt", emptyDir);
     await fs.remove(emptyDir);
     expect(result).toEqual([]);
   });
