@@ -39,8 +39,9 @@ describe("ModelUtils", () => {
   });
 
   describe("formatMessageContent", () => {
-    const longContent = "a".repeat(1001);
+    const longContent = "a".repeat(4097); // 4097 characters, which is 1025 tokens
     const shortContent = "short message";
+    const veryLongContent = "a".repeat(10000); // Exceeds MAX_CHUNK_SIZE
 
     test("should add cache control for long content with Anthropic model", () => {
       const result = formatMessageContent(
@@ -49,6 +50,7 @@ describe("ModelUtils", () => {
         0,
         3
       );
+
       expect(result).toEqual([
         {
           type: "text",
@@ -67,13 +69,11 @@ describe("ModelUtils", () => {
         1,
         3
       );
+
       expect(result).toEqual([
         {
           type: "text",
           text: shortContent,
-          cache_control: {
-            type: "ephemeral",
-          },
         },
       ]);
     });
@@ -81,6 +81,68 @@ describe("ModelUtils", () => {
     test("should return raw content for non-Anthropic model", () => {
       const result = formatMessageContent(longContent, "openai/gpt-4", 0, 1);
       expect(result).toBe(longContent);
+    });
+
+    test("should split very long content into chunks", () => {
+      const result = formatMessageContent(
+        veryLongContent,
+        "anthropic/claude-3-opus",
+        0,
+        1
+      );
+
+      expect(Array.isArray(result)).toBe(true);
+      expect(result.length).toBeGreaterThan(1);
+      expect(result[0]).toHaveProperty('cache_control');
+      expect(result[1]).not.toHaveProperty('cache_control');
+    });
+
+    test("should handle different token thresholds for different models", () => {
+      // Test Haiku model which has higher token threshold
+      const mediumContent = "a".repeat(6000); // ~1500 tokens
+      const result = formatMessageContent(
+        mediumContent,
+        "anthropic/claude-3-haiku",
+        0,
+        1
+      );
+
+      expect(Array.isArray(result)).toBe(true);
+      // Should not have cache_control as it's below Haiku's threshold
+      expect(result[0]).not.toHaveProperty('cache_control');
+    });
+
+    test("should handle invalid model type gracefully", () => {
+      const result = formatMessageContent(
+        longContent,
+        "anthropic/invalid-model",
+        0,
+        1
+      );
+      expect(result).toBe(longContent);
+    });
+
+    test("should maintain text integrity when chunking", () => {
+      const testContent = "a".repeat(9000);
+      const result = formatMessageContent(
+        testContent,
+        "anthropic/claude-3-opus",
+        0,
+        1
+      ) as Array<any>;
+
+      const reconstructed = result.map(chunk => chunk.text).join('');
+      expect(reconstructed).toBe(testContent);
+    });
+
+    test("should handle empty content", () => {
+      const result = formatMessageContent(
+        "",
+        "anthropic/claude-3-opus",
+        0,
+        1
+      );
+      expect(result).toEqual([{ type: "text", text: "" }]);
     });
   });
 });

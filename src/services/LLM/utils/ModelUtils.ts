@@ -21,6 +21,16 @@ export const isAnthropicModel = (model: string): boolean => {
 
 const MAX_CHUNK_SIZE = 8000;
 
+// Minimum token thresholds for caching based on model
+const MIN_CACHE_TOKENS = {
+  opus: 1024,
+  sonnet: 1024,
+  haiku: 2048,
+};
+
+// Estimate tokens (4 chars per token is a rough estimate)
+const estimateTokens = (text: string): number => Math.ceil(text.length / 4);
+
 export const formatMessageContent = (
   content: string,
   model: string,
@@ -31,23 +41,24 @@ export const formatMessageContent = (
     return content;
   }
 
-  // Find first user message index
-  const shouldCache = (index: number, total: number): boolean => {
-    // Always cache first user message
-    if (index === 0) return true;
-    // Cache last 3 messages
-    return index >= total - 3;
-  };
+  // Extract model type from the model string
+  const modelType = model.match(/(?:opus|sonnet|haiku)/)?.[0];
+  if (!modelType) return content;
 
-  const addCacheControl = shouldCache(messageIndex, totalMessages);
+  // Get minimum token threshold for this model
+  const minTokens =
+    MIN_CACHE_TOKENS[modelType as keyof typeof MIN_CACHE_TOKENS] || 2048;
 
-  // For small content, return single block
-  if (content.length <= 1000) {
+  // Only cache if content exceeds minimum token threshold
+  const shouldCache = estimateTokens(content) >= minTokens;
+
+  // For content below MAX_CHUNK_SIZE, return single block
+  if (content.length <= MAX_CHUNK_SIZE) {
     return [
       {
         type: "text",
         text: content,
-        ...(addCacheControl && { cache_control: { type: "ephemeral" } }),
+        ...(shouldCache && { cache_control: { type: "ephemeral" } }),
       },
     ];
   }
@@ -61,10 +72,10 @@ export const formatMessageContent = (
     remaining = remaining.slice(MAX_CHUNK_SIZE);
   }
 
+  // Only add cache_control if total content meets minimum token threshold
   return chunks.map((chunk, index) => ({
     type: "text",
     text: chunk,
-    ...(addCacheControl &&
-      index === 0 && { cache_control: { type: "ephemeral" } }),
+    ...(shouldCache && index === 0 && { cache_control: { type: "ephemeral" } }),
   }));
 };

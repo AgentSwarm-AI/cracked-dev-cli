@@ -115,39 +115,88 @@ describe("OpenRouterAPI", () => {
         );
       });
 
-      it("should format messages with cache control for anthropic models with long content", async () => {
-        const longContent = "a".repeat(1001);
+      it("should format messages with cache control for anthropic models with sufficient tokens", async () => {
+        // Create content that exceeds minimum token threshold (1024 tokens ≈ 4096 chars for opus/sonnet)
+        const longContent = "a".repeat(4500);
         await openRouterAPI.sendMessage("anthropic/claude-3-opus", longContent);
 
-        expect(postSpy).toHaveBeenCalledWith("/chat/completions", {
-          model: "anthropic/claude-3-opus",
-          messages: [
-            {
-              role: "user",
-              content: [
-                {
-                  type: "text",
-                  text: longContent,
-                  cache_control: { type: "ephemeral" },
-                },
-              ],
+        expect(postSpy).toHaveBeenCalledWith(
+          "/chat/completions",
+          {
+            model: "anthropic/claude-3-opus",
+            messages: [
+              {
+                role: "user",
+                content: [
+                  {
+                    type: "text",
+                    text: longContent,
+                    cache_control: { type: "ephemeral" },
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            headers: {
+              "anthropic-beta": "prompt-caching-2024-07-31",
+              "anthropic-version": "2023-06-01",
             },
-          ],
-        });
+          },
+        );
+      });
+
+      it("should not add cache control for anthropic models with insufficient tokens", async () => {
+        // Content below minimum token threshold
+        const shortContent = "test message";
+        await openRouterAPI.sendMessage(
+          "anthropic/claude-3-opus",
+          shortContent,
+        );
+
+        expect(postSpy).toHaveBeenCalledWith(
+          "/chat/completions",
+          {
+            model: "anthropic/claude-3-opus",
+            messages: [
+              {
+                role: "user",
+                content: [
+                  {
+                    type: "text",
+                    text: shortContent,
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            headers: {
+              "anthropic-beta": "prompt-caching-2024-07-31",
+              "anthropic-version": "2023-06-01",
+            },
+          },
+        );
       });
 
       it("should format messages without cache control for non-anthropic models", async () => {
         await openRouterAPI.sendMessage("gpt-4", "test message");
 
-        expect(postSpy).toHaveBeenCalledWith("/chat/completions", {
-          model: "gpt-4",
-          messages: [
-            {
-              role: "user",
-              content: "test message",
-            },
-          ],
-        });
+        expect(postSpy).toHaveBeenCalledWith(
+          "/chat/completions",
+          {
+            model: "gpt-4",
+            messages: [
+              {
+                role: "user",
+                content: "test message",
+              },
+            ],
+          },
+          {
+            headers: {},
+          },
+        );
       });
 
       it("should handle API errors appropriately", async () => {
@@ -296,14 +345,20 @@ describe("OpenRouterAPI", () => {
 
       await openRouterAPI.sendMessage("gpt-4", "Second message");
 
-      expect(postSpy).toHaveBeenLastCalledWith("/chat/completions", {
-        model: "gpt-4",
-        messages: [
-          { role: "user", content: "First message" },
-          { role: "assistant", content: "First response" },
-          { role: "user", content: "Second message" },
-        ],
-      });
+      expect(postSpy).toHaveBeenLastCalledWith(
+        "/chat/completions",
+        {
+          model: "gpt-4",
+          messages: [
+            { role: "user", content: "First message" },
+            { role: "assistant", content: "First response" },
+            { role: "user", content: "Second message" },
+          ],
+        },
+        {
+          headers: {},
+        },
+      );
     });
 
     it("should handle system instructions in conversation context", async () => {
@@ -332,10 +387,16 @@ describe("OpenRouterAPI", () => {
       expect(
         MessageContextManager.prototype.setSystemInstructions,
       ).toHaveBeenCalledWith(systemInstructions);
-      expect(postSpy).toHaveBeenCalledWith("/chat/completions", {
-        model: "gpt-4",
-        messages: [...mockMessages, { role: "user", content: "New message" }],
-      });
+      expect(postSpy).toHaveBeenCalledWith(
+        "/chat/completions",
+        {
+          model: "gpt-4",
+          messages: [...mockMessages, { role: "user", content: "New message" }],
+        },
+        {
+          headers: {},
+        },
+      );
     });
   });
 });

@@ -174,7 +174,7 @@ Example:
 
 ### Tests
 
-- CRITICAL: read_file on other test files to understand patterns used! ALWAYS do this.
+- CRITICAL: Before creating a new test file, review existing files to understand patterns. Use search or directory listing to locate file paths if unknown. Avoid using non-existent files.
 - CRITICAL: Whenever stuck on multiple test failures, do a read_file in other test files to understand patterns.
 - If working on a test, assume the related file is correct. So don't make any changes on it, unless you find a critical bug.
 - Do not remove previous tests unless necessary; add new ones.

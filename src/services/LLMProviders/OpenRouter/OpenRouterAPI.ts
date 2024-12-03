@@ -7,6 +7,7 @@ import { ModelScaler } from "@services/LLM/ModelScaler";
 import {
   formatMessageContent,
   IMessageContent,
+  isAnthropicModel,
 } from "@services/LLM/utils/ModelUtils";
 import { DebugLogger } from "@services/logging/DebugLogger";
 import { HtmlEntityDecoder } from "@services/text/HTMLEntityDecoder";
@@ -59,6 +60,34 @@ export class OpenRouterAPI implements ILLMProvider {
         error,
       });
     }
+  }
+
+  private getAnthropicHeaders(model: string): Record<string, string> {
+    if (!isAnthropicModel(model)) {
+      return {};
+    }
+
+    return {
+      "anthropic-beta": "prompt-caching-2024-07-31",
+      "anthropic-version": "2023-06-01",
+    };
+  }
+
+  private async makeRequest(
+    endpoint: string,
+    data: any,
+    options: any = {},
+  ): Promise<any> {
+    const model = data.model;
+    const headers = this.getAnthropicHeaders(model);
+
+    return this.httpClient.post(endpoint, data, {
+      ...options,
+      headers: {
+        ...options.headers,
+        ...headers,
+      },
+    });
   }
 
   private async handleLLMError(
@@ -135,7 +164,7 @@ export class OpenRouterAPI implements ILLMProvider {
         currentModel,
       );
 
-      const response = await this.httpClient.post("/chat/completions", {
+      const response = await this.makeRequest("/chat/completions", {
         model: currentModel,
         messages: formattedMessages,
         ...options,
@@ -342,7 +371,7 @@ export class OpenRouterAPI implements ILLMProvider {
       );
 
       const streamOperation = async () => {
-        const response = await this.httpClient.post(
+        const response = await this.makeRequest(
           "/chat/completions",
           {
             model: currentModel,
