@@ -266,6 +266,10 @@ export class ActionsParser {
 
     const [_, actionType] = actionMatch;
 
+    if (actionType === "execute_command" && result.success) {
+      return `Command execution result:\n\n${result.data}\n\nPlease analyze this output and continue with the task.`;
+    }
+
     if (actionType === "read_file" && result.success) {
       const output = this.htmlEntityDecoder.decode(
         JSON.stringify(result.data),
@@ -285,6 +289,14 @@ export class ActionsParser {
 
     if (actionType === "end_task" && result.success) {
       return `Task completed: ${result.data}`;
+    }
+
+    if (actionType === "end_phase" && result.success) {
+      const data = result.data as WriteActionData;
+      if (data?.regenerate && data?.prompt) {
+        return data.prompt as string;
+      }
+      return `Phase completed. Moving to next phase.`;
     }
 
     if (actionType === "relative_path_lookup" && result.success) {

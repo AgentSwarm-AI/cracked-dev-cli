@@ -7,6 +7,7 @@ export type ValidatorFn = (
 
 export interface WriteActionData {
   selectedModel?: string;
+  regenerate?: boolean;
   [key: string]: unknown;
 }
 

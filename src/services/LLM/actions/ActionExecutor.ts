@@ -1,3 +1,4 @@
+import { MessageContextManager } from "@services/LLM/MessageContextManager";
 import { autoInjectable } from "tsyringe";
 import { ActionTag, getBlueprint, getImplementedActions } from "./blueprints";
 import { ActionFactory } from "./core/ActionFactory";
@@ -9,6 +10,7 @@ export class ActionExecutor {
   constructor(
     private actionFactory: ActionFactory,
     private actionQueue: ActionQueue,
+    private messageContextManager: MessageContextManager,
   ) {}
 
   async executeAction(actionText: string): Promise<IActionResult> {
@@ -23,12 +25,18 @@ export class ActionExecutor {
           !actionText.includes(`<${actionType}>`) &&
           !actionText.includes(`</${actionType}>`)
         ) {
-          return {
+          const error = new Error(
+            `Found "${actionType}" without proper XML tag structure. Tags must be wrapped in < > brackets. For example: <${actionType}>content</${actionType}>`,
+          );
+          this.messageContextManager.logAction(actionType, {
             success: false,
-            error: new Error(
-              `Found "${actionType}" without proper XML tag structure. Tags must be wrapped in < > brackets. For example: <${actionType}>content</${actionType}>`,
-            ),
-          };
+            error,
+          });
+          this.messageContextManager.addMessage(
+            "system",
+            `Action ${actionType} failed: Invalid XML structure`,
+          );
+          return { success: false, error };
         }
       }
 
@@ -37,12 +45,18 @@ export class ActionExecutor {
       const matches = Array.from(actionText.matchAll(actionMatch));
 
       if (!matches.length) {
-        return {
+        const error = new Error(
+          "No valid action tags found. Actions must be wrapped in XML-style tags.",
+        );
+        this.messageContextManager.logAction("unknown", {
           success: false,
-          error: new Error(
-            "No valid action tags found. Actions must be wrapped in XML-style tags.",
-          ),
-        };
+          error,
+        });
+        this.messageContextManager.addMessage(
+          "system",
+          "Action failed: No valid action tags found",
+        );
+        return { success: false, error };
       }
 
       // Queue all actions
@@ -51,10 +65,16 @@ export class ActionExecutor {
           if (implementedActions.includes(actionType as ActionTag)) {
             this.actionQueue.enqueue(actionType, fullMatch);
           } else {
-            return {
+            const error = new Error(`Unknown action type: ${actionType}`);
+            this.messageContextManager.logAction(actionType, {
               success: false,
-              error: new Error(`Unknown action type: ${actionType}`),
-            };
+              error,
+            });
+            this.messageContextManager.addMessage(
+              "system",
+              `Action failed: Unknown type ${actionType}`,
+            );
+            return { success: false, error };
           }
         }
       }
@@ -69,12 +89,18 @@ export class ActionExecutor {
           action.type as ActionTag,
         );
         if (!actionInstance) {
-          return {
+          const error = new Error(
+            `Failed to create action instance for "${action.type}"`,
+          );
+          this.messageContextManager.logAction(action.type, {
             success: false,
-            error: new Error(
-              `Failed to create action instance for "${action.type}"`,
-            ),
-          };
+            error,
+          });
+          this.messageContextManager.addMessage(
+            "system",
+            `Action ${action.type} failed: Could not create instance`,
+          );
+          return { success: false, error };
         }
 
         // Get blueprint for logging
@@ -87,6 +113,32 @@ export class ActionExecutor {
 
         // Execute action
         lastResult = await actionInstance.execute(action.content);
+
+        // Log the result
+        this.messageContextManager.logAction(action.type, lastResult);
+
+        // Add result to conversation history
+        if (lastResult.success) {
+          if (lastResult.data) {
+            this.messageContextManager.addMessage(
+              "system",
+              `Action ${action.type} succeeded: ${lastResult.data}`,
+            );
+          } else {
+            this.messageContextManager.addMessage(
+              "system",
+              `Action ${action.type} succeeded`,
+            );
+          }
+        } else {
+          const errorMessage = lastResult.error
+            ? lastResult.error.message
+            : "Unknown error";
+          this.messageContextManager.addMessage(
+            "system",
+            `Action ${action.type} failed: ${errorMessage}`,
+          );
+        }
 
         // Store result in queue for processing requirements
         this.actionQueue.setActionResult(
@@ -123,6 +175,17 @@ export class ActionExecutor {
     } catch (error) {
       // Clear queue on error
       this.actionQueue.clear();
+
+      // Log the error
+      this.messageContextManager.logAction("unknown", {
+        success: false,
+        error: error as Error,
+      });
+      this.messageContextManager.addMessage(
+        "system",
+        `Action failed with error: ${(error as Error).message}`,
+      );
+
       return {
         success: false,
         error: error as Error,

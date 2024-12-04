@@ -1,4 +1,3 @@
-import { DEFAULT_INITIAL_MODEL } from "@constants/models";
 import chalk from "chalk";
 import * as fs from "fs";
 import * as path from "path";
@@ -6,7 +5,6 @@ import { autoInjectable } from "tsyringe";
 import { z } from "zod";
 
 const configSchema = z.object({
-  model: z.string(),
   provider: z.string(),
   customInstructions: z.string(),
   interactive: z.boolean(),
@@ -19,6 +17,13 @@ const configSchema = z.object({
   autoScaler: z.boolean().optional(),
   autoScaleMaxTryPerModel: z.number().optional(),
   includeAllFilesOnEnvToContext: z.boolean().optional(),
+  // Phase-specific model configurations
+  discoveryModel: z.string().optional().default("google/gemini-flash-1.5-8b"),
+  strategyModel: z.string().optional().default("qwen/qwq-32b-preview"),
+  executeModel: z
+    .string()
+    .optional()
+    .default("anthropic/claude-3.5-sonnet:beta"),
   autoScaleAvailableModels: z
     .array(
       z.object({
@@ -79,7 +84,6 @@ export class ConfigService {
       console.log("Creating default crkdrc.json configuration...");
 
       const defaultConfig = {
-        model: DEFAULT_INITIAL_MODEL,
         provider: "open-router",
         customInstructions: "Follow clean code principles",
         interactive: true,
@@ -92,6 +96,10 @@ export class ConfigService {
         appName: "MyCrackedApp",
         autoScaler: true,
         autoScaleMaxTryPerModel: 2,
+        // Phase-specific model configurations
+        discoveryModel: "google/gemini-flash-1.5-8b",
+        strategyModel: "qwen/qwq-32b-preview",
+        executeModel: "anthropic/claude-3.5-sonnet:beta",
         includeAllFilesOnEnvToContext: false,
         autoScaleAvailableModels: [
           {
@@ -148,7 +156,7 @@ export class ConfigService {
       this.ensureGitIgnore();
 
       chalk.green(
-        "CrackedDevCLI config generated. Please, add Provider, Model, and API Key to crkdrc.json.",
+        "CrackedDevCLI config generated. Please, add Provider and API Key to crkdrc.json.",
       );
     }
   }

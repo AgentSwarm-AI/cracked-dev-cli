@@ -1,9 +1,10 @@
 /* eslint-disable no-useless-catch */
+import { ModelScaler } from "@/services/LLM/ModelScaler";
 import { openRouterClient } from "@constants/openRouterClient";
 import { ILLMProvider, IMessage } from "@services/LLM/ILLMProvider";
 import { MessageContextManager } from "@services/LLM/MessageContextManager";
 import { ModelInfo } from "@services/LLM/ModelInfo";
-import { ModelScaler } from "@services/LLM/ModelScaler";
+import { ModelManager } from "@services/LLM/ModelManager";
 import {
   formatMessageContent,
   IMessageContent,
@@ -44,9 +45,10 @@ export class OpenRouterAPI implements ILLMProvider {
   constructor(
     private messageContextManager: MessageContextManager,
     private htmlEntityDecoder: HtmlEntityDecoder,
-    private modelScaler: ModelScaler,
+    private modelManager: ModelManager,
     private modelInfo: ModelInfo,
     private debugLogger: DebugLogger,
+    private modelScaler: ModelScaler,
   ) {
     this.httpClient = openRouterClient;
     this.initializeModelInfo();
@@ -104,7 +106,7 @@ export class OpenRouterAPI implements ILLMProvider {
         typeof data.error === "string" &&
         data.error.includes("context length")
       ) {
-        const model = this.modelScaler.getCurrentModel();
+        const model = this.modelManager.getCurrentModel();
         const contextLimit = await this.modelInfo.getModelContextLength(model);
         return new LLMError(
           "Maximum context length exceeded",
@@ -154,7 +156,7 @@ export class OpenRouterAPI implements ILLMProvider {
     options?: Record<string, unknown>,
   ): Promise<string> {
     const messages = this.getConversationContext();
-    const currentModel = this.modelScaler.getCurrentModel() || model;
+    const currentModel = this.modelManager.getCurrentModel() || model;
 
     try {
       await this.modelInfo.setCurrentModel(currentModel);
@@ -248,7 +250,7 @@ export class OpenRouterAPI implements ILLMProvider {
         await this.messageContextManager.cleanupContext();
       if (wasContextCleaned) {
         await this.streamMessage(
-          this.modelScaler.getCurrentModel(),
+          this.modelManager.getCurrentModel(),
           message,
           callback,
         );
@@ -357,7 +359,7 @@ export class OpenRouterAPI implements ILLMProvider {
     options?: Record<string, unknown>,
   ): Promise<void> {
     const messages = this.getConversationContext();
-    const currentModel = this.modelScaler.getCurrentModel() || model;
+    const currentModel = this.modelManager.getCurrentModel() || model;
 
     let assistantMessage = "";
     this.streamBuffer = "";

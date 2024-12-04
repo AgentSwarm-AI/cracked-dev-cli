@@ -36,7 +36,7 @@ describe("ConfigService", () => {
         "crkdrc.json\n",
       );
       expect(chalk.green).toHaveBeenCalledWith(
-        "CrackedDevCLI config generated. Please, add Provider, Model, and API Key to crkdrc.json.",
+        "CrackedDevCLI config generated. Please, add Provider and API Key to crkdrc.json.",
       );
     });
 
@@ -53,7 +53,6 @@ describe("ConfigService", () => {
   describe("getConfig", () => {
     it("should load a valid config file", () => {
       const mockConfig = {
-        model: "qwen/qwen-2.5-coder-32b-instruct",
         provider: "open-router",
         customInstructions: "Follow clean code principles",
         interactive: true,
@@ -62,12 +61,39 @@ describe("ConfigService", () => {
         options:
           "temperature=0,top_p=0.1,top_k=1,frequence_penalty=0.0,presence_penalty=0.0,repetition_penalty=1.0",
         openRouterApiKey: "test-key",
-        autoScaler: true,
-        includeAllFilesOnEnvToContext: false,
-        appName: "MyApp",
         appUrl: "https://localhost:8080",
+        appName: "MyApp",
+        autoScaler: true,
+        autoScaleMaxTryPerModel: 2,
+        discoveryModel: "google/gemini-flash-1.5-8b",
+        strategyModel: "qwen/qwq-32b-preview",
+        executeModel: "anthropic/claude-3.5-sonnet:beta",
+        includeAllFilesOnEnvToContext: false,
+        autoScaleAvailableModels: [
+          {
+            id: "qwen/qwen-2.5-coder-32b-instruct",
+            description: "Cheap, fast, slightly better than GPT4o-mini",
+            maxWriteTries: 5,
+            maxGlobalTries: 10,
+          },
+          {
+            id: "anthropic/claude-3.5-sonnet:beta",
+            description: "Scaled model for retry attempts",
+            maxWriteTries: 5,
+            maxGlobalTries: 15,
+          },
+          {
+            id: "openai/gpt-4o-2024-11-20",
+            description: "Scaled model for retry attempts",
+            maxWriteTries: 2,
+            maxGlobalTries: 20,
+          },
+        ],
+        runAllTestsCmd: "yarn test",
+        runOneTestCmd: "yarn test {relativeTestPath}",
+        runTypeCheckCmd: "yarn typecheck",
+        enableConversationLog: false,
         directoryScanner: {
-          allFiles: true,
           defaultIgnore: [
             "dist",
             "coverage",
@@ -76,9 +102,10 @@ describe("ConfigService", () => {
             ".cache",
             ".husky",
           ],
+          maxDepth: 8,
+          allFiles: true,
           directoryFirst: true,
           excludeDirectories: false,
-          maxDepth: 8,
         },
       };
 

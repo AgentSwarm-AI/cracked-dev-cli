@@ -85,14 +85,8 @@ export class WriteFileAction extends BaseAction {
       return this.createErrorResult(result.error!);
     }
 
-    // Only return selectedModel if auto-scaler is disabled
-    // This prevents model change loops during auto-scaling
-    if (!this.modelScaler.isAutoScalerEnabled()) {
-      return this.createSuccessResult({
-        selectedModel: this.modelScaler.getCurrentModel(),
-      });
-    }
-
+    // Don't return model information in the result
+    // Let ModelScaler/ModelManager handle model changes directly
     return this.createSuccessResult();
   }
 

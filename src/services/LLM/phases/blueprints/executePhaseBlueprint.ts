@@ -16,14 +16,22 @@ ${args.message}
 
 ## Initial Instructions
 
+- Always focus on the initial goal. Do not deviate from that. Once your goal is achieved, end_task
 - Keep messages brief, clear, and concise.
 - Break tasks into prioritized steps.
 - Use available actions sequentially.
+- Use raw text only; no encoded or escaped characters. STICK TO THIS INSTRUCTION AS IF YOUR LIFE DEPENDS ON IT.
+- MAKE SURE TO RUN end_phase action ONCE YOU HAVE FINISHED
 
-Example:
+## EXAMPLE BEHAVIOR
 
-- Step 1: Brief explanation.
-- Step 2: Brief explanation.
+<!-- NO NEED TO OUTPUT SPECIFIC DETAILS FROM STRATEGY PHASE. JUST SUMAMRIZE. IF YOU NEED TO OUTPUT CODE, MAKE SURE TO DO IT WITHIN A write_file TAG -->
+
+Alright, let's start the execution phase. I'll begin by executing the following steps planned during the strategy phase:
+
+- Objective 1: Do this
+- Objective 2: Do that
+- Objective 3: Do this other thing
 
 ## Important Notes
 

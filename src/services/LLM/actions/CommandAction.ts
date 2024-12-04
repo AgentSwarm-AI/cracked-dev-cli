@@ -136,7 +136,8 @@ export class CommandAction extends BaseAction {
           // Add the exit code message if there's no output
           const output = stdoutData + stderrData;
           const combinedOutput =
-            (output || `Command completed with exit code ${exitCode}`) + extra;
+            (output || `Command completed with exit code ${exitCode}`) +
+            (exitCode === 1 ? extra : "");
 
           this.debugLogger.log("CommandAction", "Command execution completed", {
             command,

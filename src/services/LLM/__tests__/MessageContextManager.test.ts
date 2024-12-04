@@ -71,6 +71,99 @@ describe("MessageContextManager", () => {
         "Content cannot be empty",
       );
     });
+
+    it("should remove old phase prompts when new phase prompt is added", () => {
+      messageContextManager.addMessage(
+        "assistant",
+        `<phase_prompt>
+          Discovery Phase
+        </phase_prompt>
+        Some discovery content`,
+      );
+
+      messageContextManager.addMessage(
+        "assistant",
+        `<phase_prompt>
+          Strategy Phase
+        </phase_prompt>
+        Some strategy content`,
+      );
+
+      expect(messageContextManager.getMessages()).toEqual([
+        {
+          role: "assistant",
+          content: `<phase_prompt>
+          Strategy Phase
+        </phase_prompt>
+        Some strategy content`,
+        },
+      ]);
+    });
+
+    it("should not remove non-phase messages when new phase prompt is added", () => {
+      messageContextManager.addMessage("user", "Initial request");
+      messageContextManager.addMessage(
+        "assistant",
+        `<phase_prompt>
+          Discovery Phase
+        </phase_prompt>
+        Some discovery content`,
+      );
+      messageContextManager.addMessage("user", "Additional info");
+      messageContextManager.addMessage(
+        "assistant",
+        `<phase_prompt>
+          Strategy Phase
+        </phase_prompt>
+        Some strategy content`,
+      );
+
+      expect(messageContextManager.getMessages()).toEqual([
+        { role: "user", content: "Initial request" },
+        { role: "user", content: "Additional info" },
+        {
+          role: "assistant",
+          content: `<phase_prompt>
+          Strategy Phase
+        </phase_prompt>
+        Some strategy content`,
+        },
+      ]);
+    });
+
+    it("should handle phase prompts and file operations cleanup together", () => {
+      messageContextManager.addMessage(
+        "assistant",
+        `<phase_prompt>
+          Discovery Phase
+        </phase_prompt>
+        <read_file>
+          <path>/path/to/file1</path>
+        </read_file>`,
+      );
+
+      messageContextManager.addMessage(
+        "assistant",
+        `<phase_prompt>
+          Strategy Phase
+        </phase_prompt>
+        <read_file>
+          <path>/path/to/file1</path>
+        </read_file>`,
+      );
+
+      expect(messageContextManager.getMessages()).toEqual([
+        {
+          role: "assistant",
+          content: `<phase_prompt>
+          Strategy Phase
+        </phase_prompt>
+        <read_file>
+          <path>/path/to/file1</path>
+        </read_file>`,
+        },
+      ]);
+    });
   });
 
   describe("getMessages", () => {

@@ -1,6 +1,7 @@
 import { Args, Command, Flags } from "@oclif/core";
 import { CrackedAgent, CrackedAgentOptions } from "@services/CrackedAgent";
 import { LLMProviderType } from "@services/LLM/LLMProvider";
+import { ModelManager } from "@services/LLM/ModelManager";
 import * as readline from "readline";
 import { container } from "tsyringe";
 import { ConfigService } from "../services/ConfigService";
@@ -29,10 +30,12 @@ export class Run extends Command {
   };
 
   private configService: ConfigService;
+  private modelManager: ModelManager;
 
   constructor(argv: string[], config: any) {
     super(argv, config);
     this.configService = container.resolve(ConfigService);
+    this.modelManager = container.resolve(ModelManager);
   }
 
   private parseOptions(optionsString: string): Record<string, unknown> {
@@ -132,13 +135,13 @@ export class Run extends Command {
     }
 
     try {
-      if (!config.model) {
-        throw new Error("Model is required in configuration");
+      if (!config.discoveryModel) {
+        throw new Error("Discovery model is required in configuration");
       }
 
       const options: CrackedAgentOptions = {
         ...config,
-        model: config.model,
+        model: this.modelManager.getCurrentModel(),
         options: this.parseOptions(config.options || ""),
         provider: config.provider as LLMProviderType,
       };

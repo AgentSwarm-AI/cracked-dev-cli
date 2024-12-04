@@ -12,10 +12,17 @@ interface FileOperation {
   command?: string;
 }
 
+interface ActionResult {
+  success: boolean;
+  error?: Error;
+  result?: string;
+}
+
 @singleton()
 @autoInjectable()
 export class MessageContextManager {
-  private conversationHistory: IMessage[] = [];
+  //! Rollback to private
+  public conversationHistory: IMessage[] = [];
   private systemInstructions: string | null = null;
   private currentModel: string | null = null;
   private readonly logPath = path.join(
@@ -60,6 +67,29 @@ export class MessageContextManager {
       fs.appendFileSync(this.logPath, logEntry, "utf8");
     } catch (error) {
       this.debugLogger.log("Context", "Error writing to log file", { error });
+    }
+  }
+
+  private logActionResult(action: string, result: ActionResult): void {
+    // Skip logging in test environment or if disabled
+    if (process.env.NODE_ENV === "test" || !this.isLoggingEnabled()) return;
+
+    try {
+      const timestamp = new Date().toISOString();
+      const status = result.success ? "SUCCESS" : "FAILED";
+      const details = result.error
+        ? ` - Error: ${result.error.message}`
+        : result.result
+          ? ` - ${result.result}`
+          : "";
+      const logEntry = `[${timestamp}] ACTION ${action}: ${status}${details}\n`;
+      fs.appendFileSync(this.logPath, logEntry, "utf8");
+    } catch (error) {
+      this.debugLogger.log(
+        "Context",
+        "Error writing action result to log file",
+        { error },
+      );
     }
   }
 
@@ -140,13 +170,22 @@ export class MessageContextManager {
     return operations;
   }
 
+  private hasPhasePrompt(content: string): boolean {
+    return content.includes("<phase_prompt>");
+  }
+
   private removeOldOperations(newMessage: IMessage): void {
     this.debugLogger.log("Context", "Removing old operations");
 
     const newOperations = this.extractOperations(newMessage.content);
-    if (newOperations.length === 0) return;
+    const hasNewPhasePrompt = this.hasPhasePrompt(newMessage.content);
 
     this.conversationHistory = this.conversationHistory.filter((msg) => {
+      // If new message has a phase prompt, remove old phase prompts
+      if (hasNewPhasePrompt && this.hasPhasePrompt(msg.content)) {
+        return false;
+      }
+
       // Keep messages without operations
       if (
         !msg.content.includes("<read_file>") &&
@@ -176,6 +215,24 @@ export class MessageContextManager {
     this.updateLogFile();
   }
 
+  cleanupPhaseContent(): void {
+    this.debugLogger.log("Context", "Cleaning up phase content");
+
+    // Remove all content within phase-related tags from previous messages
+    this.conversationHistory = this.conversationHistory.map((msg) => {
+      let content = msg.content;
+      // Remove phase_prompt content
+      content = content.replace(/<phase_prompt>[\s\S]*?<\/phase_prompt>/g, "");
+      return {
+        ...msg,
+        content: content,
+      };
+    });
+
+    // Update the log file with cleaned conversation history
+    this.updateLogFile();
+  }
+
   setCurrentModel(model: string): void {
     this.currentModel = model;
     this.modelInfo.setCurrentModel(model);
@@ -201,6 +258,10 @@ export class MessageContextManager {
     this.logMessage(message);
 
     return true;
+  }
+
+  logAction(action: string, result: ActionResult): void {
+    this.logActionResult(action, result);
   }
 
   getMessages(): IMessage[] {

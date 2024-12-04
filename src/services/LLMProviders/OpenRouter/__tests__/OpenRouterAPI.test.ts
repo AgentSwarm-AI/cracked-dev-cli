@@ -1,3 +1,4 @@
+import { ModelManager } from "@/services/LLM/ModelManager";
 import { MessageContextManager } from "@services/LLM/MessageContextManager";
 import { ModelInfo } from "@services/LLM/ModelInfo";
 import { ModelScaler } from "@services/LLM/ModelScaler";
@@ -26,6 +27,7 @@ describe("OpenRouterAPI", () => {
       "addMessage",
       () => {},
     );
+
     mocker.spyOnPrototypeWithImplementation(
       MessageContextManager,
       "clear",
@@ -81,6 +83,11 @@ describe("OpenRouterAPI", () => {
     setupMocks();
     openRouterAPI = container.resolve(OpenRouterAPI);
     postSpy = jest.spyOn(openRouterAPI["httpClient"], "post");
+    mocker.spyOnPrototypeWithImplementation(
+      ModelManager,
+      "getCurrentModel",
+      () => "anthropic/claude-3-opus", // Fix model name consistency
+    );
   });
 
   afterEach(() => {
@@ -116,7 +123,6 @@ describe("OpenRouterAPI", () => {
       });
 
       it("should format messages with cache control for anthropic models with sufficient tokens", async () => {
-        // Create content that exceeds minimum token threshold (1024 tokens ≈ 4096 chars for opus/sonnet)
         const longContent = "a".repeat(4500);
         await openRouterAPI.sendMessage("anthropic/claude-3-opus", longContent);
 
@@ -147,7 +153,6 @@ describe("OpenRouterAPI", () => {
       });
 
       it("should not add cache control for anthropic models with insufficient tokens", async () => {
-        // Content below minimum token threshold
         const shortContent = "test message";
         await openRouterAPI.sendMessage(
           "anthropic/claude-3-opus",
@@ -180,6 +185,12 @@ describe("OpenRouterAPI", () => {
       });
 
       it("should format messages without cache control for non-anthropic models", async () => {
+        mocker.spyOnPrototypeWithImplementation(
+          ModelManager,
+          "getCurrentModel",
+          () => "gpt-4",
+        );
+
         await openRouterAPI.sendMessage("gpt-4", "test message");
 
         expect(postSpy).toHaveBeenCalledWith(
@@ -321,6 +332,14 @@ describe("OpenRouterAPI", () => {
   });
 
   describe("Conversation History", () => {
+    beforeEach(() => {
+      mocker.spyOnPrototypeWithImplementation(
+        ModelManager,
+        "getCurrentModel",
+        () => "gpt-4",
+      );
+    });
+
     it("should maintain conversation history across multiple messages", async () => {
       const messages: IOpenRouterMessage[] = [];
       mocker.spyOnPrototypeWithImplementation(

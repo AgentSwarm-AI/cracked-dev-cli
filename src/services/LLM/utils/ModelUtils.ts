@@ -49,8 +49,8 @@ export const formatMessageContent = (
   const minTokens =
     MIN_CACHE_TOKENS[modelType as keyof typeof MIN_CACHE_TOKENS] || 2048;
 
-  // Only cache if content exceeds minimum token threshold
-  const shouldCache = estimateTokens(content) >= minTokens;
+  // Only cache if content exceeds minimum token threshold and it's one of the first 4 messages
+  const shouldCache = estimateTokens(content) >= minTokens && messageIndex < 4;
 
   // For content below MAX_CHUNK_SIZE, return single block
   if (content.length <= MAX_CHUNK_SIZE) {
@@ -73,6 +73,7 @@ export const formatMessageContent = (
   }
 
   // Only add cache_control if total content meets minimum token threshold
+  // and it's one of the first 4 messages
   return chunks.map((chunk, index) => ({
     type: "text",
     text: chunk,

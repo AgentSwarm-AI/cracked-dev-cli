@@ -49,7 +49,6 @@ describe("WriteFileAction", () => {
 
   describe("parameter extraction", () => {
     it("should preserve nested tags in content parameter", async () => {
-      // Setup
       const filePath = "/test/file.ts";
       const content = "<div>Test</div>\n<span>Content</span>";
       const actionContent = `
@@ -60,7 +59,6 @@ describe("WriteFileAction", () => {
           </content>
         </write_file>`;
 
-      // Mock path extraction using ActionTagsExtractor
       mockActionTagsExtractor.extractTag.mockImplementation((_, tag) => {
         if (tag === "path") return filePath;
         return null;
@@ -72,16 +70,13 @@ describe("WriteFileAction", () => {
       mockFileOperations.write.mockResolvedValue({ success: true });
       mockHtmlEntityDecoder.decode.mockReturnValue(content);
 
-      // Execute
       const result = await writeFileAction.execute(actionContent);
 
-      // Verify
       expect(result.success).toBe(true);
       expect(mockFileOperations.write).toHaveBeenCalledWith(filePath, content);
     });
 
     it("should handle content with XML-like syntax", async () => {
-      // Setup
       const filePath = "/test/file.xml";
       const content = `
         <?xml version="1.0" encoding="UTF-8"?>
@@ -96,7 +91,6 @@ describe("WriteFileAction", () => {
           </content>
         </write_file>`;
 
-      // Mock path extraction using ActionTagsExtractor
       mockActionTagsExtractor.extractTag.mockImplementation((_, tag) => {
         if (tag === "path") return filePath;
         return null;
@@ -108,10 +102,8 @@ describe("WriteFileAction", () => {
       mockFileOperations.write.mockResolvedValue({ success: true });
       mockHtmlEntityDecoder.decode.mockReturnValue(content);
 
-      // Execute
       const result = await writeFileAction.execute(actionContent);
 
-      // Verify
       expect(result.success).toBe(true);
       expect(mockFileOperations.write).toHaveBeenCalledWith(filePath, content);
     });
@@ -119,7 +111,6 @@ describe("WriteFileAction", () => {
 
   describe("file operations", () => {
     it("should increment try count for existing files", async () => {
-      // Setup
       const filePath = "/test/file.ts";
       const content = "test content";
       const actionContent = `
@@ -143,17 +134,14 @@ describe("WriteFileAction", () => {
       mockFileOperations.write.mockResolvedValue({ success: true });
       mockHtmlEntityDecoder.decode.mockReturnValue(content);
 
-      // Execute
       const result = await writeFileAction.execute(actionContent);
 
-      // Verify
       expect(result.success).toBe(true);
       expect(mockModelScaler.incrementTryCount).toHaveBeenCalledWith(filePath);
       expect(mockFileOperations.write).toHaveBeenCalledWith(filePath, content);
     });
 
     it("should not modify try count for new files", async () => {
-      // Setup
       const filePath = "/test/file.ts";
       const content = "test content";
       const actionContent = `
@@ -173,20 +161,114 @@ describe("WriteFileAction", () => {
       mockFileOperations.write.mockResolvedValue({ success: true });
       mockHtmlEntityDecoder.decode.mockReturnValue(content);
 
-      // Execute
       const result = await writeFileAction.execute(actionContent);
 
-      // Verify
       expect(result.success).toBe(true);
       expect(mockModelScaler.incrementTryCount).not.toHaveBeenCalled();
       expect(mockModelScaler.setTryCount).not.toHaveBeenCalled();
       expect(mockFileOperations.write).toHaveBeenCalledWith(filePath, content);
     });
+
+    it("should handle file write errors", async () => {
+      const filePath = "/test/file.ts";
+      const content = "test content";
+      const actionContent = `
+        <write_file>
+          <path>${filePath}</path>
+          <content>${content}</content>
+        </write_file>`;
+
+      mockActionTagsExtractor.extractTag.mockImplementation((_, tag) => {
+        if (tag === "path") return filePath;
+        return null;
+      });
+
+      mockModelScaler.getCurrentModel.mockReturnValue("test-model");
+      mockModelScaler.isAutoScalerEnabled.mockReturnValue(false);
+      mockFileOperations.exists.mockResolvedValue(false);
+      mockFileOperations.write.mockResolvedValue({
+        success: false,
+        error: new Error("Write failed"),
+      });
+      mockHtmlEntityDecoder.decode.mockReturnValue(content);
+
+      const result = await writeFileAction.execute(actionContent);
+
+      expect(result.success).toBe(false);
+      expect(result.error?.message).toBe("Write failed");
+    });
+  });
+
+  describe("content removal protection", () => {
+    it("should allow writes with acceptable content reduction", async () => {
+      const filePath = "/test/file.ts";
+      const existingContent = "Original content";
+      const newContent = "Modified content";
+      const actionContent = `
+        <write_file>
+          <path>${filePath}</path>
+          <content>${newContent}</content>
+        </write_file>`;
+
+      mockActionTagsExtractor.extractTag.mockImplementation((_, tag) => {
+        if (tag === "path") return filePath;
+        return null;
+      });
+
+      mockModelScaler.getCurrentModel.mockReturnValue("test-model");
+      mockModelScaler.isAutoScalerEnabled.mockReturnValue(false);
+      mockFileOperations.exists.mockResolvedValue(true);
+      mockFileOperations.read.mockResolvedValue({
+        success: true,
+        data: existingContent,
+        error: undefined,
+      });
+      mockFileOperations.write.mockResolvedValue({ success: true });
+      mockHtmlEntityDecoder.decode.mockReturnValue(newContent);
+
+      const result = await writeFileAction.execute(actionContent);
+
+      expect(result.success).toBe(true);
+      expect(mockFileOperations.write).toHaveBeenCalledWith(
+        filePath,
+        newContent,
+      );
+    });
+
+    it("should properly decode HTML entities before writing", async () => {
+      const filePath = "/test/file.ts";
+      const encodedContent = "&lt;div&gt;Test&lt;/div&gt;";
+      const decodedContent = "<div>Test</div>";
+      const actionContent = `
+        <write_file>
+          <path>${filePath}</path>
+          <content>${encodedContent}</content>
+        </write_file>`;
+
+      mockActionTagsExtractor.extractTag.mockImplementation((_, tag) => {
+        if (tag === "path") return filePath;
+        return null;
+      });
+
+      mockModelScaler.getCurrentModel.mockReturnValue("test-model");
+      mockModelScaler.isAutoScalerEnabled.mockReturnValue(false);
+      mockFileOperations.exists.mockResolvedValue(false);
+      mockFileOperations.write.mockResolvedValue({ success: true });
+      mockHtmlEntityDecoder.decode.mockReturnValue(decodedContent);
+
+      const result = await writeFileAction.execute(actionContent);
+
+      expect(result.success).toBe(true);
+      expect(mockHtmlEntityDecoder.decode).toHaveBeenCalledWith(encodedContent);
+      expect(mockFileOperations.write).toHaveBeenCalledWith(
+        filePath,
+        decodedContent,
+      );
+    });
   });
 
   describe("validation", () => {
     it("should fail when path is missing", async () => {
-      // Setup
       const actionContent = `
         <write_file>
           <content>test content</content>
@@ -194,17 +276,14 @@ describe("WriteFileAction", () => {
 
       mockActionTagsExtractor.extractTag.mockReturnValue(null);
 
-      // Execute
       const result = await writeFileAction.execute(actionContent);
 
-      // Verify
       expect(result.success).toBe(false);
       expect(result.error?.message).toBe("No file path provided");
       expect(mockFileOperations.write).not.toHaveBeenCalled();
     });
 
     it("should fail when content is missing", async () => {
-      // Setup
       const actionContent = `
         <write_file>
           <path>/test/file.ts</path>
@@ -215,74 +294,11 @@ describe("WriteFileAction", () => {
         return null;
       });
 
-      // Execute
       const result = await writeFileAction.execute(actionContent);
 
-      // Verify
       expect(result.success).toBe(false);
       expect(result.error?.message).toBe("No file content provided");
       expect(mockFileOperations.write).not.toHaveBeenCalled();
-    });
-  });
-
-  describe("model selection", () => {
-    it("should return selectedModel when auto-scaler is disabled", async () => {
-      // Setup
-      const filePath = "/test/file.ts";
-      const content = "test content";
-      const actionContent = `
-        <write_file>
-          <path>${filePath}</path>
-          <content>${content}</content>
-        </write_file>`;
-
-      mockActionTagsExtractor.extractTag.mockImplementation((_, tag) => {
-        if (tag === "path") return filePath;
-        return null;
-      });
-
-      const currentModel = "test-model";
-      mockModelScaler.getCurrentModel.mockReturnValue(currentModel);
-      mockModelScaler.isAutoScalerEnabled.mockReturnValue(false);
-      mockFileOperations.exists.mockResolvedValue(false);
-      mockFileOperations.write.mockResolvedValue({ success: true });
-      mockHtmlEntityDecoder.decode.mockReturnValue(content);
-
-      // Execute
-      const result = await writeFileAction.execute(actionContent);
-
-      // Verify
-      expect(result.success).toBe(true);
-      expect(result.data).toEqual({ selectedModel: currentModel });
-    });
-
-    it("should not return selectedModel when auto-scaler is enabled", async () => {
-      // Setup
-      const filePath = "/test/file.ts";
-      const content = "test content";
-      const actionContent = `
-        <write_file>
-          <path>${filePath}</path>
-          <content>${content}</content>
-        </write_file>`;
-
-      mockActionTagsExtractor.extractTag.mockImplementation((_, tag) => {
-        if (tag === "path") return filePath;
-        return null;
-      });
-
-      mockModelScaler.getCurrentModel.mockReturnValue("test-model");
-      mockModelScaler.isAutoScalerEnabled.mockReturnValue(true);
-      mockFileOperations.exists.mockResolvedValue(false);
-      mockFileOperations.write.mockResolvedValue({ success: true });
-      mockHtmlEntityDecoder.decode.mockReturnValue(content);
-
-      // Execute
-      const result = await writeFileAction.execute(actionContent);
-
-      // Verify
-      expect(result.success).toBe(true);
-      expect(result.data).toBeUndefined();
     });
   });
 });

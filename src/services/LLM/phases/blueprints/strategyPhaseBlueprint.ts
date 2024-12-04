@@ -11,14 +11,16 @@ export const strategyPhaseBlueprint: IPhaseConfig = {
 <phase_prompt>
 ## Strategy Phase
 
+### Overall Objective
+- Based on the discovery phase findings, develop a clear strategy for implementing the solution. This involves planning the changes needed, considering potential impacts, and outlining the implementation steps.
+- Your goal is to instruct the next agent on how to solve the problem. He's probably dumber than you, so be clear.
+
 ### CRITICAL INSTRUCTIONS
-- Don't be verbose. DO NOT get stuck in a infinite loop. Just focus on EXAMPLE OF HOW TO BEHAVE pattern.
+- Propose how you'd solve the problem using code. Output the necessary code changes (slices of code) to solve the problem.
 - FOLLOW THE EXAMPLE OF HOW TO BEHAVE. It's there to help you understand how to structure your actions.
 - MAKE SURE TO RUN end_phase action ONCE YOU HAVE FINISHED
-- Feel free to propose solutions, but don't get stuck in the details. Just focus on the main steps to solve the problem.
 
-### Overall Objective
-Based on the discovery phase findings, develop a clear strategy for implementing the solution. This involves planning the changes needed, considering potential impacts, and outlining the implementation steps.
+
 
 ### Key objectives:
 - Formulating a clear approach to solve the problem
