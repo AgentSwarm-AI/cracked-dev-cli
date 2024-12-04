@@ -16,6 +16,7 @@ export const discoveryPhaseBlueprint: IPhaseConfig = {
 - Always briefly mention whatever you are doing in the phase, FIRST! Before triggering any actions.
 - First action should be always a read_file. DO NOT TRIGGER A end_phase IMMEDIATELY AFTER IT. Read the files and submit first.
 - If asked to fix tests, MAKE SURE TO execute_command to run them/it first! PRIORITIZE RUNNING ONLY THE TEST THATS NEEDED (or group of tests, in a folder, for example). Avoid running the whole thing unless necessary.
+- Read first the files that are most likely to contain the information you need. Pick the core one, check the imports, and see if there are additional files that you should read too.
 
 ### Overall Objective
 Analyze and understand the codebase to provide the necessary context for resolving issues. This involves scanning relevant files to gather information, identifying patterns and dependencies, and examining related code. 
