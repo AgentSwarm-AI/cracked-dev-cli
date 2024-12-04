@@ -2,6 +2,7 @@ import { IActionBlueprint } from "../core/IAction";
 import { commandActionBlueprint } from "./commandActionBlueprint";
 import { copyFileActionBlueprint } from "./copyFileActionBlueprint";
 import { deleteFileActionBlueprint } from "./deleteFileActionBlueprint";
+import { endPhaseActionBlueprint } from "./endPhaseActionBlueprint";
 import { endTaskActionBlueprint } from "./endTaskActionBlueprint";
 import { fetchUrlActionBlueprint } from "./fetchUrlActionBlueprint";
 import { moveFileActionBlueprint } from "./moveFileActionBlueprint";
@@ -20,6 +21,7 @@ export const actionsBlueprints = {
   search_string: searchStringActionBlueprint,
   search_file: searchFileActionBlueprint,
   end_task: endTaskActionBlueprint,
+  end_phase: endPhaseActionBlueprint,
   relative_path_lookup: relativePathLookupActionBlueprint,
   delete_file: deleteFileActionBlueprint,
   move_file: moveFileActionBlueprint,
