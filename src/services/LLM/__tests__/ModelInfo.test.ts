@@ -2,7 +2,6 @@ import { ModelInfo } from "@services/LLM/ModelInfo";
 import { DebugLogger } from "@services/logging/DebugLogger";
 import { container } from "tsyringe";
 import { openRouterClient } from "@constants/openRouterClient";
-import { IModelInfo } from "@services/LLM/types/ModelTypes";
 
 describe("ModelInfo", () => {
   let modelInfo: ModelInfo;
@@ -19,19 +18,19 @@ describe("ModelInfo", () => {
       spyOn: jest.spyOn,
     };
 
-    // Mock openRouterClient.get
+    // Mock openRouterClient.get with realistic model IDs
     mocker.spyOn(openRouterClient, "get").mockResolvedValue({
       data: {
         data: [
           {
-            id: "model1",
+            id: "qwen/qwen-2.5-coder-32b-instruct",
             context_length: 2048,
             top_provider: {
               max_completion_tokens: 4096,
             },
           },
           {
-            id: "model2",
+            id: "anthropic/claude-3.5-sonnet:beta",
             context_length: 4096,
             top_provider: {
               max_completion_tokens: 8192,
@@ -71,11 +70,11 @@ describe("ModelInfo", () => {
     });
 
     it("should set the current model", async () => {
-      await modelInfo.setCurrentModel("model1");
+      await modelInfo.setCurrentModel("qwen/qwen-2.5-coder-32b-instruct");
 
-      expect(modelInfo["currentModel"]).toBe("model1");
+      expect(modelInfo["currentModel"]).toBe("qwen/qwen-2.5-coder-32b-instruct");
       expect(modelInfo["currentModelInfo"]).toEqual({
-        id: "model1",
+        id: "qwen/qwen-2.5-coder-32b-instruct",
         context_length: 2048,
         top_provider: {
           max_completion_tokens: 4096,
@@ -84,7 +83,9 @@ describe("ModelInfo", () => {
     });
 
     it("should throw an error if the model is not found", async () => {
-      await expect(modelInfo.setCurrentModel("model3")).rejects.toThrow("Invalid model: model3. Available models: model1, model2");
+      await expect(modelInfo.setCurrentModel("invalid-model")).rejects.toThrow(
+        "Invalid model: invalid-model. Available models: qwen/qwen-2.5-coder-32b-instruct, anthropic/claude-3.5-sonnet:beta"
+      );
     });
   });
 
@@ -94,10 +95,10 @@ describe("ModelInfo", () => {
     });
 
     it("should return the model info", async () => {
-      const modelInfoResult = await modelInfo.getModelInfo("model1");
+      const modelInfoResult = await modelInfo.getModelInfo("qwen/qwen-2.5-coder-32b-instruct");
 
       expect(modelInfoResult).toEqual({
-        id: "model1",
+        id: "qwen/qwen-2.5-coder-32b-instruct",
         context_length: 2048,
         top_provider: {
           max_completion_tokens: 4096,
@@ -106,7 +107,7 @@ describe("ModelInfo", () => {
     });
 
     it("should return undefined if the model is not found", async () => {
-      const modelInfoResult = await modelInfo.getModelInfo("model3");
+      const modelInfoResult = await modelInfo.getModelInfo("invalid-model");
 
       expect(modelInfoResult).toBeUndefined();
     });
@@ -115,14 +116,14 @@ describe("ModelInfo", () => {
   describe("getCurrentModelInfo", () => {
     beforeEach(async () => {
       await modelInfo.initialize();
-      await modelInfo.setCurrentModel("model1");
+      await modelInfo.setCurrentModel("qwen/qwen-2.5-coder-32b-instruct");
     });
 
     it("should return the current model info", () => {
       const currentModelInfo = modelInfo.getCurrentModelInfo();
 
       expect(currentModelInfo).toEqual({
-        id: "model1",
+        id: "qwen/qwen-2.5-coder-32b-instruct",
         context_length: 2048,
         top_provider: {
           max_completion_tokens: 4096,
@@ -143,7 +144,7 @@ describe("ModelInfo", () => {
   describe("getCurrentModelContextLength", () => {
     beforeEach(async () => {
       await modelInfo.initialize();
-      await modelInfo.setCurrentModel("model1");
+      await modelInfo.setCurrentModel("qwen/qwen-2.5-coder-32b-instruct");
     });
 
     it("should return the current model context length", async () => {
@@ -168,13 +169,13 @@ describe("ModelInfo", () => {
     });
 
     it("should return the model context length", async () => {
-      const contextLength = await modelInfo.getModelContextLength("model1");
+      const contextLength = await modelInfo.getModelContextLength("qwen/qwen-2.5-coder-32b-instruct");
 
       expect(contextLength).toBe(2048);
     });
 
     it("should return the default context length if the model is not found", async () => {
-      const contextLength = await modelInfo.getModelContextLength("model3");
+      const contextLength = await modelInfo.getModelContextLength("invalid-model");
 
       expect(contextLength).toBe(128000);
     });
@@ -188,7 +189,10 @@ describe("ModelInfo", () => {
     it("should return all models", async () => {
       const models = await modelInfo.getAllModels();
 
-      expect(models).toEqual(["model1", "model2"]);
+      expect(models).toEqual([
+        "qwen/qwen-2.5-coder-32b-instruct",
+        "anthropic/claude-3.5-sonnet:beta"
+      ]);
     });
   });
 
@@ -198,13 +202,13 @@ describe("ModelInfo", () => {
     });
 
     it("should return true if the model is available", async () => {
-      const isAvailable = await modelInfo.isModelAvailable("model1");
+      const isAvailable = await modelInfo.isModelAvailable("qwen/qwen-2.5-coder-32b-instruct");
 
       expect(isAvailable).toBe(true);
     });
 
     it("should return false if the model is not available", async () => {
-      const isAvailable = await modelInfo.isModelAvailable("model3");
+      const isAvailable = await modelInfo.isModelAvailable("invalid-model");
 
       expect(isAvailable).toBe(false);
     });
@@ -216,13 +220,13 @@ describe("ModelInfo", () => {
     });
 
     it("should return the model max completion tokens", async () => {
-      const maxTokens = await modelInfo.getModelMaxCompletionTokens("model1");
+      const maxTokens = await modelInfo.getModelMaxCompletionTokens("qwen/qwen-2.5-coder-32b-instruct");
 
       expect(maxTokens).toBe(4096);
     });
 
     it("should return the default max completion tokens if the model is not found", async () => {
-      const maxTokens = await modelInfo.getModelMaxCompletionTokens("model3");
+      const maxTokens = await modelInfo.getModelMaxCompletionTokens("invalid-model");
 
       expect(maxTokens).toBe(4096);
     });
@@ -231,7 +235,7 @@ describe("ModelInfo", () => {
   describe("getCurrentModelMaxCompletionTokens", () => {
     beforeEach(async () => {
       await modelInfo.initialize();
-      await modelInfo.setCurrentModel("model1");
+      await modelInfo.setCurrentModel("qwen/qwen-2.5-coder-32b-instruct");
     });
 
     it("should return the current model max completion tokens", async () => {
@@ -253,14 +257,14 @@ describe("ModelInfo", () => {
   describe("logCurrentModelUsage", () => {
     beforeEach(async () => {
       await modelInfo.initialize();
-      await modelInfo.setCurrentModel("model1");
+      await modelInfo.setCurrentModel("qwen/qwen-2.5-coder-32b-instruct");
     });
 
     it("should log the current model usage", async () => {
       await modelInfo.logCurrentModelUsage(1024);
 
       expect(debugLogger.log).toHaveBeenCalledWith("ModelInfo", "Token usage", {
-        model: "model1",
+        model: "qwen/qwen-2.5-coder-32b-instruct",
         used: 1024,
         total: 2048,
         percentage: "50.0%",
