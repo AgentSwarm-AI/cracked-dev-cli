@@ -5,7 +5,7 @@ import { IPhaseConfig, Phase } from "./types/PhaseTypes";
 
 @singleton()
 export class PhaseManager {
-  private currentPhase: Phase = Phase.DISCOVERY;
+  private currentPhase: Phase = Phase.Discovery;
   private phaseConfigs: Map<Phase, IPhaseConfig> = new Map();
 
   constructor(@inject(ConfigService) private configService: ConfigService) {
@@ -18,25 +18,25 @@ export class PhaseManager {
     // Initialize configs using blueprints but override models from config if provided
     this.phaseConfigs = new Map([
       [
-        Phase.DISCOVERY,
+        Phase.Discovery,
         {
-          ...phaseBlueprints[Phase.DISCOVERY],
+          ...phaseBlueprints[Phase.Discovery],
           model:
-            config.discoveryModel || phaseBlueprints[Phase.DISCOVERY].model,
+            config.discoveryModel || phaseBlueprints[Phase.Discovery].model,
         },
       ],
       [
-        Phase.STRATEGY,
+        Phase.Strategy,
         {
-          ...phaseBlueprints[Phase.STRATEGY],
-          model: config.strategyModel || phaseBlueprints[Phase.STRATEGY].model,
+          ...phaseBlueprints[Phase.Strategy],
+          model: config.strategyModel || phaseBlueprints[Phase.Strategy].model,
         },
       ],
       [
-        Phase.EXECUTE,
+        Phase.Execute,
         {
-          ...phaseBlueprints[Phase.EXECUTE],
-          model: config.executeModel || phaseBlueprints[Phase.EXECUTE].model,
+          ...phaseBlueprints[Phase.Execute],
+          model: config.executeModel || phaseBlueprints[Phase.Execute].model,
         },
       ],
     ]);
@@ -68,13 +68,13 @@ export class PhaseManager {
 
   nextPhase(): Phase {
     switch (this.currentPhase) {
-      case Phase.DISCOVERY:
-        this.currentPhase = Phase.STRATEGY;
+      case Phase.Discovery:
+        this.currentPhase = Phase.Strategy;
         break;
-      case Phase.STRATEGY:
-        this.currentPhase = Phase.EXECUTE;
+      case Phase.Strategy:
+        this.currentPhase = Phase.Execute;
         break;
-      case Phase.EXECUTE:
+      case Phase.Execute:
         // Execute is the final phase, stays there
         break;
     }
@@ -82,6 +82,6 @@ export class PhaseManager {
   }
 
   resetPhase() {
-    this.currentPhase = Phase.DISCOVERY;
+    this.currentPhase = Phase.Discovery;
   }
 }

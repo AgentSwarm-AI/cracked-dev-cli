@@ -48,25 +48,25 @@ describe("PhaseManager", () => {
 
   describe("phase transitions", () => {
     it("should start in DISCOVERY phase", () => {
-      expect(phaseManager.getCurrentPhase()).toBe(Phase.DISCOVERY);
+      expect(phaseManager.getCurrentPhase()).toBe(Phase.Discovery);
     });
 
     it("should transition through phases correctly", () => {
-      expect(phaseManager.getCurrentPhase()).toBe(Phase.DISCOVERY);
-      expect(phaseManager.nextPhase()).toBe(Phase.STRATEGY);
-      expect(phaseManager.nextPhase()).toBe(Phase.EXECUTE);
-      expect(phaseManager.nextPhase()).toBe(Phase.EXECUTE); // Should stay in EXECUTE
+      expect(phaseManager.getCurrentPhase()).toBe(Phase.Discovery);
+      expect(phaseManager.nextPhase()).toBe(Phase.Strategy);
+      expect(phaseManager.nextPhase()).toBe(Phase.Execute);
+      expect(phaseManager.nextPhase()).toBe(Phase.Execute); // Should stay in EXECUTE
     });
 
     it("should reset to DISCOVERY phase", () => {
       phaseManager.nextPhase(); // To STRATEGY
       phaseManager.resetPhase();
-      expect(phaseManager.getCurrentPhase()).toBe(Phase.DISCOVERY);
+      expect(phaseManager.getCurrentPhase()).toBe(Phase.Discovery);
     });
 
     it("should allow setting specific phase", () => {
-      phaseManager.setPhase(Phase.STRATEGY);
-      expect(phaseManager.getCurrentPhase()).toBe(Phase.STRATEGY);
+      phaseManager.setPhase(Phase.Strategy);
+      expect(phaseManager.getCurrentPhase()).toBe(Phase.Strategy);
     });
   });
 
@@ -97,20 +97,20 @@ describe("PhaseManager", () => {
 
       const customPhaseManager = new PhaseManager(configService);
 
-      expect(customPhaseManager.getPhaseConfig(Phase.DISCOVERY).model).toBe(
+      expect(customPhaseManager.getPhaseConfig(Phase.Discovery).model).toBe(
         "custom-model",
       );
-      expect(customPhaseManager.getPhaseConfig(Phase.STRATEGY).model).toBe(
+      expect(customPhaseManager.getPhaseConfig(Phase.Strategy).model).toBe(
         "custom-strategy-model",
       );
-      expect(customPhaseManager.getPhaseConfig(Phase.EXECUTE).model).toBe(
+      expect(customPhaseManager.getPhaseConfig(Phase.Execute).model).toBe(
         "custom-execute-model",
       );
     });
 
     it("should use default models when no override provided", () => {
       const emptyConfig = {
-        ...baseMockConfig
+        ...baseMockConfig,
       };
 
       jest.spyOn(configService, "getConfig").mockReturnValue(emptyConfig);
@@ -118,10 +118,10 @@ describe("PhaseManager", () => {
       const defaultPhaseManager = new PhaseManager(configService);
 
       const discoveryConfig = defaultPhaseManager.getPhaseConfig(
-        Phase.DISCOVERY,
+        Phase.Discovery,
       );
-      const strategyConfig = defaultPhaseManager.getPhaseConfig(Phase.STRATEGY);
-      const executeConfig = defaultPhaseManager.getPhaseConfig(Phase.EXECUTE);
+      const strategyConfig = defaultPhaseManager.getPhaseConfig(Phase.Strategy);
+      const executeConfig = defaultPhaseManager.getPhaseConfig(Phase.Execute);
 
       expect(discoveryConfig.model).toBeDefined();
       expect(strategyConfig.model).toBeDefined();
