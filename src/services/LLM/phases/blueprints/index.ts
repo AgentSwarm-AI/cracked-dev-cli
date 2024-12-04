@@ -4,9 +4,9 @@ import { executePhaseBlueprint } from "./executePhaseBlueprint";
 import { strategyPhaseBlueprint } from "./strategyPhaseBlueprint";
 
 export const phaseBlueprints = {
-  [Phase.DISCOVERY]: discoveryPhaseBlueprint,
-  [Phase.STRATEGY]: strategyPhaseBlueprint,
-  [Phase.EXECUTE]: executePhaseBlueprint,
+  [Phase.Discovery]: discoveryPhaseBlueprint,
+  [Phase.Strategy]: strategyPhaseBlueprint,
+  [Phase.Execute]: executePhaseBlueprint,
 };
 
 export * from "./discoveryPhaseBlueprint";

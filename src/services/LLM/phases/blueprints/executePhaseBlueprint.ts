@@ -37,6 +37,7 @@ Alright, let's start the execution phase. I'll begin by executing the following 
 
 ### Critical Instructions
 
+- AFTER A write_file MAKE SURE YOU RUN THE RELATE TESTS (if it exists), to make sure you didn't break anything!
 - Every output must include one action tag. No exceptions.
 - Only one action per reply.
 - Do not output code outside <write_file> tags, except when creating a markdown file.

@@ -1,7 +1,7 @@
 export enum Phase {
-  DISCOVERY = "discovery",
-  STRATEGY = "strategy",
-  EXECUTE = "execute",
+  Discovery = "discovery",
+  Strategy = "strategy",
+  Execute = "execute",
 }
 
 export interface IPhasePromptArgs {
