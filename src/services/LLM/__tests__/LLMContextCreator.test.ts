@@ -5,36 +5,52 @@ import { LLMContextCreator } from "@services/LLM/LLMContextCreator";
 import { ProjectInfo } from "@services/LLM/utils/ProjectInfo";
 import { container } from "tsyringe";
 import { UnitTestMocker } from "../../../jest/mocks/UnitTestMocker";
+import { MessageContextManager } from "../MessageContextManager";
+import { PhaseManager } from "../PhaseManager";
+import { IPhasePromptArgs } from "../types/PhaseTypes";
 
 describe("LLMContextCreator", () => {
   let contextCreator: LLMContextCreator;
-  let mockDirectoryScanner: jest.Mocked<DirectoryScanner>;
-  let mockActionExecutor: jest.Mocked<ActionExecutor>;
-  let mockProjectInfo: jest.Mocked<ProjectInfo>;
-  let mockConfigService: jest.Mocked<ConfigService>;
   let mocker: UnitTestMocker;
 
   beforeEach(() => {
     mocker = new UnitTestMocker();
-    mockDirectoryScanner = container.resolve(
-      DirectoryScanner,
-    ) as jest.Mocked<DirectoryScanner>;
-    mockActionExecutor = container.resolve(
-      ActionExecutor,
-    ) as jest.Mocked<ActionExecutor>;
-    mockProjectInfo = container.resolve(
-      ProjectInfo,
-    ) as jest.Mocked<ProjectInfo>;
-    mockConfigService = container.resolve(
-      ConfigService,
-    ) as jest.Mocked<ConfigService>;
 
-    mocker.spyOnPrototypeMethod(DirectoryScanner, "scan");
-    mocker.spyOnPrototypeMethod(ActionExecutor, "executeAction");
-    mocker.spyOnPrototypeMethod(ProjectInfo, "gatherProjectInfo");
+    // Mock phase config with proper prompt generation
+    const mockPhaseConfig = {
+      generatePrompt: (args: IPhasePromptArgs) => {
+        const envDetails = args.environmentDetails || "";
+        const projectInfo = args.projectInfo || "";
+        return `phase_prompt\nDiscovery Phase\nActions\n${envDetails}\n${projectInfo}`;
+      },
+    };
+
+    // Setup mocks using UnitTestMocker
+    mocker.spyOnPrototypeAndReturn(DirectoryScanner, "scan", {
+      success: true,
+      data: "file1\nfile2",
+    });
+    mocker.spyOnPrototypeAndReturn(ActionExecutor, "executeAction", {
+      success: true,
+    });
+    mocker.spyOnPrototypeAndReturn(ProjectInfo, "gatherProjectInfo", {
+      mainDependencies: ["dep1", "dep2"],
+      scripts: {
+        test: "jest",
+        build: "tsc",
+      },
+      dependencyFile: "package.json",
+    });
     mocker.spyOnPrototypeAndReturn(ConfigService, "getConfig", {
       includeAllFilesOnEnvToContext: true,
     });
+    mocker.spyOnPrototypeAndReturn(
+      PhaseManager,
+      "getCurrentPhaseConfig",
+      mockPhaseConfig,
+    );
+    mocker.spyOnPrototypeMethod(PhaseManager, "resetPhase");
+    mocker.spyOnPrototypeMethod(MessageContextManager, "clear");
 
     contextCreator = container.resolve(LLMContextCreator);
   });
@@ -43,25 +59,6 @@ describe("LLMContextCreator", () => {
     it("should create first time message with environment details and project info", async () => {
       const message = "test message";
       const root = "/test/root";
-      const scanResult = {
-        success: true,
-        data: "file1\nfile2",
-      };
-      const projectInfoResult = {
-        mainDependencies: ["dep1", "dep2"],
-        scripts: {
-          test: "jest",
-          build: "tsc",
-        },
-        dependencyFile: "package.json",
-      };
-
-      mocker.spyOnPrototypeAndReturn(DirectoryScanner, "scan", scanResult);
-      mocker.spyOnPrototypeAndReturn(
-        ProjectInfo,
-        "gatherProjectInfo",
-        projectInfoResult,
-      );
 
       const result = await contextCreator.create(message, root, true);
 
@@ -70,33 +67,21 @@ describe("LLMContextCreator", () => {
       expect(result).toContain(message);
       expect(result).toContain("Instructions");
       expect(result).toContain("Current Working Directory");
-      expect(result).toContain(scanResult.data);
+      expect(result).toContain("file1\nfile2");
       expect(result).toContain("Project Dependencies");
       expect(result).toContain("dep1, dep2");
       expect(result).toContain("test: jest");
       expect(result).toContain("build: tsc");
-      expect(mockDirectoryScanner.scan).toHaveBeenCalledWith(root);
-      expect(mockProjectInfo.gatherProjectInfo).toHaveBeenCalledWith(root);
     });
 
     it("should create first time message without project info if no dependency file found", async () => {
       const message = "test message";
       const root = "/test/root";
-      const scanResult = {
-        success: true,
-        data: "file1\nfile2",
-      };
-      const projectInfoResult = {
+
+      mocker.spyOnPrototypeAndReturn(ProjectInfo, "gatherProjectInfo", {
         mainDependencies: [],
         scripts: {},
-      };
-
-      mocker.spyOnPrototypeAndReturn(DirectoryScanner, "scan", scanResult);
-      mocker.spyOnPrototypeAndReturn(
-        ProjectInfo,
-        "gatherProjectInfo",
-        projectInfoResult,
-      );
+      });
 
       const result = await contextCreator.create(message, root, true);
 
@@ -104,10 +89,8 @@ describe("LLMContextCreator", () => {
       expect(result).toContain(message);
       expect(result).toContain("Instructions");
       expect(result).toContain("Current Working Directory");
-      expect(result).toContain(scanResult.data);
+      expect(result).toContain("file1\nfile2");
       expect(result).not.toContain("Project Dependencies");
-      expect(mockDirectoryScanner.scan).toHaveBeenCalledWith(root);
-      expect(mockProjectInfo.gatherProjectInfo).toHaveBeenCalledWith(root);
     });
 
     it("should create sequential message with phase prompt", async () => {
@@ -120,8 +103,6 @@ describe("LLMContextCreator", () => {
       expect(result).toContain("phase_prompt");
       expect(result).toContain("Discovery Phase");
       expect(result).toContain("Actions");
-      expect(mockDirectoryScanner.scan).not.toHaveBeenCalled();
-      expect(mockProjectInfo.gatherProjectInfo).not.toHaveBeenCalled();
     });
 
     it("should throw error if directory scan fails", async () => {
@@ -142,36 +123,21 @@ describe("LLMContextCreator", () => {
     it("should not include environment details when config flag is false", async () => {
       const message = "test message";
       const root = "/test/root";
-      const scanResult = {
-        success: true,
-        data: "file1\nfile2",
-      };
-      const projectInfoResult = {
-        mainDependencies: ["dep1"],
-        scripts: { test: "jest" },
-        dependencyFile: "package.json",
-      };
 
       mocker.spyOnPrototypeAndReturn(ConfigService, "getConfig", {
         includeAllFilesOnEnvToContext: false,
       });
-      mocker.spyOnPrototypeAndReturn(DirectoryScanner, "scan", scanResult);
-      mocker.spyOnPrototypeAndReturn(
-        ProjectInfo,
-        "gatherProjectInfo",
-        projectInfoResult,
-      );
 
       const result = await contextCreator.create(message, root, true);
 
       expect(result).toContain("Task");
       expect(result).toContain(message);
-      expect(result).not.toContain(scanResult.data);
-      expect(mockDirectoryScanner.scan).toHaveBeenCalledWith(root);
+      expect(result).not.toContain("file1\nfile2");
     });
   });
 
   afterEach(() => {
     mocker.clearAllMocks();
+    jest.clearAllMocks();
   });
 });

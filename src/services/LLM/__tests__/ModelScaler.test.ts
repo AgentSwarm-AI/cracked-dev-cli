@@ -1,309 +1,223 @@
-import { ModelScaler } from "@services/LLM/ModelScaler";
-import { DebugLogger } from "@services/logging/DebugLogger";
-import { UnitTestMocker } from "@tests/mocks/UnitTestMocker";
+import { ConfigService } from "@services/ConfigService";
 import { container } from "tsyringe";
+import { UnitTestMocker } from "../../../jest/mocks/UnitTestMocker";
+import { MessageContextManager } from "../MessageContextManager";
+import { ModelManager } from "../ModelManager";
+import { ModelScaler } from "../ModelScaler";
+import { PhaseManager } from "../PhaseManager";
+import { Phase } from "../types/PhaseTypes";
 
 describe("ModelScaler", () => {
   let modelScaler: ModelScaler;
   let mocker: UnitTestMocker;
+  let modelManagerSetCurrentModelSpy: jest.SpyInstance;
+  let modelScalerHandleModelScalingSpy: jest.SpyInstance;
 
   beforeAll(() => {
-    container.register("DebugLogger", { useValue: DebugLogger });
+    mocker = new UnitTestMocker();
   });
 
   beforeEach(() => {
-    mocker = new UnitTestMocker();
+    // Mock ConfigService.getConfig first
+    mocker.spyOnPrototypeAndReturn(ConfigService, "getConfig", {
+      autoScaler: true,
+      discoveryModel: "openai/gpt-3.5-turbo",
+      executeModel: "openai/gpt-4",
+      strategyModel: "anthropic/claude-2",
+      autoScaleAvailableModels: [
+        { id: "model1", maxWriteTries: 3, maxGlobalTries: 5 },
+        { id: "model2", maxWriteTries: 5, maxGlobalTries: 8 },
+        { id: "model3", maxWriteTries: 7, maxGlobalTries: 10 },
+      ],
+    });
 
-    // Setup spies on prototype methods of dependencies
-    mocker.spyOnPrototypeAndReturn(DebugLogger, "log", jest.fn());
+    // Mock MessageContextManager methods
+    mocker.spyOnPrototypeAndReturn(
+      MessageContextManager,
+      "getTotalTokenCount",
+      0,
+    );
+    mocker.spyOnPrototypeAndReturn(
+      MessageContextManager,
+      "cleanupContext",
+      false,
+    );
 
-    // Instantiate ModelScaler after setting up mocks
+    // Spy on ModelManager.setCurrentModel
+    modelManagerSetCurrentModelSpy = mocker.spyOnPrototypeMethod(
+      ModelManager,
+      "setCurrentModel",
+    );
+
+    // Spy on ModelScaler.handleModelScaling
+    modelScalerHandleModelScalingSpy = mocker.spyOnPrototypeMethod(
+      ModelScaler,
+      "handleModelScaling" as keyof ModelScaler,
+    );
+
+    // Resolve ModelScaler after setting up mocks
     modelScaler = container.resolve(ModelScaler);
-    // Enable auto scaler for tests
-    modelScaler.setAutoScaler(true);
+
+    // Reset ModelScaler state
+    modelScaler.reset();
+
+    // Clear spy's call counts to ignore setCurrentModel called during reset
+    modelManagerSetCurrentModelSpy.mockClear();
+    modelScalerHandleModelScalingSpy.mockClear();
   });
 
   afterEach(() => {
     mocker.clearAllMocks();
   });
 
-  it("should scale models based on try count", () => {
-    // Initial model
-    const initialModel = modelScaler.getCurrentModel();
-    expect(initialModel).toBe("qwen/qwen-2.5-coder-32b-instruct");
-
-    // First try - still base model
-    modelScaler.setTryCount("file1.ts", 1);
-    expect(modelScaler.getCurrentModel()).toBe(
-      "qwen/qwen-2.5-coder-32b-instruct",
+  it("should not auto scale a model when on Discovery phase", async () => {
+    mocker.spyOnPrototypeAndReturn(
+      PhaseManager,
+      "getCurrentPhase",
+      Phase.Discovery,
     );
+    await modelScaler.incrementTryCount("file1");
 
-    // Second try - should scale up to Claude
-    modelScaler.setTryCount("file1.ts", 2);
-    expect(modelScaler.getCurrentModel()).toBe(
-      "anthropic/claude-3.5-sonnet:beta",
-    );
-
-    // Third try - still Claude
-    modelScaler.setTryCount("file1.ts", 3);
-    expect(modelScaler.getCurrentModel()).toBe(
-      "anthropic/claude-3.5-sonnet:beta",
-    );
+    expect(modelManagerSetCurrentModelSpy).not.toHaveBeenCalled();
   });
 
-  it("should handle multiple files and use highest try count", () => {
-    // Set try counts for multiple files
-    modelScaler.setTryCount("file1.ts", 1);
-    expect(modelScaler.getCurrentModel()).toBe(
-      "qwen/qwen-2.5-coder-32b-instruct",
+  it("should use executeModel during execute phase if <= 3 tries on the same file when autoScaler is on", async () => {
+    mocker.spyOnPrototypeAndReturn(
+      PhaseManager,
+      "getCurrentPhase",
+      Phase.Execute,
     );
 
-    // Second file hits threshold - should scale up
-    modelScaler.setTryCount("file2.ts", 2);
-    expect(modelScaler.getCurrentModel()).toBe(
-      "anthropic/claude-3.5-sonnet:beta",
-    );
+    await modelScaler.incrementTryCount("file1");
+    await modelScaler.incrementTryCount("file1");
 
-    // First file stays at lower count
-    expect(modelScaler.getTryCount("file1.ts")).toBe(1);
-    expect(modelScaler.getTryCount("file2.ts")).toBe(2);
+    expect(modelManagerSetCurrentModelSpy).not.toHaveBeenCalled();
+    expect(modelScalerHandleModelScalingSpy).not.toHaveBeenCalled();
   });
 
-  it("should reset model scaling", () => {
-    // Set up some try counts
-    modelScaler.setTryCount("file1.ts", 2);
-    expect(modelScaler.getCurrentModel()).toBe(
-      "anthropic/claude-3.5-sonnet:beta",
+  it("should handle multiple files independently in execute phase", async () => {
+    mocker.spyOnPrototypeAndReturn(
+      PhaseManager,
+      "getCurrentPhase",
+      Phase.Execute,
     );
 
-    // Reset
+    // File 1 gets 4 tries
+    await modelScaler.incrementTryCount("file1");
+    await modelScaler.incrementTryCount("file1");
+    await modelScaler.incrementTryCount("file1");
+    await modelScaler.incrementTryCount("file1");
+
+    // File 2 gets 2 tries
+    await modelScaler.incrementTryCount("file2");
+    await modelScaler.incrementTryCount("file2");
+
+    expect(modelScaler.getTryCount("file1")).toBe(4);
+    expect(modelScaler.getTryCount("file2")).toBe(2);
+    expect(modelScaler.getGlobalTryCount()).toBe(6);
+
+    // Since file1 exceeded 3 tries, handleModelScaling should have been called once
+    expect(modelScalerHandleModelScalingSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("should reset to phase-specific model", () => {
     modelScaler.reset();
-    expect(modelScaler.getCurrentModel()).toBe(
-      "qwen/qwen-2.5-coder-32b-instruct",
+
+    expect(modelScaler.getGlobalTryCount()).toBe(0);
+    expect(modelScaler.getTryCount("file1")).toBe(0);
+    expect(modelManagerSetCurrentModelSpy).toHaveBeenCalledWith(
+      "openai/gpt-3.5-turbo",
     );
-    expect(modelScaler.getTryCount("file1.ts")).toBe(0);
   });
 
-  it("should handle edge cases for try count", () => {
-    // Zero tries
-    modelScaler.setTryCount("file1.ts", 0);
-    expect(modelScaler.getCurrentModel()).toBe(
-      "qwen/qwen-2.5-coder-32b-instruct",
-    );
+  it("should not increment try count when auto scaler is disabled", async () => {
+    // Override the config to disable auto scaler
+    mocker.spyOnPrototypeAndReturn(ConfigService, "getConfig", {
+      autoScaler: false,
+      discoveryModel: "openai/gpt-3.5-turbo",
+      executeModel: "openai/gpt-4",
+      strategyModel: "anthropic/claude-2",
+      autoScaleAvailableModels: [
+        { id: "model1", maxWriteTries: 3, maxGlobalTries: 5 },
+        { id: "model2", maxWriteTries: 5, maxGlobalTries: 8 },
+        { id: "model3", maxWriteTries: 7, maxGlobalTries: 10 },
+      ],
+    });
 
-    // Negative tries
-    modelScaler.setTryCount("file1.ts", -1);
-    expect(modelScaler.getCurrentModel()).toBe(
-      "qwen/qwen-2.5-coder-32b-instruct",
-    );
-
-    // Large number of tries
-    modelScaler.setTryCount("file1.ts", 100);
-    expect(modelScaler.getCurrentModel()).toBe("openai/o1-mini");
-  });
-
-  it("should handle concurrent scaling requests", () => {
-    // Simulate concurrent requests
-    modelScaler.setTryCount("file1.ts", 1);
-    modelScaler.setTryCount("file2.ts", 2);
-    modelScaler.setTryCount("file3.ts", 3);
-
-    expect(modelScaler.getCurrentModel()).toBe(
-      "anthropic/claude-3.5-sonnet:beta",
-    );
-
-    // Reset
+    // Re-initialize ModelScaler to pick up the new config
     modelScaler.reset();
-    expect(modelScaler.getCurrentModel()).toBe(
-      "qwen/qwen-2.5-coder-32b-instruct",
-    );
-  });
 
-  it("should handle invalid file names", () => {
-    // Invalid file name
-    modelScaler.setTryCount("", 2);
-    expect(modelScaler.getCurrentModel()).toBe(
-      "anthropic/claude-3.5-sonnet:beta",
-    );
+    await modelScaler.incrementTryCount("file1");
+    await modelScaler.incrementTryCount("file1");
+    await modelScaler.incrementTryCount("file1");
+    await modelScaler.incrementTryCount("file1");
 
-    // Invalid file name
-    modelScaler.setTryCount(null as any, 2);
-    expect(modelScaler.getCurrentModel()).toBe(
-      "anthropic/claude-3.5-sonnet:beta",
+    expect(modelScaler.getTryCount("file1")).toBe(0);
+    expect(modelScaler.getGlobalTryCount()).toBe(0);
+
+    // Expect setCurrentModel to have been called once during reset
+    expect(modelManagerSetCurrentModelSpy).toHaveBeenCalledTimes(1);
+    expect(modelManagerSetCurrentModelSpy).toHaveBeenCalledWith(
+      "openai/gpt-3.5-turbo",
     );
 
-    // Invalid file name
-    modelScaler.setTryCount(undefined as any, 2);
-    expect(modelScaler.getCurrentModel()).toBe(
-      "anthropic/claude-3.5-sonnet:beta",
+    // Ensure no additional calls during incrementTryCount
+    expect(modelScalerHandleModelScalingSpy).not.toHaveBeenCalled();
+  });
+
+  it("should handle phase transitions correctly", async () => {
+    // Start in Discovery phase
+    mocker.spyOnPrototypeAndReturn(
+      PhaseManager,
+      "getCurrentPhase",
+      Phase.Discovery,
     );
-  });
+    await modelScaler.incrementTryCount("file1");
+    expect(modelManagerSetCurrentModelSpy).not.toHaveBeenCalled();
 
-  it("should use specified model when auto scaler is disabled", () => {
-    const userModel = "openai/gpt-4o-2024-11-20";
-
-    // Disable auto scaler with user model
-    modelScaler.setAutoScaler(false, userModel);
-
-    // Should use user specified model
-    expect(modelScaler.getCurrentModel()).toBe(userModel);
-
-    // Try count changes should not affect model
-    modelScaler.setTryCount("file1.ts", 2);
-    expect(modelScaler.getCurrentModel()).toBe(userModel);
-
-    // Re-enable auto scaler
-    modelScaler.setAutoScaler(true);
-    expect(modelScaler.getCurrentModel()).toBe(
-      "qwen/qwen-2.5-coder-32b-instruct",
+    // Transition to Strategy phase
+    mocker.spyOnPrototypeAndReturn(
+      PhaseManager,
+      "getCurrentPhase",
+      Phase.Strategy,
     );
-  });
+    await modelScaler.incrementTryCount("file1");
+    expect(modelManagerSetCurrentModelSpy).not.toHaveBeenCalled();
 
-  it("should maintain user model after reset when auto scaler is disabled", () => {
-    const userModel = "openai/gpt-4o-2024-11-20";
-
-    // Disable auto scaler with user model
-    modelScaler.setAutoScaler(false, userModel);
-
-    // Reset should keep user model when auto scaler is disabled
-    modelScaler.reset();
-    expect(modelScaler.getCurrentModel()).toBe(userModel);
-  });
-
-  it("should use base model when disabling auto scaler without user model", () => {
-    // Disable auto scaler without specifying model
-    modelScaler.setAutoScaler(false);
-
-    // Should use base model
-    expect(modelScaler.getCurrentModel()).toBe(
-      "qwen/qwen-2.5-coder-32b-instruct",
+    // Transition to Execute phase
+    mocker.spyOnPrototypeAndReturn(
+      PhaseManager,
+      "getCurrentPhase",
+      Phase.Execute,
     );
+    await modelScaler.incrementTryCount("file1");
+    await modelScaler.incrementTryCount("file1");
+    await modelScaler.incrementTryCount("file1");
+    await modelScaler.incrementTryCount("file1");
+
+    expect(modelManagerSetCurrentModelSpy).toHaveBeenCalled();
   });
 
-  it("should not increment try count when auto scaler is disabled", () => {
-    // Disable auto scaler
-    modelScaler.setAutoScaler(false);
+  describe("getModelForTryCount", () => {
+    it("should return first model when tryCount is null", () => {
+      const result = (modelScaler as any).getModelForTryCount(null, 0);
+      expect(result).toBe("model1");
+    });
 
-    // Increment try count
-    modelScaler.incrementTryCount("file1.ts");
-    expect(modelScaler.getTryCount("file1.ts")).toBe(0);
-  });
+    it("should scale up based on try count", () => {
+      expect((modelScaler as any).getModelForTryCount("2", 0)).toBe("model1");
+      expect((modelScaler as any).getModelForTryCount("4", 0)).toBe("model2");
+      expect((modelScaler as any).getModelForTryCount("9", 0)).toBe("model3");
+    });
 
-  it("should increment global try count for any action", () => {
-    // Initial global try count
-    expect(modelScaler["globalTryCount"]).toBe(0);
+    it("should scale up based on global tries", () => {
+      expect((modelScaler as any).getModelForTryCount("2", 6)).toBe("model2");
+      expect((modelScaler as any).getModelForTryCount("2", 9)).toBe("model3");
+    });
 
-    // Increment try count for a file
-    modelScaler.incrementTryCount("file1.ts");
-    expect(modelScaler["globalTryCount"]).toBe(1);
-
-    // Increment try count for another file
-    modelScaler.incrementTryCount("file2.ts");
-    expect(modelScaler["globalTryCount"]).toBe(2);
-  });
-
-  it("should scale models based on global try count", () => {
-    // Initial model
-    const initialModel = modelScaler.getCurrentModel();
-    expect(initialModel).toBe("qwen/qwen-2.5-coder-32b-instruct");
-
-    // Increment global try count until it reaches the threshold for the next model
-    for (let i = 0; i < 5; i++) {
-      modelScaler.incrementTryCount(`file${i}.ts`);
-    }
-    expect(modelScaler.getCurrentModel()).toBe(
-      "anthropic/claude-3.5-sonnet:beta",
-    );
-
-    // Increment global try count until it reaches the threshold for the next model
-    for (let i = 5; i < 10; i++) {
-      modelScaler.incrementTryCount(`file${i}.ts`);
-    }
-    expect(modelScaler.getCurrentModel()).toBe("openai/gpt-4o-2024-11-20");
-
-    // Increment global try count until it reaches the threshold for the final model
-    for (let i = 10; i < 15; i++) {
-      modelScaler.incrementTryCount(`file${i}.ts`);
-    }
-    expect(modelScaler.getCurrentModel()).toBe("openai/o1-mini");
-  });
-
-  it("should handle incrementTryCount with invalid file paths", () => {
-    // Empty string is treated as a valid file path
-    modelScaler.incrementTryCount("");
-    expect(modelScaler.getTryCount("")).toBe(1);
-
-    // null is treated as a valid file path
-    modelScaler.incrementTryCount(null as any);
-    expect(modelScaler.getTryCount(null as any)).toBe(1);
-
-    // undefined is treated as a valid file path
-    modelScaler.incrementTryCount(undefined as any);
-    expect(modelScaler.getTryCount(undefined as any)).toBe(1);
-  });
-
-  it("should handle setTryCount with invalid file paths", () => {
-    // Empty string is treated as a valid file path
-    modelScaler.setTryCount("", 2);
-    expect(modelScaler.getTryCount("")).toBe(2);
-
-    // null is treated as a valid file path
-    modelScaler.setTryCount(null as any, 2);
-    expect(modelScaler.getTryCount(null as any)).toBe(2);
-
-    // undefined is treated as a valid file path
-    modelScaler.setTryCount(undefined as any, 2);
-    expect(modelScaler.getTryCount(undefined as any)).toBe(2);
-  });
-
-  it("should not set try count when auto scaler is disabled", () => {
-    // Disable auto scaler
-    modelScaler.setAutoScaler(false);
-
-    // Set try count
-    modelScaler.setTryCount("file1.ts", 2);
-    expect(modelScaler.getTryCount("file1.ts")).toBe(0);
-  });
-
-  it("should handle edge cases for reset when auto scaler is disabled", () => {
-    const userModel = "openai/gpt-4o-2024-11-20";
-
-    // Disable auto scaler with user model
-    modelScaler.setAutoScaler(false, userModel);
-
-    // Reset should keep user model when auto scaler is disabled
-    modelScaler.reset();
-    expect(modelScaler.getCurrentModel()).toBe(userModel);
-  });
-
-  it("should handle model changes correctly through try count changes", () => {
-    // Initial model
-    const initialModel = modelScaler.getCurrentModel();
-    expect(initialModel).toBe("qwen/qwen-2.5-coder-32b-instruct");
-
-    // Change model through try count
-    modelScaler.setTryCount("file1.ts", 2);
-    expect(modelScaler.getCurrentModel()).toBe(
-      "anthropic/claude-3.5-sonnet:beta",
-    );
-
-    // Change model again through try count
-    modelScaler.setTryCount("file1.ts", 100);
-    expect(modelScaler.getCurrentModel()).toBe("openai/o1-mini");
-  });
-
-  it("should handle model changes correctly through global try count", () => {
-    // Initial model
-    expect(modelScaler.getCurrentModel()).toBe(
-      "qwen/qwen-2.5-coder-32b-instruct",
-    );
-
-    // Increment global try count to trigger model changes
-    for (let i = 0; i < 15; i++) {
-      modelScaler.incrementTryCount(`file${i}.ts`);
-    }
-
-    // Should be using the final model after many tries
-    expect(modelScaler.getCurrentModel()).toBe("openai/o1-mini");
+    it("should return last model when all thresholds are exceeded", () => {
+      const result = (modelScaler as any).getModelForTryCount("20", 15);
+      expect(result).toBe("model3");
+    });
   });
 });

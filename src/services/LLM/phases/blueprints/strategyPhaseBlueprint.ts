@@ -16,10 +16,10 @@ export const strategyPhaseBlueprint: IPhaseConfig = {
 - Your goal is to instruct the next agent on how to solve the problem. He's probably dumber than you, so be clear.
 
 ### CRITICAL INSTRUCTIONS
-- Propose how you'd solve the problem using code. Output the necessary code changes (slices of code) to solve the problem.
+- Propose how you'd solve the problem using code. Output the necessary code changes with write_file to solve the problem.
 - FOLLOW THE EXAMPLE OF HOW TO BEHAVE. It's there to help you understand how to structure your actions.
 - MAKE SURE TO RUN end_phase action ONCE YOU HAVE FINISHED
-
+- You're limited to a maximum of 1 write_file, that should come together with your strategy. Trigger an end_phase immediately after that.
 
 
 ### Key objectives:
@@ -41,6 +41,18 @@ Ok, after checking the files, I have a clear strategy in mind. I'll start by exe
 
 <!-- MAKE SURE YOU CALL end_phase once you're finished -->  
 
+<write_file>
+  <path>/path/here</path>
+  <content>
+   <!-- CRITICAL: Most write_file tasks are ADDITIVES if you already have content in place. -->
+   <!-- CRITICAL: If presented with import errors, USE IMMEDIATELY <relative_path_lookup> to find the correct path. -->
+   <!-- ALWAYS run a type check after write_file -->
+   <!-- ALWAYS output FULL CODE. No skips or partial code -->
+   <!-- Use raw text only -->
+   <!-- If available, use path alias on imports -->
+  </content>
+</write_file>
+
 <end_phase>
   execution_phase
 </end_phase>
@@ -48,6 +60,19 @@ Ok, after checking the files, I have a clear strategy in mind. I'll start by exe
 ## Allowed Available Actions
 <!-- CRITICAL: MUST FOLLOW CORRECT TAG STRUCTURE PATTERN BELOW AND ONLY ONE ACTION PER OUTPUT/REPLY, otherwise I'll unplug you. -->
 <!-- Don't output // or <!-- comments -->
+
+YOU CAN ONLY USE THIS ONE TIME! MAKE SURE YOU SUGGEST A write_file and then immediately end_phase!
+<write_file>
+  <path>/path/here</path>
+  <content>
+   <!-- CRITICAL: Most write_file tasks are ADDITIVES if you already have content in place. -->
+   <!-- CRITICAL: If presented with import errors, USE IMMEDIATELY <relative_path_lookup> to find the correct path. -->
+   <!-- ALWAYS run a type check after write_file -->
+   <!-- ALWAYS output FULL CODE. No skips or partial code -->
+   <!-- Use raw text only -->
+   <!-- If available, use path alias on imports -->
+  </content>
+</write_file>
 
 REMEMBER: ONLY ONE ACTION PER REPLY!!!
 

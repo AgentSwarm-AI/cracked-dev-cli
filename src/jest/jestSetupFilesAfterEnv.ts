@@ -1,84 +1,5 @@
 import "reflect-metadata";
 
-// Mock modelScaling module
-jest.mock("@constants/modelScaling", () => ({
-  __esModule: true,
-  autoScaleAvailableModels: [
-    {
-      id: "qwen/qwen-2.5-coder-32b-instruct",
-      description: "Cheap, fast, slightly better than GPT4o-mini",
-      maxWriteTries: 2,
-      maxGlobalTries: 5,
-    },
-    {
-      id: "anthropic/claude-3.5-sonnet:beta",
-      description: "Scaled model for retry attempts",
-      maxWriteTries: 3,
-      maxGlobalTries: 10,
-    },
-    {
-      id: "openai/gpt-4o-2024-11-20",
-      description: "Scaled model for retry attempts",
-      maxWriteTries: 5,
-      maxGlobalTries: 15,
-    },
-    {
-      id: "openai/o1-mini",
-      description: "Final model for complex cases (currently inactive)",
-      maxWriteTries: 2,
-      maxGlobalTries: 20,
-    },
-  ],
-  getModelForTryCount: (
-    tryCount: string | null,
-    globalTries: number,
-  ): string => {
-    const models = [
-      {
-        id: "qwen/qwen-2.5-coder-32b-instruct",
-        maxWriteTries: 2,
-        maxGlobalTries: 5,
-      },
-      {
-        id: "anthropic/claude-3.5-sonnet:beta",
-        maxWriteTries: 3,
-        maxGlobalTries: 10,
-      },
-      {
-        id: "openai/gpt-4o-2024-11-20",
-        maxWriteTries: 5,
-        maxGlobalTries: 15,
-      },
-      {
-        id: "openai/o1-mini",
-        maxWriteTries: 2,
-        maxGlobalTries: 20,
-      },
-    ];
-
-    if (!tryCount) return models[0].id;
-
-    const tries = parseInt(tryCount, 10);
-
-    for (let i = 0; i < models.length; i++) {
-      const previousTriesSum = models
-        .slice(0, i)
-        .reduce((sum, model) => sum + model.maxWriteTries, 0);
-
-      if (
-        tries >= previousTriesSum + models[i].maxWriteTries ||
-        globalTries >= models[i].maxGlobalTries
-      ) {
-        continue;
-      }
-
-      return models[i].id;
-    }
-
-    return models[models.length - 1].id;
-  },
-}));
-
 // Mock chalk with a default export that matches how it's used
 jest.mock("chalk", () => ({
   __esModule: true,
@@ -102,3 +23,41 @@ jest.mock("chalk", () => ({
     strikethrough: jest.fn((text) => text),
   },
 }));
+
+// Global mock for ModelInfo
+jest.mock("@services/LLM/ModelInfo", () => {
+  const originalModule = jest.requireActual("@services/LLM/ModelInfo");
+
+  return {
+    ...originalModule,
+    ModelInfo: jest.fn().mockImplementation(() => ({
+      initialize: jest.fn().mockResolvedValue(undefined),
+      ensureInitialized: jest.fn().mockResolvedValue(undefined),
+      getCurrentModel: jest.fn().mockReturnValue("gpt-4"),
+      getCurrentModelInfo: jest.fn().mockReturnValue({
+        id: "gpt-4",
+        context_length: 8192,
+        top_provider: {
+          max_completion_tokens: 4096,
+        },
+      }),
+      setCurrentModel: jest.fn().mockResolvedValue(undefined),
+      getModelInfo: jest.fn().mockResolvedValue({
+        id: "gpt-4",
+        context_length: 8192,
+        top_provider: {
+          max_completion_tokens: 4096,
+        },
+      }),
+      isModelAvailable: jest.fn().mockResolvedValue(true),
+      getAllModels: jest.fn().mockResolvedValue(["gpt-4"]),
+      getCurrentModelContextLength: jest.fn().mockResolvedValue(8192),
+      getModelContextLength: jest.fn().mockResolvedValue(8192),
+      getCurrentModelMaxCompletionTokens: jest.fn().mockResolvedValue(4096),
+      getModelMaxCompletionTokens: jest.fn().mockResolvedValue(4096),
+      logCurrentModelUsage: jest.fn().mockResolvedValue(undefined),
+    })),
+  };
+});
+
+process.env.IS_UNIT_TEST = "true";

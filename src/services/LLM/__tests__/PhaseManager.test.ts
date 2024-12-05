@@ -1,6 +1,7 @@
 import { ConfigService } from "@services/ConfigService";
 import { UnitTestMocker } from "@tests/mocks/UnitTestMocker";
 import { container } from "tsyringe";
+import { ModelManager } from "../ModelManager";
 import { PhaseManager } from "../PhaseManager";
 import { Phase } from "../types/PhaseTypes";
 
@@ -31,15 +32,31 @@ describe("PhaseManager", () => {
       directoryFirst: true,
       excludeDirectories: false,
     },
+    autoScaleAvailableModels: [
+      {
+        id: "anthropic/claude-3.5-sonnet:beta",
+        description: "Scaled model for retry attempts",
+        maxWriteTries: 5,
+        maxGlobalTries: 15,
+      },
+      {
+        id: "openai/gpt-4o-2024-11-20",
+        description: "Scaled model for retry attempts",
+        maxWriteTries: 2,
+        maxGlobalTries: 20,
+      },
+    ],
   };
 
   beforeAll(() => {
     configService = container.resolve(ConfigService);
     phaseManager = container.resolve(PhaseManager);
+    mocker = new UnitTestMocker();
   });
 
   beforeEach(() => {
-    mocker = new UnitTestMocker();
+    jest.spyOn(configService, "getConfig").mockReturnValue(baseMockConfig);
+    phaseManager.initializePhaseConfigs();
   });
 
   afterEach(() => {
@@ -88,23 +105,24 @@ describe("PhaseManager", () => {
     it("should use config model override when provided", () => {
       const customConfig = {
         ...baseMockConfig,
-        discoveryModel: "custom-model",
-        strategyModel: "custom-strategy-model",
-        executeModel: "custom-execute-model",
+        discoveryModel: "google/gemini-flash-1.5-8b",
+        strategyModel: "anthropic/claude-3.5-sonnet:beta",
+        executeModel: "qwen/qwen-2.5-coder-32b-instruct",
       };
 
       jest.spyOn(configService, "getConfig").mockReturnValue(customConfig);
-
-      const customPhaseManager = new PhaseManager(configService);
+      const modelManager = container.resolve(ModelManager);
+      const customPhaseManager = new PhaseManager(configService, modelManager);
+      customPhaseManager.initializePhaseConfigs();
 
       expect(customPhaseManager.getPhaseConfig(Phase.Discovery).model).toBe(
-        "custom-model",
+        "google/gemini-flash-1.5-8b",
       );
       expect(customPhaseManager.getPhaseConfig(Phase.Strategy).model).toBe(
-        "custom-strategy-model",
+        "anthropic/claude-3.5-sonnet:beta",
       );
       expect(customPhaseManager.getPhaseConfig(Phase.Execute).model).toBe(
-        "custom-execute-model",
+        "qwen/qwen-2.5-coder-32b-instruct",
       );
     });
 
@@ -114,8 +132,9 @@ describe("PhaseManager", () => {
       };
 
       jest.spyOn(configService, "getConfig").mockReturnValue(emptyConfig);
-
-      const defaultPhaseManager = new PhaseManager(configService);
+      const modelManager = container.resolve(ModelManager);
+      const defaultPhaseManager = new PhaseManager(configService, modelManager);
+      defaultPhaseManager.initializePhaseConfigs();
 
       const discoveryConfig = defaultPhaseManager.getPhaseConfig(
         Phase.Discovery,

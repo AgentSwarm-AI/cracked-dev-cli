@@ -1,76 +1,24 @@
-import { getModelForTryCount } from "@constants/modelScaling";
 import { DebugLogger } from "@services/logging/DebugLogger";
 import { singleton } from "tsyringe";
 import { ConfigService } from "../ConfigService";
 import { ModelManager } from "./ModelManager";
+import { PhaseManager } from "./PhaseManager";
+import { Phase } from "./types/PhaseTypes";
 
 @singleton()
 export class ModelScaler {
   private tryCountMap: Map<string, number> = new Map();
-  private globalTryCount: number;
-  private autoScalerEnabled: boolean;
-  private userSpecifiedModel: string | null = null;
+  private globalTryCount: number = 0;
+  private autoScalerEnabled: boolean = false;
 
   constructor(
     private debugLogger: DebugLogger,
     private configService: ConfigService,
     private modelManager: ModelManager,
+    private phaseManager: PhaseManager,
   ) {
-    // Set autoScalerEnabled from crkdrc.json
     const config = this.configService.getConfig();
-    this.autoScalerEnabled = config.autoScaler ?? false;
-
-    // Set autoScaleMaxTryPerModel from crkdrc.json
-    this.globalTryCount = config.autoScaleMaxTryPerModel ?? 0;
-
-    // Initialize with base model
-    const baseModel = getModelForTryCount(null, this.globalTryCount);
-    this.modelManager.setCurrentModel(baseModel);
-    this.debugLogger.log("Model", "Initialized model scaler", {
-      model: baseModel,
-    });
-  }
-
-  getCurrentModel(): string {
-    // If auto-scaler is disabled, return user specified model or current model
-    if (!this.autoScalerEnabled) {
-      return this.userSpecifiedModel || this.modelManager.getCurrentModel();
-    }
-    return this.modelManager.getCurrentModel();
-  }
-
-  async setAutoScaler(enabled: boolean, userModel?: string): Promise<void> {
-    this.autoScalerEnabled = enabled;
-    if (!enabled) {
-      // Store user specified model when disabling auto-scaler
-      this.userSpecifiedModel = userModel || null;
-      // Clear try counts when disabling auto-scaler
-      this.tryCountMap.clear();
-      this.globalTryCount = 0;
-      const newModel =
-        this.userSpecifiedModel ||
-        getModelForTryCount(null, this.globalTryCount);
-      await this.modelManager.setCurrentModel(newModel);
-      this.debugLogger.log(
-        "Model",
-        "Auto scaler disabled, using specified model",
-        {
-          model: newModel,
-          userSpecifiedModel: this.userSpecifiedModel,
-        },
-      );
-    } else {
-      // Clear user specified model and reset to base model when enabling auto-scaler
-      this.userSpecifiedModel = null;
-      this.tryCountMap.clear();
-      this.globalTryCount = 0;
-      const baseModel = getModelForTryCount(null, this.globalTryCount);
-      await this.modelManager.setCurrentModel(baseModel);
-    }
-    this.debugLogger.log("Model", "Auto scaler setting updated", {
-      enabled,
-      userSpecifiedModel: this.userSpecifiedModel,
-    });
+    this.autoScalerEnabled = config.autoScaler || false;
   }
 
   isAutoScalerEnabled(): boolean {
@@ -78,79 +26,102 @@ export class ModelScaler {
   }
 
   async incrementTryCount(filePath: string): Promise<void> {
+    const currentPhase = this.phaseManager.getCurrentPhase();
+
+    if (!this.autoScalerEnabled || currentPhase !== Phase.Execute) {
+      return;
+    }
+
+    this.incrementCounts(filePath);
+    const currentCount = this.tryCountMap.get(filePath) || 0;
+
+    // Only scale if we've exceeded the threshold
+    if (currentCount > 3) {
+      await this.handleModelScaling(filePath, currentCount);
+    }
+  }
+
+  getTryCount(filePath: string): number {
+    if (!this.autoScalerEnabled) return 0;
+    return this.tryCountMap.get(filePath) || 0;
+  }
+
+  getGlobalTryCount(): number {
+    if (!this.autoScalerEnabled) return 0;
+    return this.globalTryCount;
+  }
+
+  reset(): void {
+    this.tryCountMap.clear();
+    this.globalTryCount = 0;
+    const config = this.configService.getConfig();
+    this.autoScalerEnabled = config.autoScaler || false;
+    this.modelManager.setCurrentModel(config.discoveryModel);
+  }
+
+  private incrementCounts(filePath: string): void {
     if (!this.autoScalerEnabled) return;
-
-    this.globalTryCount++; // Increment global try count first
-
+    
+    this.globalTryCount++;
     const currentCount = this.tryCountMap.get(filePath) || 0;
     this.tryCountMap.set(filePath, currentCount + 1);
+  }
 
-    // Get the highest try count among all files
-    const maxTries = Math.max(...Array.from(this.tryCountMap.values()));
+  private getMaxTryCount(): number {
+    const values = Array.from(this.tryCountMap.values());
+    return values.length > 0 ? Math.max(...values) : 0;
+  }
 
-    // Use both maxTries and globalTryCount to determine the model
-    const newModel = getModelForTryCount(
+  private async handleModelScaling(
+    filePath: string,
+    currentCount: number,
+  ): Promise<void> {
+    if (!this.autoScalerEnabled) return;
+
+    const maxTries = this.getMaxTryCount();
+    const newModel = this.getModelForTryCount(
       maxTries.toString(),
       this.globalTryCount,
     );
 
     this.debugLogger.log("Model", "Incrementing try count", {
       filePath,
-      currentCount: currentCount + 1,
-      globalTryCount: this.globalTryCount,
+      fileCount: currentCount + 1,
+      globalCount: this.globalTryCount,
+      maxTries,
       newModel,
+      phase: this.phaseManager.getCurrentPhase(),
     });
 
-    // Handle model change if needed
     await this.modelManager.setCurrentModel(newModel);
   }
 
-  async setTryCount(filePath: string, count: number): Promise<void> {
-    if (!this.autoScalerEnabled) return;
+  private getModelForTryCount(
+    tryCount: string | null,
+    globalTries: number,
+  ): string {
+    const config = this.configService.getConfig();
+    const availableModels = config.autoScaleAvailableModels;
 
-    this.debugLogger.log("Model", "Setting try count", {
-      filePath,
-      count,
-      globalTryCount: this.globalTryCount,
-    });
+    if (!tryCount) return availableModels[0].id;
 
-    this.tryCountMap.set(filePath, count);
+    const tries = parseInt(tryCount, 10);
 
-    // Get the highest try count among all files
-    const maxTries = Math.max(...Array.from(this.tryCountMap.values()));
-    const newModel = getModelForTryCount(
-      maxTries.toString(),
-      this.globalTryCount,
-    );
+    for (let i = 0; i < availableModels.length; i++) {
+      const previousTriesSum = availableModels
+        .slice(0, i)
+        .reduce((sum, model) => sum + model.maxWriteTries, 0);
 
-    // Handle model change if needed
-    await this.modelManager.setCurrentModel(newModel);
-  }
+      if (
+        tries >= previousTriesSum + availableModels[i].maxWriteTries ||
+        globalTries >= availableModels[i].maxGlobalTries
+      ) {
+        continue;
+      }
 
-  async reset(): Promise<void> {
-    this.tryCountMap.clear();
-    this.globalTryCount = 0;
-    // When resetting, respect user specified model if auto-scaler is disabled
-    const newModel =
-      !this.autoScalerEnabled && this.userSpecifiedModel
-        ? this.userSpecifiedModel
-        : getModelForTryCount(null, this.globalTryCount);
+      return availableModels[i].id;
+    }
 
-    this.debugLogger.log("Model", "Resetting model scaler", {
-      oldModel: this.modelManager.getCurrentModel(),
-      newModel,
-      userSpecifiedModel: this.userSpecifiedModel,
-    });
-
-    // Handle model change if needed
-    await this.modelManager.setCurrentModel(newModel);
-  }
-
-  getTryCount(filePath: string): number {
-    return this.tryCountMap.get(filePath) || 0;
-  }
-
-  getGlobalTryCount(): number {
-    return this.globalTryCount;
+    return availableModels[availableModels.length - 1].id;
   }
 }

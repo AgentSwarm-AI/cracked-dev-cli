@@ -1,5 +1,6 @@
 import { ConfigService } from "@services/ConfigService";
-import { inject, singleton } from "tsyringe";
+import { singleton } from "tsyringe";
+import { ModelManager } from "./ModelManager";
 import { phaseBlueprints } from "./phases/blueprints";
 import { IPhaseConfig, Phase } from "./types/PhaseTypes";
 
@@ -8,11 +9,12 @@ export class PhaseManager {
   private currentPhase: Phase = Phase.Discovery;
   private phaseConfigs: Map<Phase, IPhaseConfig> = new Map();
 
-  constructor(@inject(ConfigService) private configService: ConfigService) {
-    this.initializePhaseConfigs();
-  }
+  constructor(
+    private configService: ConfigService,
+    private modelManager: ModelManager,
+  ) {}
 
-  private initializePhaseConfigs() {
+  public initializePhaseConfigs() {
     const config = this.configService.getConfig();
 
     // Initialize configs using blueprints but override models from config if provided
@@ -40,6 +42,18 @@ export class PhaseManager {
         },
       ],
     ]);
+
+    // set initial phase
+    this.currentPhase = Phase.Discovery;
+
+    // set initial model
+    const phaseData = this.phaseConfigs.get(Phase.Discovery);
+
+    if (!phaseData) {
+      throw new Error("No data found for Discovery phase");
+    }
+
+    this.modelManager.setCurrentModel(phaseData.model);
   }
 
   getCurrentPhase(): Phase {
@@ -47,6 +61,11 @@ export class PhaseManager {
   }
 
   getCurrentPhaseConfig(): IPhaseConfig {
+    // reset if not set
+    if (!this.currentPhase) {
+      this.resetPhase();
+    }
+
     const config = this.phaseConfigs.get(this.currentPhase);
     if (!config) {
       throw new Error(`No configuration found for phase ${this.currentPhase}`);

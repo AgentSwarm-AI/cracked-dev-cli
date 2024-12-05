@@ -141,7 +141,6 @@ export class Run extends Command {
 
       const options: CrackedAgentOptions = {
         ...config,
-        model: this.modelManager.getCurrentModel(),
         options: this.parseOptions(config.options || ""),
         provider: config.provider as LLMProviderType,
       };
@@ -152,7 +151,7 @@ export class Run extends Command {
       }
 
       console.log(
-        `Using ${options.provider} provider and model: ${options.model}`,
+        `Using ${options.provider} provider and model: ${this.modelManager.getCurrentModel()}`,
       );
 
       const agent = container.resolve(CrackedAgent);

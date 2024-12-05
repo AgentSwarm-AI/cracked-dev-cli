@@ -65,7 +65,11 @@ export class WriteFileAction extends BaseAction {
 
     // Check if file exists and increment try count if it does
     const exists = await this.fileOperations.exists(filePath);
+
+    console.log(`WriteFileAction: File exists: ${exists}`);
+
     if (exists) {
+      console.log(`WriteFileAction: Incrementing try count for ${filePath}`);
       this.modelScaler.incrementTryCount(filePath);
     }
 

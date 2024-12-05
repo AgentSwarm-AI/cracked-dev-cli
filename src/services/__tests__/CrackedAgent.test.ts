@@ -1,11 +1,9 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
 import { DEFAULT_INSTRUCTIONS } from "@constants/defaultInstructions";
 import { CrackedAgent } from "@services/CrackedAgent";
 import { FileReader } from "@services/FileManagement/FileReader";
 import { ActionsParser } from "@services/LLM/actions/ActionsParser";
 import { LLMContextCreator } from "@services/LLM/LLMContextCreator";
 import { LLMProvider, LLMProviderType } from "@services/LLM/LLMProvider";
-import { ModelScaler } from "@services/LLM/ModelScaler";
 import { DebugLogger } from "@services/logging/DebugLogger";
 import { StreamHandler } from "@services/streaming/StreamHandler";
 import { HtmlEntityDecoder } from "@services/text/HTMLEntityDecoder";
@@ -60,13 +58,6 @@ describe("CrackedAgent", () => {
       async () => "Mock formatted message",
     );
 
-    // Mock ModelScaler methods
-    mocker.spyOnPrototypeWithImplementation(
-      ModelScaler,
-      "setAutoScaler",
-      () => {},
-    );
-
     // Mock DebugLogger methods
     mocker.spyOnPrototypeWithImplementation(DebugLogger, "log", () => {});
     mocker.spyOnPrototypeWithImplementation(DebugLogger, "setDebug", () => {});
@@ -83,9 +74,8 @@ describe("CrackedAgent", () => {
 
     // Resolve CrackedAgent from the container
     crackedAgent = container.resolve(CrackedAgent);
-    // Manually set the llm instance
-    // @ts-ignore - accessing private property for testing
-    crackedAgent.llm = mockLLMProvider;
+    // Set the llm instance using type assertion for private property access
+    (crackedAgent as unknown as { llm: LLMProvider }).llm = mockLLMProvider;
   });
 
   afterEach(() => {
@@ -97,7 +87,6 @@ describe("CrackedAgent", () => {
   describe("execute", () => {
     it("should handle instructions from instructionsPath", async () => {
       const options = {
-        model: "model1",
         provider: LLMProviderType.OpenRouter,
         stream: false,
         debug: false,
@@ -118,7 +107,6 @@ describe("CrackedAgent", () => {
 
     it("should handle instructions from instructions", async () => {
       const options = {
-        model: "model1",
         provider: LLMProviderType.OpenRouter,
         stream: false,
         debug: false,
@@ -137,7 +125,6 @@ describe("CrackedAgent", () => {
 
     it("should use default instructions if none provided", async () => {
       const options = {
-        model: "model1",
         provider: LLMProviderType.OpenRouter,
         stream: false,
         debug: false,
@@ -154,7 +141,6 @@ describe("CrackedAgent", () => {
 
     it("should clear conversation history if clearContext is true", async () => {
       const options = {
-        model: "model1",
         provider: LLMProviderType.OpenRouter,
         stream: false,
         debug: false,
@@ -167,28 +153,8 @@ describe("CrackedAgent", () => {
       expect(mockLLMProvider.clearConversationContext).toHaveBeenCalled();
     });
 
-    it("should throw an error if the model is invalid", async () => {
-      const options = {
-        model: "unsupported-model",
-        provider: LLMProviderType.OpenRouter,
-        stream: false,
-        debug: false,
-        clearContext: false,
-        autoScaler: false,
-      };
-
-      mockLLMProvider.validateModel.mockResolvedValueOnce(false);
-
-      await expect(
-        crackedAgent.execute("Mock message", options),
-      ).rejects.toThrow(
-        "Invalid model: unsupported-model. Available models: model1, model2",
-      );
-    });
-
     it("should enable streaming if stream is true", async () => {
       const options = {
-        model: "model1",
         provider: LLMProviderType.OpenRouter,
         stream: true,
         debug: false,
@@ -203,7 +169,6 @@ describe("CrackedAgent", () => {
 
     it("should not enable streaming if stream is false", async () => {
       const options = {
-        model: "model1",
         provider: LLMProviderType.OpenRouter,
         stream: false,
         debug: false,
@@ -219,7 +184,6 @@ describe("CrackedAgent", () => {
 
     it("should enable debug logging if debug is true", async () => {
       const options = {
-        model: "model1",
         provider: LLMProviderType.OpenRouter,
         stream: false,
         debug: true,
@@ -234,7 +198,6 @@ describe("CrackedAgent", () => {
 
     it("should not enable debug logging if debug is false", async () => {
       const options = {
-        model: "model1",
         provider: LLMProviderType.OpenRouter,
         stream: false,
         debug: false,
@@ -247,65 +210,8 @@ describe("CrackedAgent", () => {
       expect(DebugLogger.prototype.setDebug).toHaveBeenCalledWith(false);
     });
 
-    it("should enable auto-scaling if autoScaler is true", async () => {
-      const options = {
-        model: "model1",
-        provider: LLMProviderType.OpenRouter,
-        stream: false,
-        debug: false,
-        clearContext: false,
-        autoScaler: true,
-      };
-
-      await crackedAgent.execute("Mock message", options);
-
-      expect(ModelScaler.prototype.setAutoScaler).toHaveBeenCalledWith(
-        true,
-        "model1",
-      );
-    });
-
-    it("should not enable auto-scaling if autoScaler is false", async () => {
-      const options = {
-        model: "model1",
-        provider: LLMProviderType.OpenRouter,
-        stream: false,
-        debug: false,
-        clearContext: false,
-        autoScaler: false,
-      };
-
-      await crackedAgent.execute("Mock message", options);
-
-      expect(ModelScaler.prototype.setAutoScaler).toHaveBeenCalledWith(
-        false,
-        "model1",
-      );
-    });
-
-    it("should handle different models", async () => {
-      const options = {
-        model: "model2",
-        provider: LLMProviderType.OpenRouter,
-        stream: false,
-        debug: false,
-        clearContext: false,
-        autoScaler: false,
-      };
-
-      await crackedAgent.execute("Mock message", options);
-
-      expect(mockLLMProvider.validateModel).toHaveBeenCalledWith("model2");
-      expect(mockLLMProvider.sendMessage).toHaveBeenCalledWith(
-        "model2",
-        "Mock formatted message",
-        {},
-      );
-    });
-
     it("should handle different providers", async () => {
       const options = {
-        model: "model1",
         provider: LLMProviderType.OpenRouter,
         stream: false,
         debug: false,
@@ -322,7 +228,6 @@ describe("CrackedAgent", () => {
 
     it("should handle root option", async () => {
       const options = {
-        model: "model1",
         provider: LLMProviderType.OpenRouter,
         stream: false,
         debug: false,
@@ -342,7 +247,6 @@ describe("CrackedAgent", () => {
 
     it("should handle options object", async () => {
       const options = {
-        model: "model1",
         provider: LLMProviderType.OpenRouter,
         stream: false,
         debug: false,
@@ -354,7 +258,7 @@ describe("CrackedAgent", () => {
       await crackedAgent.execute("Mock message", options);
 
       expect(mockLLMProvider.sendMessage).toHaveBeenCalledWith(
-        "model1",
+        expect.any(String),
         "Mock formatted message",
         { key: "value" },
       );
@@ -362,7 +266,6 @@ describe("CrackedAgent", () => {
 
     it("should handle empty message", async () => {
       const options = {
-        model: "model1",
         provider: LLMProviderType.OpenRouter,
         stream: false,
         debug: false,
@@ -373,7 +276,7 @@ describe("CrackedAgent", () => {
       await crackedAgent.execute("", options);
 
       expect(mockLLMProvider.sendMessage).toHaveBeenCalledWith(
-        "model1",
+        expect.any(String),
         "Mock formatted message",
         {},
       );
@@ -381,7 +284,6 @@ describe("CrackedAgent", () => {
 
     it("should handle null message", async () => {
       const options = {
-        model: "model1",
         provider: LLMProviderType.OpenRouter,
         stream: false,
         debug: false,
@@ -389,10 +291,10 @@ describe("CrackedAgent", () => {
         autoScaler: false,
       };
 
-      await crackedAgent.execute(null as any, options);
+      await crackedAgent.execute(undefined as unknown as string, options);
 
       expect(mockLLMProvider.sendMessage).toHaveBeenCalledWith(
-        "model1",
+        expect.any(String),
         "Mock formatted message",
         {},
       );
@@ -400,7 +302,6 @@ describe("CrackedAgent", () => {
 
     it("should handle empty instructionsPath", async () => {
       const options = {
-        model: "model1",
         provider: LLMProviderType.OpenRouter,
         stream: false,
         debug: false,
@@ -419,13 +320,12 @@ describe("CrackedAgent", () => {
 
     it("should handle null instructionsPath", async () => {
       const options = {
-        model: "model1",
         provider: LLMProviderType.OpenRouter,
         stream: false,
         debug: false,
         clearContext: false,
         autoScaler: false,
-        instructionsPath: null as any,
+        instructionsPath: undefined as unknown as string,
       };
 
       await crackedAgent.execute("Mock message", options);
@@ -438,7 +338,6 @@ describe("CrackedAgent", () => {
 
     it("should handle empty instructions", async () => {
       const options = {
-        model: "model1",
         provider: LLMProviderType.OpenRouter,
         stream: false,
         debug: false,
@@ -457,13 +356,12 @@ describe("CrackedAgent", () => {
 
     it("should handle null instructions", async () => {
       const options = {
-        model: "model1",
         provider: LLMProviderType.OpenRouter,
         stream: false,
         debug: false,
         clearContext: false,
         autoScaler: false,
-        instructions: null as any,
+        instructions: undefined as unknown as string,
       };
 
       await crackedAgent.execute("Mock message", options);
@@ -476,7 +374,6 @@ describe("CrackedAgent", () => {
 
     it("should handle empty options object", async () => {
       const options = {
-        model: "model1",
         provider: LLMProviderType.OpenRouter,
         stream: false,
         debug: false,
@@ -488,7 +385,7 @@ describe("CrackedAgent", () => {
       await crackedAgent.execute("Mock message", options);
 
       expect(mockLLMProvider.sendMessage).toHaveBeenCalledWith(
-        "model1",
+        expect.any(String),
         "Mock formatted message",
         {},
       );
@@ -509,8 +406,10 @@ describe("CrackedAgent", () => {
       crackedAgent.clearConversationHistory();
 
       expect(mockLLMProvider.clearConversationContext).toHaveBeenCalled();
-      // @ts-ignore
-      expect(crackedAgent.isFirstInteraction).toBe(true);
+      expect(
+        (crackedAgent as unknown as { isFirstInteraction: boolean })
+          .isFirstInteraction,
+      ).toBe(true);
     });
   });
 });

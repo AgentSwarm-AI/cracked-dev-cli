@@ -64,7 +64,6 @@ describe("WriteFileAction", () => {
         return null;
       });
 
-      mockModelScaler.getCurrentModel.mockReturnValue("test-model");
       mockModelScaler.isAutoScalerEnabled.mockReturnValue(false);
       mockFileOperations.exists.mockResolvedValue(false);
       mockFileOperations.write.mockResolvedValue({ success: true });
@@ -96,7 +95,6 @@ describe("WriteFileAction", () => {
         return null;
       });
 
-      mockModelScaler.getCurrentModel.mockReturnValue("test-model");
       mockModelScaler.isAutoScalerEnabled.mockReturnValue(false);
       mockFileOperations.exists.mockResolvedValue(false);
       mockFileOperations.write.mockResolvedValue({ success: true });
@@ -124,7 +122,6 @@ describe("WriteFileAction", () => {
         return null;
       });
 
-      mockModelScaler.getCurrentModel.mockReturnValue("test-model");
       mockModelScaler.isAutoScalerEnabled.mockReturnValue(false);
       mockFileOperations.exists.mockResolvedValue(true);
       mockFileOperations.read.mockResolvedValue({
@@ -155,7 +152,6 @@ describe("WriteFileAction", () => {
         return null;
       });
 
-      mockModelScaler.getCurrentModel.mockReturnValue("test-model");
       mockModelScaler.isAutoScalerEnabled.mockReturnValue(false);
       mockFileOperations.exists.mockResolvedValue(false);
       mockFileOperations.write.mockResolvedValue({ success: true });
@@ -165,7 +161,7 @@ describe("WriteFileAction", () => {
 
       expect(result.success).toBe(true);
       expect(mockModelScaler.incrementTryCount).not.toHaveBeenCalled();
-      expect(mockModelScaler.setTryCount).not.toHaveBeenCalled();
+
       expect(mockFileOperations.write).toHaveBeenCalledWith(filePath, content);
     });
 
@@ -183,7 +179,6 @@ describe("WriteFileAction", () => {
         return null;
       });
 
-      mockModelScaler.getCurrentModel.mockReturnValue("test-model");
       mockModelScaler.isAutoScalerEnabled.mockReturnValue(false);
       mockFileOperations.exists.mockResolvedValue(false);
       mockFileOperations.write.mockResolvedValue({
@@ -215,7 +210,6 @@ describe("WriteFileAction", () => {
         return null;
       });
 
-      mockModelScaler.getCurrentModel.mockReturnValue("test-model");
       mockModelScaler.isAutoScalerEnabled.mockReturnValue(false);
       mockFileOperations.exists.mockResolvedValue(true);
       mockFileOperations.read.mockResolvedValue({
@@ -250,7 +244,6 @@ describe("WriteFileAction", () => {
         return null;
       });
 
-      mockModelScaler.getCurrentModel.mockReturnValue("test-model");
       mockModelScaler.isAutoScalerEnabled.mockReturnValue(false);
       mockFileOperations.exists.mockResolvedValue(false);
       mockFileOperations.write.mockResolvedValue({ success: true });

@@ -1,4 +1,3 @@
-import { getModelForTryCount } from "@constants/modelScaling";
 import { DebugLogger } from "@services/logging/DebugLogger";
 import { singleton } from "tsyringe";
 import { ConfigService } from "../ConfigService";
@@ -15,9 +14,9 @@ export class ModelManager {
     private messageContextManager: MessageContextManager,
     private configService: ConfigService,
   ) {
-    // Initialize with discovery phase model from config or fallback to default
+    // Initialize with discovery phase model from config
     const config = this.configService.getConfig();
-    this.currentModel = config.discoveryModel || getModelForTryCount(null, 0);
+    this.currentModel = config.discoveryModel;
     this.modelInfo.setCurrentModel(this.currentModel);
     this.debugLogger.log("Model", "Initialized model manager", {
       model: this.currentModel,

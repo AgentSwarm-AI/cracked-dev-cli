@@ -1,20 +1,19 @@
+import { DEFAULT_INSTRUCTIONS } from "@constants/defaultInstructions";
 import { FileReader } from "@services/FileManagement/FileReader";
 import { ActionsParser } from "@services/LLM/actions/ActionsParser";
 import { ILLMProvider } from "@services/LLM/ILLMProvider";
 import { LLMContextCreator } from "@services/LLM/LLMContextCreator";
 import { LLMProvider, LLMProviderType } from "@services/LLM/LLMProvider";
-import { ModelScaler } from "@services/LLM/ModelScaler";
 import { DebugLogger } from "@services/logging/DebugLogger";
 import { StreamHandler } from "@services/streaming/StreamHandler";
-import { HtmlEntityDecoder } from "@services/text/HTMLEntityDecoder";
 import { autoInjectable, singleton } from "tsyringe";
-import { DEFAULT_INSTRUCTIONS } from "@constants/defaultInstructions";
+import { ModelManager } from "./LLM/ModelManager";
+import { PhaseManager } from "./LLM/PhaseManager";
 
 export interface CrackedAgentOptions {
   root?: string;
   instructionsPath?: string;
   instructions?: string;
-  model: string;
   provider?: LLMProviderType;
   stream?: boolean;
   debug?: boolean;
@@ -41,16 +40,18 @@ export class CrackedAgent {
     private debugLogger: DebugLogger,
     private actionsParser: ActionsParser,
     private streamHandler: StreamHandler,
-    private htmlEntityDecoder: HtmlEntityDecoder,
-    private modelScaler: ModelScaler,
+    private phaseManager: PhaseManager,
+    private modelManager: ModelManager,
   ) {}
 
   async execute(
     message: string,
     options: CrackedAgentOptions,
   ): Promise<ExecutionResult> {
+    this.phaseManager.initializePhaseConfigs();
+
     const finalOptions = await this.setupExecution(options);
-    this.currentModel = finalOptions.model;
+    this.currentModel = this.modelManager.getCurrentModel();
 
     const formattedMessage = await this.contextCreator.create(
       message,
@@ -108,14 +109,7 @@ export class CrackedAgent {
       this.clearConversationHistory();
     }
 
-    // Always explicitly set auto-scaler state with the model
-    // If autoScaler is not specified, it defaults to false and uses the provided model
-    this.modelScaler.setAutoScaler(
-      finalOptions.autoScaler || false,
-      finalOptions.model,
-    );
-
-    await this.validateModel(finalOptions.model);
+    await this.validateModel(this.modelManager.getCurrentModel());
     await this.setupInstructions(finalOptions);
 
     return finalOptions;

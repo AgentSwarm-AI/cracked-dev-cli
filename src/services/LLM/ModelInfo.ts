@@ -47,25 +47,25 @@ export class ModelInfo {
       return; // Already tracking this model
     }
 
-    const modelInfo = this.modelInfoMap.get(modelId);
-    if (modelInfo) {
-      this.currentModel = modelId;
-      this.currentModelInfo = modelInfo;
-      this.debugLogger.log("ModelInfo", "Current model info", {
-        model: modelId,
-        contextLength: modelInfo.context_length,
-        maxCompletionTokens: modelInfo.top_provider.max_completion_tokens,
-      });
-    } else {
-      const availableModels = Array.from(this.modelInfoMap.keys());
-      this.debugLogger.log("ModelInfo", "Model not found in available models", {
-        modelId,
-        availableModels,
-      });
+    if (!(await this.isModelAvailable(modelId))) {
       throw new Error(
-        `Invalid model: ${modelId}. Available models: ${availableModels.join(", ")}`,
+        `Invalid model: ${modelId}. Available models: ${Array.from(this.modelInfoMap.keys()).join(", ")}`,
       );
     }
+
+    const modelInfo = this.modelInfoMap.get(modelId)!; // Safe to use ! here since we checked availability
+    this.currentModel = modelId;
+    this.currentModelInfo = modelInfo;
+
+    if (!modelInfo) {
+      return;
+    }
+
+    this.debugLogger.log("ModelInfo", "Current model info", {
+      model: modelId,
+      contextLength: modelInfo.context_length,
+      maxCompletionTokens: modelInfo.top_provider.max_completion_tokens,
+    });
   }
 
   getCurrentModel(): string | null {
@@ -99,7 +99,17 @@ export class ModelInfo {
 
   async isModelAvailable(modelId: string): Promise<boolean> {
     await this.ensureInitialized();
-    return this.modelInfoMap.has(modelId);
+    const available = this.modelInfoMap.has(modelId);
+
+    if (!available) {
+      const availableModels = Array.from(this.modelInfoMap.keys());
+      this.debugLogger.log("ModelInfo", "Model not found in available models", {
+        modelId,
+        availableModels,
+      });
+    }
+
+    return available;
   }
 
   async getModelMaxCompletionTokens(modelId: string): Promise<number> {

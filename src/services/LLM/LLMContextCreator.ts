@@ -96,7 +96,7 @@ Run Type Check: ${runTypeCheckCmd}`;
     const phaseConfig = this.phaseManager.getCurrentPhaseConfig();
 
     const envDetails = config.includeAllFilesOnEnvToContext
-      ? `\n${context.environmentDetails}`
+      ? context.environmentDetails
       : "";
 
     const promptArgs: IPhasePromptArgs = {
@@ -119,6 +119,8 @@ ${context.message}
 - Break tasks into prioritized steps.
 - Use available actions sequentially.
 
+${envDetails ? `\n${envDetails}` : ""}
+${context.projectInfo ? `\n${context.projectInfo}` : ""}
 
 ## Instructions
 ${phaseConfig.generatePrompt(promptArgs)}

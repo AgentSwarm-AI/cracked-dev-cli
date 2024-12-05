@@ -24,16 +24,14 @@ const configSchema = z.object({
     .string()
     .optional()
     .default("anthropic/claude-3.5-sonnet:beta"),
-  autoScaleAvailableModels: z
-    .array(
-      z.object({
-        id: z.string(),
-        description: z.string(),
-        maxWriteTries: z.number(),
-        maxGlobalTries: z.number(),
-      }),
-    )
-    .optional(),
+  autoScaleAvailableModels: z.array(
+    z.object({
+      id: z.string(),
+      description: z.string(),
+      maxWriteTries: z.number(),
+      maxGlobalTries: z.number(),
+    }),
+  ),
   runAllTestsCmd: z.string().optional(),
   runOneTestCmd: z.string().optional(),
   runTypeCheckCmd: z.string().optional(),

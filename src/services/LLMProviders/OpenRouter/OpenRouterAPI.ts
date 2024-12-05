@@ -201,7 +201,6 @@ export class OpenRouterAPI implements ILLMProvider {
 
   async clearConversationContext(): Promise<void> {
     this.messageContextManager.clear();
-    await this.modelScaler?.reset();
   }
 
   getConversationContext(): IMessage[] {
