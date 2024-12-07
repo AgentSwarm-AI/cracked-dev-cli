@@ -4,13 +4,9 @@ import { ModelInfo } from "@services/LLM/ModelInfo";
 import { DebugLogger } from "@services/logging/DebugLogger";
 import * as path from "path";
 import { autoInjectable, singleton } from "tsyringe";
+import { MessageContextBuilder } from "./MessageContextBuilder";
+import { MessageContextCleanup } from "./MessageContextCleanup";
 import { MessageConversationLogger } from "./MessageConversationLogger";
-
-interface FileOperation {
-  type: "read_file" | "write_file" | "execute_command";
-  path?: string;
-  command?: string;
-}
 
 interface ActionResult {
   success: boolean;
@@ -21,8 +17,6 @@ interface ActionResult {
 @singleton()
 @autoInjectable()
 export class MessageContextManager {
-  private conversationHistory: IConversationHistoryMessage[] = [];
-  private systemInstructions: string | null = null;
   private currentModel: string | null = null;
   private readonly logPath = path.join(
     process.cwd(),
@@ -35,6 +29,8 @@ export class MessageContextManager {
     private modelInfo: ModelInfo,
     private configService: ConfigService,
     private conversationLogger: MessageConversationLogger,
+    private contextBuilder: MessageContextBuilder,
+    private contextCleanup: MessageContextCleanup,
   ) {
     // Clean up log file on startup, but not in test environment
     if (process.env.NODE_ENV !== "test") {
@@ -68,151 +64,31 @@ export class MessageContextManager {
     // Skip logging in test environment or if disabled
     if (process.env.NODE_ENV === "test" || !this.isLoggingEnabled()) return;
     this.conversationLogger.updateConversationHistory(
-      this.conversationHistory,
-      this.systemInstructions,
+      this.contextBuilder.getConversationHistory(),
+      this.contextBuilder.getSystemInstructions(),
     );
-  }
-
-  private extractOperations(content: string): FileOperation[] {
-    const operations: FileOperation[] = [];
-
-    // Extract write_file operations
-    const writeMatches = Array.from(
-      content.matchAll(/<write_file>[\s\S]*?<path>(.*?)<\/path>/g),
-    );
-    writeMatches.forEach((match) => {
-      if (match[1]) {
-        operations.push({
-          type: "write_file",
-          path: match[1],
-        });
-      }
-    });
-
-    // Extract read_file operations
-    const readMatches = Array.from(
-      content.matchAll(/<read_file>[\s\S]*?<path>(.*?)<\/path>/g),
-    );
-    readMatches.forEach((match) => {
-      if (match[1]) {
-        operations.push({
-          type: "read_file",
-          path: match[1],
-        });
-      }
-    });
-
-    // Extract execute_command operations
-    const commandMatches = Array.from(
-      content.matchAll(/<execute_command>[\s\S]*?<command>(.*?)<\/command>/g),
-    );
-    commandMatches.forEach((match) => {
-      if (match[1]) {
-        operations.push({
-          type: "execute_command",
-          command: match[1],
-        });
-      }
-    });
-
-    return operations;
-  }
-
-  private hasPhasePrompt(content: string): boolean {
-    return content.includes("<phase_prompt>");
-  }
-
-  private removeOldOperations(newMessage: IConversationHistoryMessage): void {
-    this.debugLogger.log("Context", "Removing old operations");
-
-    const newOperations = this.extractOperations(newMessage.content);
-    const hasNewPhasePrompt = this.hasPhasePrompt(newMessage.content);
-
-    // If the new message has read_file operations, we'll keep only this message
-    const hasNewReadFileOps = newOperations.some(
-      (op) => op.type === "read_file",
-    );
-
-    this.conversationHistory = this.conversationHistory.filter((msg) => {
-      // If new message has a phase prompt, remove old phase prompts
-      if (hasNewPhasePrompt && this.hasPhasePrompt(msg.content)) {
-        return false;
-      }
-
-      const msgOperations = this.extractOperations(msg.content);
-      const hasReadFileOps = msgOperations.some(
-        (op) => op.type === "read_file",
-      );
-
-      // If new message has read_file operations, remove old messages with read_file
-      if (hasNewReadFileOps && hasReadFileOps) {
-        return false;
-      }
-
-      // Keep messages without write_file or execute_command operations
-      if (
-        !msg.content.includes("<write_file>") &&
-        !msg.content.includes("<execute_command>")
-      ) {
-        return true;
-      }
-
-      // Remove message if it has any matching write_file or execute_command operations
-      return !msgOperations.some((msgOp) =>
-        newOperations.some((newOp) => {
-          if (
-            newOp.type === "execute_command" &&
-            msgOp.type === "execute_command"
-          ) {
-            return newOp.command === msgOp.command;
-          }
-          if (newOp.type === "write_file" && msgOp.type === "write_file") {
-            return newOp.path === msgOp.path;
-          }
-          return false;
-        }),
-      );
-    });
-
-    // Update the log file with current conversation history
-    this.updateLogFile();
   }
 
   cleanupPhaseContent(): void {
     this.debugLogger.log("Context", "Cleaning up phase content");
-
-    // Remove all content within phase-related tags from previous messages
-    this.conversationHistory = this.conversationHistory.map((msg) => {
-      let content = msg.content;
-      // Remove phase_prompt content
-      content = content.replace(/<phase_prompt>[\s\S]*?<\/phase_prompt>/g, "");
-      return {
-        ...msg,
-        content: content,
-      };
-    });
-
-    // Update the log file with cleaned conversation history
+    this.contextBuilder.clear();
     this.updateLogFile();
   }
 
   mergeConversationHistory(): void {
     this.debugLogger.log("Context", "Merging conversation history");
 
-    if (this.conversationHistory.length === 0) {
+    const history = this.contextBuilder.getConversationHistory();
+    if (history.length === 0) {
       return;
     }
 
-    const mergedContent = this.conversationHistory
+    const mergedContent = history
       .map((msg) => `${msg.role}: ${msg.content}`)
       .join("\n\n");
 
-    this.conversationHistory = [
-      {
-        role: "assistant",
-        content: mergedContent,
-      },
-    ];
+    this.contextBuilder.clear();
+    this.contextBuilder.addMessage("assistant", mergedContent);
 
     // Update the log file with merged conversation history
     this.updateLogFile();
@@ -233,38 +109,50 @@ export class MessageContextManager {
     }
 
     const message = { role, content };
-
-    // Remove old operations before adding new message
-    if (role === "user" || role === "assistant") {
-      this.removeOldOperations(message);
-    }
-
-    this.conversationHistory.push(message);
+    this.contextBuilder.addMessage(role, content);
     this.logMessage(message);
 
     return true;
   }
 
   logAction(action: string, result: ActionResult): void {
+    // Update context builder with operation result
+    if (action.startsWith("read_file:")) {
+      const path = action.replace("read_file:", "").trim();
+      this.contextBuilder.updateOperationResult(
+        "read_file",
+        path,
+        result.result || "",
+      );
+    } else if (action.startsWith("write_file:")) {
+      const path = action.replace("write_file:", "").trim();
+      this.contextBuilder.updateOperationResult(
+        "write_file",
+        path,
+        result.result || "",
+      );
+    } else if (action.startsWith("execute_command:")) {
+      const command = action.replace("execute_command:", "").trim();
+      this.contextBuilder.updateOperationResult(
+        "execute_command",
+        command,
+        result.result || "",
+      );
+    }
+
     this.logActionResult(action, result);
   }
 
   getMessages(): IConversationHistoryMessage[] {
-    if (this.systemInstructions) {
-      return [
-        { role: "system", content: this.systemInstructions },
-        ...this.conversationHistory,
-      ];
-    }
-    return this.conversationHistory.slice();
+    return this.contextBuilder.getConversationHistory();
   }
 
   clear(): void {
-    const hadMessages = this.conversationHistory.length > 0;
-    const hadInstructions = this.systemInstructions !== null;
+    const hadMessages = this.getMessages().length > 0;
+    const hadInstructions =
+      this.contextBuilder.getSystemInstructions() !== null;
 
-    this.conversationHistory = [];
-    this.systemInstructions = null;
+    this.contextBuilder.clear();
 
     // Update the log file when clearing context
     this.updateLogFile();
@@ -276,8 +164,9 @@ export class MessageContextManager {
   }
 
   setSystemInstructions(instructions: string): void {
-    const hadPreviousInstructions = this.systemInstructions !== null;
-    this.systemInstructions = instructions;
+    const hadPreviousInstructions =
+      this.contextBuilder.getSystemInstructions() !== null;
+    this.contextBuilder.setSystemInstructions(instructions);
 
     // Update the log file when system instructions change
     this.updateLogFile();
@@ -289,7 +178,7 @@ export class MessageContextManager {
   }
 
   getSystemInstructions(): string | null {
-    return this.systemInstructions;
+    return this.contextBuilder.getSystemInstructions();
   }
 
   getCurrentModel(): string | null {
@@ -301,100 +190,33 @@ export class MessageContextManager {
   }
 
   getTotalTokenCount(): number {
-    let total = 0;
-
-    if (this.systemInstructions) {
-      total += this.estimateTokenCount(this.systemInstructions);
-    }
-
-    for (const message of this.conversationHistory) {
-      total += this.estimateTokenCount(message.content);
-    }
-
-    return total;
-  }
-
-  private getConversationTokenCount(): number {
-    return this.conversationHistory.reduce(
+    const history = this.contextBuilder.getConversationHistory();
+    return history.reduce(
       (total, message) => total + this.estimateTokenCount(message.content),
       0,
     );
   }
 
   async cleanupContext(): Promise<boolean> {
-    if (this.conversationHistory.length === 0) {
-      return false;
-    }
-
     const maxTokens = await this.modelInfo.getCurrentModelContextLength();
-    const systemTokens = this.systemInstructions
-      ? this.estimateTokenCount(this.systemInstructions)
-      : 0;
-    const availableTokens = maxTokens - systemTokens;
-
-    const conversationTokens = this.getConversationTokenCount();
-    if (conversationTokens <= availableTokens) {
-      return false;
-    }
-
-    const initialMessageCount = this.conversationHistory.length;
-
-    // Split messages into phase prompts and regular messages
-    const phasePrompts: IConversationHistoryMessage[] = [];
-    const regularMessages: IConversationHistoryMessage[] = [];
-
-    this.conversationHistory.forEach((msg) => {
-      if (this.hasPhasePrompt(msg.content)) {
-        phasePrompts.push(msg);
-      } else {
-        regularMessages.push(msg);
-      }
-    });
-
-    // Calculate tokens for phase prompts
-    const phasePromptTokens = phasePrompts.reduce(
-      (total, msg) => total + this.estimateTokenCount(msg.content),
-      0,
+    const cleaned = await this.contextCleanup.cleanupContext(
+      maxTokens,
+      this.estimateTokenCount.bind(this),
     );
 
-    // Available tokens for regular messages
-    const availableRegularTokens = availableTokens - phasePromptTokens;
-    let currentTokens = 0;
+    if (cleaned) {
+      // Update the log file after cleanup
+      this.updateLogFile();
 
-    // Keep messages from the beginning until we hit the token limit
-    const keptMessages: IConversationHistoryMessage[] = [];
-    for (const msg of regularMessages) {
-      const msgTokens = this.estimateTokenCount(msg.content);
-      if (currentTokens + msgTokens <= availableRegularTokens) {
-        keptMessages.push(msg);
-        currentTokens += msgTokens;
-      } else {
-        break;
-      }
+      const history = this.getMessages();
+      this.debugLogger.log("Context", "Context cleanup performed", {
+        maxTokens,
+        remainingMessages: history.length,
+      });
+
+      await this.modelInfo.logCurrentModelUsage(this.getTotalTokenCount());
     }
 
-    // Combine phase prompts and kept messages in chronological order
-    const allMessages = [...phasePrompts, ...keptMessages].sort((a, b) => {
-      const aIndex = this.conversationHistory.indexOf(a);
-      const bIndex = this.conversationHistory.indexOf(b);
-      return aIndex - bIndex;
-    });
-
-    this.conversationHistory = allMessages;
-
-    // Update the log file after cleanup
-    this.updateLogFile();
-
-    const removedCount = initialMessageCount - this.conversationHistory.length;
-    this.debugLogger.log("Context", "Context cleanup performed", {
-      maxTokens,
-      systemTokens,
-      initialMessageCount,
-      remainingMessages: this.conversationHistory.length,
-      removedMessages: removedCount,
-    });
-
-    await this.modelInfo.logCurrentModelUsage(this.getTotalTokenCount());
-    return true;
+    return cleaned;
   }
 }
