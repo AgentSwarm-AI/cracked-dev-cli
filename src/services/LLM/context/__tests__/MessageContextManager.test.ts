@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { MessageContextManager } from "@/services/LLM/context/MessageContextManager";
 import { ConfigService } from "@services/ConfigService";
 import { ModelInfo } from "@services/LLM/ModelInfo";
 import { DebugLogger } from "@services/logging/DebugLogger";
 import { container } from "tsyringe";
+import { MessageContextManager } from "../MessageContextManager";
 import { MessageConversationLogger } from "../MessageConversationLogger";
 
 describe("MessageContextManager", () => {
@@ -381,7 +381,7 @@ describe("MessageContextManager", () => {
   });
 
   describe("removeOldOperations", () => {
-    it("should remove old file operations if new message has the same operations", () => {
+    it("should keep only the most recent message with read_file operations", () => {
       messageContextManager.addMessage(
         "user",
         `
@@ -447,17 +447,6 @@ describe("MessageContextManager", () => {
       );
 
       expect(messageContextManager.getMessages()).toEqual([
-        {
-          role: "user",
-          content: `
-        <write_file>
-          <path>/path/to/file1</path>
-        </write_file>
-        <read_file>
-          <path>/path/to/file2</path>
-        </read_file>
-        `,
-        },
         {
           role: "assistant",
           content: `

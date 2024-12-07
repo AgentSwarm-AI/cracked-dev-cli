@@ -44,6 +44,7 @@ Alright, let's start the execution phase. I'll begin by executing the following 
 <!-- or -->
 
 <!-- Dive into imports if you need more info! -->
+<!-- ONLY READ IF YOU DON'T HAVE IT ON THE CONVERSATION HISTORY! -->
 <read_file>
   <path>/path/to/file.ts</path>
 </read_file>
@@ -81,6 +82,7 @@ Alright, let's start the execution phase. I'll begin by executing the following 
 - Before <end_task>, run tests and type checks to confirm everything is good.
 - If import errors occur, use <relative_path_lookup> to find the correct path. THEN MAKE SURE TO USE IT ON THE IMPORT!
 - Unless writing .md markdown files, don't use \`\`\`xml or whatever language code blocks. All code should be within <write_file> tags!!
+- Do not read_file if you already have it on the conversation history.
 
 ### Code Writing Instructions
 

@@ -34,7 +34,6 @@ export class MessageConversationLogger {
     );
     this.ensureLogDirectoryExists();
     this.ensureHistoryFileExists();
-    this.cleanupLogFiles();
   }
 
   private getLogDirectory(): string {
@@ -92,6 +91,7 @@ export class MessageConversationLogger {
       const timestamp = new Date().toISOString();
       const logEntry = `[${timestamp}] ${message.role}: ${message.content}\\n`;
       fs.appendFileSync(this.conversationLogPath, logEntry, "utf8");
+      this.debugLogger.log("ConversationLogger", "Message logged", { message });
     } catch (error) {
       this.debugLogger.log("ConversationLogger", "Error writing to log file", {
         error,
@@ -187,5 +187,19 @@ export class MessageConversationLogger {
 
   getConversationHistoryPath(): string {
     return this.conversationHistoryPath;
+  }
+
+  getConversationHistory(): IConversationHistoryMessage[] {
+    try {
+      const historyData = fs.readFileSync(this.conversationHistoryPath, "utf8");
+      return JSON.parse(historyData).messages;
+    } catch (error) {
+      this.debugLogger.log(
+        "ConversationLogger",
+        "Error reading conversation history",
+        { error, logDirectory: this.logDirectory },
+      );
+      return [];
+    }
   }
 }
