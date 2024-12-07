@@ -5,7 +5,7 @@ import { LLMContextCreator } from "@services/LLM/LLMContextCreator";
 import { ProjectInfo } from "@services/LLM/utils/ProjectInfo";
 import { container } from "tsyringe";
 import { UnitTestMocker } from "../../../jest/mocks/UnitTestMocker";
-import { MessageContextManager } from "../MessageContextManager";
+import { MessageContextManager } from "../context/MessageContextManager";
 import { PhaseManager } from "../PhaseManager";
 import { IPhasePromptArgs } from "../types/PhaseTypes";
 

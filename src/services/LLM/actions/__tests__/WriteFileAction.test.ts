@@ -252,7 +252,12 @@ describe("WriteFileAction", () => {
       const result = await writeFileAction.execute(actionContent);
 
       expect(result.success).toBe(true);
-      expect(mockHtmlEntityDecoder.decode).toHaveBeenCalledWith(encodedContent);
+      expect(mockHtmlEntityDecoder.decode).toHaveBeenCalledWith(
+        encodedContent,
+        {
+          unescapeChars: expect.any(Array),
+        },
+      );
       expect(mockFileOperations.write).toHaveBeenCalledWith(
         filePath,
         decodedContent,

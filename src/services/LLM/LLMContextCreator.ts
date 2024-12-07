@@ -4,7 +4,7 @@ import { ActionExecutor } from "@services/LLM/actions/ActionExecutor";
 import { IActionResult } from "@services/LLM/actions/types/ActionTypes";
 import { ProjectInfo } from "@services/LLM/utils/ProjectInfo";
 import { autoInjectable, inject } from "tsyringe";
-import { MessageContextManager } from "./MessageContextManager";
+import { MessageContextManager } from "./context/MessageContextManager";
 import { PhaseManager } from "./PhaseManager";
 import { IPhasePromptArgs } from "./types/PhaseTypes";
 
@@ -117,10 +117,7 @@ ${context.message}
 ## Initial Instructions
 - Keep messages brief, clear, and concise.
 - Break tasks into prioritized steps.
-- Use available actions sequentially.
-
-${envDetails ? `\n${envDetails}` : ""}
-${context.projectInfo ? `\n${context.projectInfo}` : ""}
+- Use available actions sequentially. 
 
 ## Instructions
 ${phaseConfig.generatePrompt(promptArgs)}

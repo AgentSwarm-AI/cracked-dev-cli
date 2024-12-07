@@ -82,7 +82,7 @@ export class WriteFileAction extends BaseAction {
     // Write file
     const result = await this.fileOperations.write(
       filePath,
-      this.htmlEntityDecoder.decode(fileContent),
+      this.htmlEntityDecoder.decode(fileContent, { unescapeChars: ['"'] }),
     );
 
     if (!result.success) {

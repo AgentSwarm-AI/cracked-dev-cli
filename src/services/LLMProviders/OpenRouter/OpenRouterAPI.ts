@@ -1,7 +1,10 @@
 /* eslint-disable no-useless-catch */
 import { ModelScaler } from "@/services/LLM/ModelScaler";
 import { openRouterClient } from "@constants/openRouterClient";
-import { ILLMProvider, IMessage } from "@services/LLM/ILLMProvider";
+import {
+  IConversationHistoryMessage,
+  ILLMProvider,
+} from "@services/LLM/ILLMProvider";
 import { MessageContextManager } from "@services/LLM/MessageContextManager";
 import { ModelInfo } from "@services/LLM/ModelInfo";
 import { ModelManager } from "@services/LLM/ModelManager";
@@ -131,7 +134,7 @@ export class OpenRouterAPI implements ILLMProvider {
   }
 
   private formatMessages(
-    messages: IMessage[],
+    messages: IConversationHistoryMessage[],
     model: string,
   ): IFormattedMessage[] {
     // Filter out messages with empty content before formatting
@@ -203,7 +206,7 @@ export class OpenRouterAPI implements ILLMProvider {
     this.messageContextManager.clear();
   }
 
-  getConversationContext(): IMessage[] {
+  getConversationContext(): IConversationHistoryMessage[] {
     return this.messageContextManager.getMessages();
   }
 

@@ -21,7 +21,6 @@ ${args.message}
 - Break tasks into prioritized steps.
 - Use available actions sequentially.
 - Use raw text only; no encoded or escaped characters. STICK TO THIS INSTRUCTION AS IF YOUR LIFE DEPENDS ON IT.
-- MAKE SURE TO RUN end_phase action ONCE YOU HAVE FINISHED
 
 ## EXAMPLE BEHAVIOR
 
@@ -33,10 +32,30 @@ Alright, let's start the execution phase. I'll begin by executing the following 
 - Objective 2: Do that
 - Objective 3: Do this other thing
 
+<!-- MAKE SURE YOU CLOSE TAGS PROPERLY! -->
+<write_file>
+  <path>/path/to/file.ts</path>
+  <content>
+    // Code here
+  </content>
+</write_file>
+
+
+<!-- or -->
+
+<!-- Dive into imports if you need more info! -->
+<read_file>
+  <path>/path/to/file.ts</path>
+</read_file>
+
+
+
+
 ## Important Notes
 
 ### Critical Instructions
 
+- NEVER ESCAPE double quotes (") or backticks (\`) in your outputs. Stick to project patterns.
 - AFTER A write_file MAKE SURE YOU RUN THE RELATE TESTS (if it exists), to make sure you didn't break anything!
 - Every output must include one action tag. No exceptions.
 - Only one action per reply.
@@ -60,7 +79,8 @@ Alright, let's start the execution phase. I'll begin by executing the following 
 - Ensure outputs meet requirements and are usable.
 - Ensure correct PATH when using <write_file>.
 - Before <end_task>, run tests and type checks to confirm everything is good.
-- If import errors occur, use <relative_path_lookup> to find the correct path.
+- If import errors occur, use <relative_path_lookup> to find the correct path. THEN MAKE SURE TO USE IT ON THE IMPORT!
+- Unless writing .md markdown files, don't use \`\`\`xml or whatever language code blocks. All code should be within <write_file> tags!!
 
 ### Code Writing Instructions
 
@@ -210,6 +230,7 @@ DO NOT RUN write_file if import issues are not resolved! Use relative_path_looku
 
 <relative_path_lookup>
   <!-- CRITICAL: source_path is the file containing the broken imports -->
+  <!-- ONCE YOU FIND THE CORRECT PATH MAKE SURE TO UPDATE YOUR IMPORTS! -->
   <source_path>/absolute/path/to/source/file.ts</source_path>
   <path>../relative/path/to/fix</path>
   <threshold>0.6</threshold>  <!-- Optional, defaults to 0.6. Higher means more strict. -->

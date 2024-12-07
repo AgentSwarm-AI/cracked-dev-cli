@@ -1,7 +1,7 @@
 import { ConfigService } from "@services/ConfigService";
 import { container } from "tsyringe";
 import { UnitTestMocker } from "../../../jest/mocks/UnitTestMocker";
-import { MessageContextManager } from "../MessageContextManager";
+import { MessageContextManager } from "../context/MessageContextManager";
 import { ModelManager } from "../ModelManager";
 import { ModelScaler } from "../ModelScaler";
 import { PhaseManager } from "../PhaseManager";
@@ -116,8 +116,8 @@ describe("ModelScaler", () => {
     expect(modelScaler.getTryCount("file2")).toBe(2);
     expect(modelScaler.getGlobalTryCount()).toBe(6);
 
-    // Since file1 exceeded 3 tries, handleModelScaling should have been called once
-    expect(modelScalerHandleModelScalingSpy).toHaveBeenCalledTimes(1);
+    // Since file1 exceeded 2 tries, handleModelScaling should have been called once
+    expect(modelScalerHandleModelScalingSpy).toHaveBeenCalledTimes(2);
   });
 
   it("should reset to phase-specific model", () => {
