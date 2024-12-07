@@ -1,0 +1,1 @@
+export const MODEL_SCALING_INITIAL_TRY_COUNT = 2;

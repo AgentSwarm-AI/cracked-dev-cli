@@ -1,7 +1,7 @@
 import { DebugLogger } from "@services/logging/DebugLogger";
 import { singleton } from "tsyringe";
 import { ConfigService } from "../ConfigService";
-import { MessageContextManager } from "./MessageContextManager";
+import { MessageContextManager } from "./context/MessageContextManager";
 import { ModelInfo } from "./ModelInfo";
 
 @singleton()

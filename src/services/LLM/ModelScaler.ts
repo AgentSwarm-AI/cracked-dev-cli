@@ -1,3 +1,4 @@
+import { MODEL_SCALING_INITIAL_TRY_COUNT } from "@/constants/modelScaling";
 import { DebugLogger } from "@services/logging/DebugLogger";
 import { singleton } from "tsyringe";
 import { ConfigService } from "../ConfigService";
@@ -36,7 +37,7 @@ export class ModelScaler {
     const currentCount = this.tryCountMap.get(filePath) || 0;
 
     // Only scale if we've exceeded the threshold
-    if (currentCount > 3) {
+    if (currentCount > MODEL_SCALING_INITIAL_TRY_COUNT) {
       await this.handleModelScaling(filePath, currentCount);
     }
   }
@@ -61,7 +62,7 @@ export class ModelScaler {
 
   private incrementCounts(filePath: string): void {
     if (!this.autoScalerEnabled) return;
-    
+
     this.globalTryCount++;
     const currentCount = this.tryCountMap.get(filePath) || 0;
     this.tryCountMap.set(filePath, currentCount + 1);

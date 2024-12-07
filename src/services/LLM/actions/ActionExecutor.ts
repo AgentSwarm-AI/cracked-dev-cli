@@ -1,4 +1,4 @@
-import { MessageContextManager } from "@services/LLM/MessageContextManager";
+import { MessageContextManager } from "@/services/LLM/context/MessageContextManager";
 import { autoInjectable } from "tsyringe";
 import { ActionTag, getBlueprint, getImplementedActions } from "./blueprints";
 import { ActionFactory } from "./core/ActionFactory";
@@ -122,7 +122,7 @@ export class ActionExecutor {
           if (lastResult.data) {
             this.messageContextManager.addMessage(
               "system",
-              `Action ${action.type} succeeded: ${lastResult.data}`,
+              `Action ${action.type} succeeded: ${JSON.stringify(lastResult.data)}`,
             );
           } else {
             this.messageContextManager.addMessage(
