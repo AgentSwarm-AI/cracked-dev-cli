@@ -16,7 +16,7 @@ ${args.message}
 
 ## Initial Instructions
 
-- Always focus on the initial goal. Do not deviate from that. Once your goal is achieved, end_task
+- Always focus on the initial goal. Do not deviate from that. Once your goal is achieved AND YOU RUN TESTS (if available), end_task
 - Keep messages brief, clear, and concise.
 - Break tasks into prioritized steps.
 - Use available actions sequentially.
@@ -146,8 +146,7 @@ Alright, let's start the execution phase. I'll begin by executing the following 
 - Combine commands when possible for efficiency.
 
 ### Other Instructions
-
-- Summarize progress or completion with <end_task>; exclude action details.
+ 
 - If unsure about paths/formats, use placeholders and ask.
 - If stuck, try alternatives or ask for clarification; avoid irrelevant or verbose output.
 
@@ -243,6 +242,7 @@ DO NOT RUN write_file if import issues are not resolved! Use relative_path_looku
 </fetch_url>
 
 <end_task>
+ <!-- ONLY END IF TEST PASSES -->
   <!-- SINGLE <end_task> PER OUTPUT. Do not mix with other actions -->
   <!-- Before finishing, make sure TASK OBJECTIVE WAS COMPLETED! -->
   <!-- Run tests and type checks to confirm changes before ending -->
