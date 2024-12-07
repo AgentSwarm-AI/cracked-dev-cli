@@ -128,24 +128,36 @@ export class MessageContextManager {
     const newOperations = this.extractOperations(newMessage.content);
     const hasNewPhasePrompt = this.hasPhasePrompt(newMessage.content);
 
+    // If the new message has read_file operations, we'll keep only this message
+    const hasNewReadFileOps = newOperations.some(
+      (op) => op.type === "read_file",
+    );
+
     this.conversationHistory = this.conversationHistory.filter((msg) => {
       // If new message has a phase prompt, remove old phase prompts
       if (hasNewPhasePrompt && this.hasPhasePrompt(msg.content)) {
         return false;
       }
 
-      // Keep messages without operations
+      const msgOperations = this.extractOperations(msg.content);
+      const hasReadFileOps = msgOperations.some(
+        (op) => op.type === "read_file",
+      );
+
+      // If new message has read_file operations, remove old messages with read_file
+      if (hasNewReadFileOps && hasReadFileOps) {
+        return false;
+      }
+
+      // Keep messages without write_file or execute_command operations
       if (
-        !msg.content.includes("<read_file>") &&
         !msg.content.includes("<write_file>") &&
         !msg.content.includes("<execute_command>")
       ) {
         return true;
       }
 
-      const msgOperations = this.extractOperations(msg.content);
-
-      // Remove message if it has any matching operations
+      // Remove message if it has any matching write_file or execute_command operations
       return !msgOperations.some((msgOp) =>
         newOperations.some((newOp) => {
           if (
@@ -154,7 +166,10 @@ export class MessageContextManager {
           ) {
             return newOp.command === msgOp.command;
           }
-          return newOp.type === msgOp.type && newOp.path === msgOp.path;
+          if (newOp.type === "write_file" && msgOp.type === "write_file") {
+            return newOp.path === msgOp.path;
+          }
+          return false;
         }),
       );
     });

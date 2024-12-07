@@ -1,5 +1,5 @@
 import { ConfigService } from "@services/ConfigService";
-import { IMessage } from "@services/LLM/ILLMProvider";
+import { IConversationHistoryMessage } from "@services/LLM/ILLMProvider";
 import { ModelInfo } from "@services/LLM/ModelInfo";
 import { DebugLogger } from "@services/logging/DebugLogger";
 import * as fs from "fs";
@@ -21,8 +21,7 @@ interface ActionResult {
 @singleton()
 @autoInjectable()
 export class MessageContextManager {
-  //! Rollback to private
-  public conversationHistory: IMessage[] = [];
+  private conversationHistory: IConversationHistoryMessage[] = [];
   private systemInstructions: string | null = null;
   private currentModel: string | null = null;
   private readonly logPath = path.join(
@@ -57,7 +56,7 @@ export class MessageContextManager {
     return config.enableConversationLog ?? true;
   }
 
-  private logMessage(message: IMessage): void {
+  private logMessage(message: IConversationHistoryMessage): void {
     // Skip logging in test environment or if disabled
     if (process.env.NODE_ENV === "test" || !this.isLoggingEnabled()) return;
 
@@ -174,7 +173,7 @@ export class MessageContextManager {
     return content.includes("<phase_prompt>");
   }
 
-  private removeOldOperations(newMessage: IMessage): void {
+  private removeOldOperations(newMessage: IConversationHistoryMessage): void {
     this.debugLogger.log("Context", "Removing old operations");
 
     const newOperations = this.extractOperations(newMessage.content);
@@ -264,7 +263,7 @@ export class MessageContextManager {
     this.logActionResult(action, result);
   }
 
-  getMessages(): IMessage[] {
+  getMessages(): IConversationHistoryMessage[] {
     if (this.systemInstructions) {
       return [
         { role: "system", content: this.systemInstructions },
