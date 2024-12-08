@@ -61,27 +61,29 @@ export class WriteFileAction extends BaseAction {
   ): Promise<IActionResult> {
     const { path: filePath, content: fileContent } = params as WriteFileParams;
 
-    this.logInfo(`File path: ${filePath}`);
+    // Get adjusted path first
+    const adjustedPath = await this.fileOperations.getAdjustedPath(filePath);
+    this.logInfo(`Writing to file: ${adjustedPath}`);
 
     // Check if file exists and increment try count if it does
-    const exists = await this.fileOperations.exists(filePath);
-
-    console.log(`WriteFileAction: File exists: ${exists}`);
-
+    const exists = await this.fileOperations.exists(adjustedPath);
     if (exists) {
-      console.log(`WriteFileAction: Incrementing try count for ${filePath}`);
-      this.modelScaler.incrementTryCount(filePath);
+      this.logInfo(`File exists at: ${adjustedPath}`);
+      this.modelScaler.incrementTryCount(adjustedPath);
     }
 
     // Check for large content removal if file exists
-    const removalCheck = await this.checkLargeRemoval(filePath, fileContent);
+    const removalCheck = await this.checkLargeRemoval(
+      adjustedPath,
+      fileContent,
+    );
     if (!removalCheck.success) {
       return removalCheck;
     }
 
     // Write file
     const result = await this.fileOperations.write(
-      filePath,
+      adjustedPath,
       this.htmlEntityDecoder.decode(fileContent, { unescapeChars: ['"'] }),
     );
 
