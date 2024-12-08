@@ -1,10 +1,10 @@
 /* eslint-disable no-useless-catch */
-import { ModelScaler } from "@/services/LLM/ModelScaler";
 import { openRouterClient } from "@constants/openRouterClient";
 import { ILLMProvider, IMessage } from "@services/LLM/ILLMProvider";
 import { MessageContextManager } from "@services/LLM/MessageContextManager";
 import { ModelInfo } from "@services/LLM/ModelInfo";
 import { ModelManager } from "@services/LLM/ModelManager";
+import { ModelScaler } from "@services/LLM/ModelScaler";
 import {
   formatMessageContent,
   IMessageContent,
@@ -33,6 +33,23 @@ interface IFormattedMessage {
 interface IStreamError {
   message?: string;
   details?: Record<string, unknown>;
+}
+
+interface PriceInfo {
+  prompt: string;
+  completion: string;
+  image: string;
+  request: string;
+}
+
+interface UsageEntry {
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+}
+
+interface UsageHistory {
+  [modelName: string]: UsageEntry[];
 }
 
 @autoInjectable()
@@ -150,6 +167,56 @@ export class OpenRouterAPI implements ILLMProvider {
     }));
   }
 
+  private calculateCosts(priceAll: PriceInfo, usage: UsageHistory) {
+    const promptRate = parseFloat(priceAll.prompt);
+    const completionRate = parseFloat(priceAll.completion);
+
+    let currentCost = 0;
+    let totalCost = 0;
+
+    for (const modelKey in usage) {
+      const modelUsage = usage[modelKey];
+      if (modelUsage.length > 0) {
+        // Calculate total cost for the model
+        const modelTotalCost = modelUsage.reduce((sum, entry) => {
+          const cost =
+            entry.prompt_tokens * promptRate +
+            entry.completion_tokens * completionRate;
+          return sum + cost;
+        }, 0);
+
+        totalCost += modelTotalCost;
+
+        // Calculate current cost (last usage entry for the model)
+        const lastUsage = modelUsage[modelUsage.length - 1];
+        currentCost =
+          lastUsage.prompt_tokens * promptRate +
+          lastUsage.completion_tokens * completionRate;
+      }
+    }
+
+    return {
+      currentCost,
+      totalCost,
+    };
+  }
+
+  private logChatCosts(
+    priceAll: PriceInfo | undefined,
+    usage: UsageHistory,
+  ): void {
+    if (priceAll && usage) {
+      const { currentCost, totalCost } = this.calculateCosts(priceAll, usage);
+
+      console.log("Current Chat Cost: $", currentCost.toFixed(10));
+      console.log("Total Chat Cost:   $", totalCost.toFixed(10));
+    } else {
+      console.log(
+        "PriceInfo or UsageHistory is undefined, cannot calculate costs.",
+      );
+    }
+  }
+
   async sendMessage(
     model: string,
     message: string,
@@ -177,9 +244,9 @@ export class OpenRouterAPI implements ILLMProvider {
       this.messageContextManager.addMessage("user", message);
       this.messageContextManager.addMessage("assistant", assistantMessage);
 
-      await this.modelInfo.logCurrentModelUsage(
-        this.messageContextManager.getTotalTokenCount(),
-      );
+      const priceAll = this.modelInfo.getCurrentModelInfo()?.pricing;
+      const usage = this.modelInfo.getUsageHistory();
+      this.logChatCosts(priceAll, usage);
 
       return assistantMessage;
     } catch (error) {
@@ -296,10 +363,10 @@ export class OpenRouterAPI implements ILLMProvider {
     );
   }
 
-  private processCompleteMessage(message: string): {
+  private async processCompleteMessage(message: string): Promise<{
     content: string;
     error?: IStreamError;
-  } {
+  }> {
     try {
       const jsonStr = message.replace(/^data: /, "").trim();
       if (
@@ -316,6 +383,10 @@ export class OpenRouterAPI implements ILLMProvider {
         return { content: "", error: parsed.error };
       }
 
+      if (parsed.usage) {
+        await this.modelInfo.logDetailedUsage(parsed.usage);
+      }
+
       const deltaContent = parsed.choices?.[0]?.delta?.content;
       if (!deltaContent) {
         return { content: "" };
@@ -330,10 +401,10 @@ export class OpenRouterAPI implements ILLMProvider {
     }
   }
 
-  private parseStreamChunk(chunk: string): {
+  private async parseStreamChunk(chunk: string): Promise<{
     content: string;
     error?: IStreamError;
-  } {
+  }> {
     this.streamBuffer += chunk;
 
     let content = "";
@@ -343,7 +414,7 @@ export class OpenRouterAPI implements ILLMProvider {
     this.streamBuffer = messages.pop() || "";
 
     for (const message of messages) {
-      const result = this.processCompleteMessage(message);
+      const result = await this.processCompleteMessage(message);
       if (result.error) error = result.error;
       content += result.content;
     }
@@ -390,8 +461,8 @@ export class OpenRouterAPI implements ILLMProvider {
           const stream = response.data;
 
           await new Promise<void>((resolve, reject) => {
-            stream.on("data", (chunk: Buffer) => {
-              const { content, error } = this.parseStreamChunk(
+            stream.on("data", async (chunk: Buffer) => {
+              const { content, error } = await this.parseStreamChunk(
                 chunk.toString(),
               );
 
@@ -400,7 +471,7 @@ export class OpenRouterAPI implements ILLMProvider {
                 const llmError = new LLMError(
                   error.message || "Stream error",
                   "STREAM_ERROR",
-                  error.details,
+                  error.details || {},
                 );
                 this.handleStreamError(llmError, message, callback);
                 reject(llmError);
@@ -413,9 +484,9 @@ export class OpenRouterAPI implements ILLMProvider {
               }
             });
 
-            stream.on("end", () => {
+            stream.on("end", async () => {
               if (this.streamBuffer) {
-                const { content, error } = this.processCompleteMessage(
+                const { content, error } = await this.parseStreamChunk(
                   this.streamBuffer,
                 );
                 if (error) {
@@ -423,7 +494,7 @@ export class OpenRouterAPI implements ILLMProvider {
                   const llmError = new LLMError(
                     error.message || "Stream error",
                     "STREAM_ERROR",
-                    error.details,
+                    error.details || {},
                   );
                   this.handleStreamError(llmError, message, callback);
                   reject(llmError);
@@ -449,9 +520,9 @@ export class OpenRouterAPI implements ILLMProvider {
               assistantMessage,
             );
 
-            await this.modelInfo.logCurrentModelUsage(
-              this.messageContextManager.getTotalTokenCount(),
-            );
+            const priceAll = this.modelInfo.getCurrentModelInfo()?.pricing;
+            const usage = this.modelInfo.getUsageHistory();
+            this.logChatCosts(priceAll, usage);
           }
         } catch (error) {
           throw error;
@@ -470,9 +541,9 @@ export class OpenRouterAPI implements ILLMProvider {
         this.messageContextManager.addMessage("user", message);
         this.messageContextManager.addMessage("assistant", assistantMessage);
 
-        await this.modelInfo.logCurrentModelUsage(
-          this.messageContextManager.getTotalTokenCount(),
-        );
+        const priceAll = this.modelInfo.getCurrentModelInfo()?.pricing;
+        const usage = this.modelInfo.getUsageHistory();
+        this.logChatCosts(priceAll, usage);
       }
     }
   }
