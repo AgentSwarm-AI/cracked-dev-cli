@@ -127,6 +127,7 @@ Alright, let's start the execution phase. I'll begin by executing the following 
 
 ### Tests
 
+- CRITICAL: WHEN WRITING TESTS DO NOT REMOVE THE PREVIOUS ONES. ADD NEW ONES INSTEAD.
 - CRITICAL: Before creating a new test file, review existing files to understand patterns. Use search or directory listing to locate file paths if unknown. Avoid using non-existent files.
 - CRITICAL: Whenever stuck on multiple test failures, do a read_file in other UNREAD test files to understand patterns.
 - If working on a test, assume the related file is correct. So don't make any changes on it, unless you find a critical bug.
