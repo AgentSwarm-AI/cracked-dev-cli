@@ -86,55 +86,65 @@ export class MessageContextBuilder {
 
   private removeOldOperations(newMessage: IConversationHistoryMessage): void {
     const newOperations = this.extractOperations(newMessage.content);
-    const hasNewPhasePrompt = this.hasPhasePrompt(newMessage.content);
 
-    // If the new message has read_file operations, we'll keep only this message
-    const hasNewReadFileOps = newOperations.some(
-      (op) => op.type === "read_file",
-    );
+    // Track paths and commands that appear in the new message
+    const newFilePaths = new Set<string>();
+    const newCommands = new Set<string>();
 
+    newOperations.forEach((operation) => {
+      if (operation.type === "execute_command") {
+        newCommands.add(operation.command);
+      } else {
+        newFilePaths.add(operation.path);
+      }
+    });
+
+    // Remove old operations for files that appear in the new message
+    for (const [path] of this.fileOperations) {
+      if (newFilePaths.has(path)) {
+        this.fileOperations.delete(path);
+      }
+    }
+
+    // Remove old operations for commands that appear in the new message
+    for (const [command] of this.commandOperations) {
+      if (newCommands.has(command)) {
+        this.commandOperations.delete(command);
+      }
+    }
+
+    // Remove any conversation history entries that contain the old operations
     this.conversationHistory = this.conversationHistory.filter((msg) => {
-      // If new message has a phase prompt, remove old phase prompts
-      if (hasNewPhasePrompt && this.hasPhasePrompt(msg.content)) {
-        return false;
+      // Keep user messages
+      if (msg.role === "user") return true;
+
+      // Remove assistant messages that contain any of the new operations
+      if (msg.role === "assistant") {
+        return (
+          ![...newFilePaths].some((path) => msg.content.includes(path)) &&
+          ![...newCommands].some((cmd) => msg.content.includes(cmd))
+        );
       }
 
-      const msgOperations = this.extractOperations(msg.content);
-      const hasReadFileOps = msgOperations.some(
-        (op) => op.type === "read_file",
-      );
-
-      // If new message has read_file operations, remove old messages with read_file
-      if (hasNewReadFileOps && hasReadFileOps) {
-        return false;
-      }
-
-      // Keep messages without write_file or execute_command operations
-      if (
-        !msg.content.includes("<write_file>") &&
-        !msg.content.includes("<execute_command>")
-      ) {
-        return true;
-      }
-
-      // Remove message if it has any matching write_file or execute_command operations
-      return !msgOperations.some((msgOp) =>
-        newOperations.some((newOp) => {
-          if (
-            newOp.type === "execute_command" &&
-            msgOp.type === "execute_command"
-          ) {
-            return newOp.command === msgOp.command;
-          }
-          if (newOp.type === "write_file" && msgOp.type === "write_file") {
-            return newOp.path === msgOp.path;
-          }
-          return false;
-        }),
+      // Remove system messages that contain any of the new operations
+      return (
+        ![...newFilePaths].some((path) => msg.content.includes(path)) &&
+        ![...newCommands].some((cmd) => msg.content.includes(cmd))
       );
     });
   }
 
+  // Add this method to extract non-operation content
+  private extractNonOperationContent(content: string): string {
+    return content
+      .replace(/<read_file>[\s\S]*?<\/read_file>/g, "")
+      .replace(/<write_file>[\s\S]*?<\/write_file>/g, "")
+      .replace(/<execute_command>[\s\S]*?<\/execute_command>/g, "")
+      .replace(/<phase_prompt>[\s\S]*?<\/phase_prompt>/g, "")
+      .trim();
+  }
+
+  // Update the addMessage method
   addMessage(role: MessageRole, content: string): void {
     if (content.trim() === "") {
       throw new Error("Content cannot be empty");
@@ -147,7 +157,28 @@ export class MessageContextBuilder {
       this.processMessage(message);
     }
 
-    this.conversationHistory.push(message);
+    if (role === "user") {
+      this.conversationHistory.push(message);
+    } else if (role === "assistant") {
+      const operations = this.extractOperations(content);
+      if (operations.length === 0) {
+        this.conversationHistory.push(message);
+      } else {
+        const nonOpContent = this.extractNonOperationContent(content);
+        if (nonOpContent) {
+          const nonOpMessage: IConversationHistoryMessage = {
+            role,
+            content: nonOpContent,
+          };
+          this.conversationHistory.push(nonOpMessage);
+        }
+      }
+    } else {
+      // Handle system messages
+      if (!this.extractOperations(content).length) {
+        this.conversationHistory.push(message);
+      }
+    }
   }
 
   processMessage(message: IConversationHistoryMessage): void {
