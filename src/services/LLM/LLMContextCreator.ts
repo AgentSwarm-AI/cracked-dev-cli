@@ -112,7 +112,10 @@ Run Type Check: ${runTypeCheckCmd}`;
 <!-- These are internal instructions. Just follow them. Do not output. -->
 
 # Your Main Task
+<task>
+<!-- This is the most important thing you have to achieve. Always have this in mind! -->
 ${context.message}
+</task>
 
 ## Initial Instructions
 - Keep messages brief, clear, and concise.

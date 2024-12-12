@@ -191,9 +191,16 @@ export class MessageContextManager {
 
   getTotalTokenCount(): number {
     const history = this.contextBuilder.getConversationHistory();
+    const systemInstructions = this.contextBuilder.getSystemInstructions();
+    let total = 0;
+
+    if (systemInstructions) {
+      total += this.estimateTokenCount(systemInstructions);
+    }
+
     return history.reduce(
-      (total, message) => total + this.estimateTokenCount(message.content),
-      0,
+      (sum, message) => sum + this.estimateTokenCount(message.content),
+      total,
     );
   }
 
