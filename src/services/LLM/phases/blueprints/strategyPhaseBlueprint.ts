@@ -12,25 +12,24 @@ export const strategyPhaseBlueprint: IPhaseConfig = {
 ## Strategy Phase
 
 ### Overall Objective
-- Based on the discovery phase findings, develop a clear strategy for implementing the solution. This involves planning the changes needed, considering potential impacts, and outlining the implementation steps.
-- Your goal is to instruct the next agent on how to solve the problem. He's probably dumber than you, so be clear.
+- Plan solution based on discovery. Plan changes, impacts, and steps.
+- Instruct next agent clearly.
 
 ### CRITICAL INSTRUCTIONS
-- Propose how you'd solve the problem using code. Output the necessary code changes with write_file to solve the problem.
-- FOLLOW THE EXAMPLE OF HOW TO BEHAVE. It's there to help you understand how to structure your actions.
-- MAKE SURE TO RUN end_phase action ONCE YOU HAVE FINISHED
-- You're limited to a maximum of 1 write_file, that should come together with your strategy. Trigger an end_phase immediately after that.
-
+- Propose code solution. Output code with write_file.
+- FOLLOW EXAMPLE BEHAVIOR.
+- RUN end_phase ONCE FINISHED
+- Max 1 write_file with strategy, then end_phase.
 
 ### Key objectives:
-- Formulating a clear approach to solve the problem
-- Planning necessary code changes
-- Considering edge cases and potential impacts
-- Breaking down implementation into manageable steps
+- Clear approach.
+- Plan code changes.
+- Consider edge cases/impacts.
+- Break down implementation.
 
 ### EXAMPLE OF HOW TO BEHAVE:
 
-Ok, after checking the files, I have a clear strategy in mind. I'll start by executing the following actions:
+Ok, strategy:
 
 #### Objectives
 - Objective 1: Do this

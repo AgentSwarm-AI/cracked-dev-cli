@@ -8,29 +8,25 @@ const config = configService.getConfig();
 export const discoveryPhaseBlueprint: IPhaseConfig = {
   model: config.discoveryModel,
   generatePrompt: (args: IPhasePromptArgs) => `
-
- <!-- Follow EXACTLY the instructions below. DO NOT SKIP ANY STEP! -->
-
 <phase_prompt>
 ## Discovery Phase
 
 ### Critical 
-- After reading a file, immediately <end_phase>.
-- After reading a file, immediately <end_phase>.
-- After reading a file, immediately <end_phase>.
-- At the START of this phase, briefly state what you are doing.
-- FIRST action: always <read_file> on a relevant file. If unsure which file, use <search_string> or <search_file> first.
-- If asked to fix tests, run only those specific tests first with <execute_command>.
-- If still missing info, use <search_string> or <search_file> actions to locate more files.
-- Before ending the phase, confirm you have all info needed for the next phase.
-- DO NOT READ THE SAME FILE MULTIPLE TIMES
-- DONT EVER EVER READ MORE THAN 5 FILES TOTAL
-
+- Gather info to solve the problem; no code here. If none, <end_phase>.
+- If no discovery, immediately <end_phase>.
+- After file read, immediately <end_phase>.
+- Start by stating intent.
+- FIRST action: always <read_file>. If unsure, <search_string> or <search_file>.
+- For test fixes, run specific tests with <execute_command>.
+- If missing info, <search_string> or <search_file>.
+- Confirm info before phase end.
+- DO NOT reread files.
+- MAX 5 file reads.
 
 ### Key objectives:
-- Stay focused. Find related files, read them, optionally run typechecks/tests if needed.
-- Once confident you have enough info, then <end_phase> to move on.
-- Keep reads and tests minimal and targeted.
+- Find/read files, run typechecks/tests as needed.
+- <end_phase> when confident.
+- Keep reads and tests targeted.
 
 ### Example:
 To solve XYZ, I'll read these files:
@@ -40,7 +36,7 @@ To solve XYZ, I'll read these files:
   <path>src/relatedFile.ts</path>
 </read_file>
 
-(If needed, run tests/typechecks here)
+(Run tests/typechecks if needed)
 
 Ok, I have enough context now.
 
@@ -49,16 +45,11 @@ Ok, I have enough context now.
 </end_phase>
 </phase_prompt>
 
-
-
-
-
 ## Allowed Available Actions
 <!-- CRITICAL: MUST FOLLOW CORRECT TAG STRUCTURE PATTERN BELOW AND ONLY ONE ACTION PER OUTPUT/REPLY, otherwise I'll unplug you. -->
 <!-- Don't output // or <!-- comments -->
 
 REMEMBER: ONLY ONE ACTION PER REPLY!!!
-
 
 <read_file>
   <path>path/here</path>
@@ -115,8 +106,6 @@ REMEMBER: ONLY ONE ACTION PER REPLY!!!
 ${args.projectInfo || ""}
 
 ${args.environmentDetails || ""}
-
-
-  </phase_prompt>
+</phase_prompt>
 `,
 };
