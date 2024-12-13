@@ -8,6 +8,7 @@ import { UnitTestMocker } from "../../../jest/mocks/UnitTestMocker";
 import { MessageContextManager } from "../MessageContextManager";
 import { PhaseManager } from "../PhaseManager";
 import { IPhasePromptArgs } from "../types/PhaseTypes";
+import * as fs from "fs";
 
 describe("LLMContextCreator", () => {
   let contextCreator: LLMContextCreator;
@@ -53,6 +54,84 @@ describe("LLMContextCreator", () => {
     mocker.spyOnPrototypeMethod(MessageContextManager, "clear");
 
     contextCreator = container.resolve(LLMContextCreator);
+  });
+
+  describe("loadCustomInstructions", () => {
+    it("should load custom instructions from file when path is provided", async () => {
+      const customInstructions = "Custom instructions from file";
+      mocker.spyOnPrototypeAndReturn(ConfigService, "getConfig", {
+        customInstructionsPath: "/path/to/instructions",
+        customInstructions: "Fallback instructions",
+      });
+
+      jest
+        .spyOn(fs.promises, "readFile")
+        .mockResolvedValueOnce(customInstructions);
+
+      // @ts-ignore - accessing private method for testing
+      const result = await contextCreator["loadCustomInstructions"]();
+
+      expect(result).toBe(customInstructions);
+      expect(fs.promises.readFile).toHaveBeenCalledWith(
+        "/path/to/instructions",
+        "utf-8",
+      );
+    });
+
+    it("should fallback to config.customInstructions when file read fails", async () => {
+      const fallbackInstructions = "Fallback instructions";
+      mocker.spyOnPrototypeAndReturn(ConfigService, "getConfig", {
+        customInstructionsPath: "/path/to/instructions",
+        customInstructions: fallbackInstructions,
+      });
+
+      jest
+        .spyOn(fs.promises, "readFile")
+        .mockRejectedValueOnce(new Error("File not found"));
+      jest.spyOn(console, "warn").mockImplementation(() => {});
+
+      // @ts-ignore - accessing private method for testing
+      const result = await contextCreator["loadCustomInstructions"]();
+
+      expect(result).toBe(fallbackInstructions);
+      expect(console.warn).toHaveBeenCalled();
+    });
+
+    it("should return config.customInstructions when no path is provided", async () => {
+      const configInstructions = "Config instructions";
+      mocker.spyOnPrototypeAndReturn(ConfigService, "getConfig", {
+        customInstructionsPath: "",
+        customInstructions: configInstructions,
+      });
+
+      // @ts-ignore - accessing private method for testing
+      const result = await contextCreator["loadCustomInstructions"]();
+
+      expect(result).toBe(configInstructions);
+      expect(fs.promises.readFile).not.toHaveBeenCalled();
+    });
+
+    it("should fallback to customInstructions in create method when file read fails", async () => {
+      const fallbackInstructions = "Fallback custom instructions";
+      mocker.spyOnPrototypeAndReturn(ConfigService, "getConfig", {
+        customInstructionsPath: "/invalid/path",
+        customInstructions: fallbackInstructions,
+        includeAllFilesOnEnvToContext: true,
+      });
+
+      jest
+        .spyOn(fs.promises, "readFile")
+        .mockRejectedValueOnce(new Error("ENOENT: File not found"));
+      jest.spyOn(console, "warn").mockImplementation(() => {});
+
+      const message = "test message";
+      const result = await contextCreator.create(message, "/test/root", true);
+
+      expect(result).toContain(fallbackInstructions);
+      expect(console.warn).toHaveBeenCalledWith(
+        expect.stringContaining("Failed to load custom instructions"),
+      );
+    });
   });
 
   describe("create", () => {

@@ -7,6 +7,7 @@ import { autoInjectable, inject } from "tsyringe";
 import { MessageContextManager } from "./MessageContextManager";
 import { PhaseManager } from "./PhaseManager";
 import { IPhasePromptArgs } from "./types/PhaseTypes";
+import * as fs from "fs";
 
 interface MessageContext {
   message: string;
@@ -25,6 +26,27 @@ export class LLMContextCreator {
     @inject(MessageContextManager)
     private messageContextManager: MessageContextManager,
   ) {}
+
+  private async loadCustomInstructions(): Promise<string> {
+    const config = this.configService.getConfig();
+
+    if (config.customInstructionsPath) {
+      try {
+        const instructions = await fs.promises.readFile(
+          config.customInstructionsPath,
+          "utf-8",
+        );
+        return instructions.trim();
+      } catch (error) {
+        console.warn(
+          `Failed to load custom instructions from ${config.customInstructionsPath}, falling back to config.customInstructions`,
+        );
+        return config.customInstructions;
+      }
+    }
+
+    return config.customInstructions;
+  }
 
   async create(
     message: string,
@@ -91,9 +113,12 @@ Run Single Test: ${runOneTestCmd}
 Run Type Check: ${runTypeCheckCmd}`;
   }
 
-  private formatFirstTimeMessage(context: MessageContext): string {
+  private async formatFirstTimeMessage(
+    context: MessageContext,
+  ): Promise<string> {
     const config = this.configService.getConfig();
     const phaseConfig = this.phaseManager.getCurrentPhaseConfig();
+    const customInstructions = await this.loadCustomInstructions();
 
     const envDetails = config.includeAllFilesOnEnvToContext
       ? context.environmentDetails
@@ -115,12 +140,7 @@ Run Type Check: ${runTypeCheckCmd}`;
 ${context.message}
 
 ## Initial Instructions
-- Keep messages brief, clear, and concise.
-- Break tasks into prioritized steps.
-- Use available actions sequentially.
-
-${envDetails ? `\n${envDetails}` : ""}
-${context.projectInfo ? `\n${context.projectInfo}` : ""}
+${customInstructions}
 
 ## Instructions
 ${phaseConfig.generatePrompt(promptArgs)}
