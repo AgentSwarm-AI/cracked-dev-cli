@@ -1,298 +1,242 @@
 import { IConversationHistoryMessage } from "@services/LLM/ILLMProvider";
 import { autoInjectable, singleton } from "tsyringe";
+import { MessageContextExtractor } from "./MessageContextExtractor";
+import {
+  IMessageContextData,
+  MessageCommandOperation,
+  MessageFileOperation,
+} from "./MessageContextStore";
 
-interface FileOperation {
-  type: "read_file" | "write_file";
-  path: string;
-  content?: string;
-}
-
-interface CommandOperation {
-  type: "execute_command";
-  command: string;
-  output?: string;
-}
-
-interface PhaseInstruction {
-  content: string;
-  timestamp: number;
-}
-
-type Operation = FileOperation | CommandOperation;
 type MessageRole = "user" | "assistant" | "system";
+type MessageOperation = MessageFileOperation | MessageCommandOperation;
 
 @singleton()
 @autoInjectable()
 export class MessageContextBuilder {
-  private phaseInstructions: PhaseInstruction | null = null;
-  private fileOperations: Map<string, FileOperation> = new Map();
-  private commandOperations: Map<string, CommandOperation> = new Map();
-  private conversationHistory: IConversationHistoryMessage[] = [];
-  private systemInstructions: string | null = null;
+  constructor(private extractor: MessageContextExtractor) {}
 
-  private extractPhasePrompt(content: string): string | null {
-    const match = content.match(/<phase_prompt>([\s\S]*?)<\/phase_prompt>/);
-    return match ? match[1].trim() : null;
-  }
-
-  private extractOperations(content: string): Operation[] {
-    const operations: Operation[] = [];
-
-    // Extract write_file operations
-    const writeMatches = Array.from(
-      content.matchAll(/<write_file>[\s\S]*?<path>(.*?)<\/path>/g),
-    );
-    writeMatches.forEach((match) => {
-      if (match[1]) {
-        operations.push({
-          type: "write_file",
-          path: match[1],
-        });
-      }
-    });
-
-    // Extract read_file operations
-    const readMatches = Array.from(
-      content.matchAll(/<read_file>[\s\S]*?<path>(.*?)<\/path>/g),
-    );
-    readMatches.forEach((match) => {
-      if (match[1]) {
-        operations.push({
-          type: "read_file",
-          path: match[1],
-        });
-      }
-    });
-
-    // Extract execute_command operations
-    const commandMatches = Array.from(
-      content.matchAll(/<execute_command>[\s\S]*?<command>(.*?)<\/command>/g),
-    );
-    commandMatches.forEach((match) => {
-      if (match[1]) {
-        operations.push({
-          type: "execute_command",
-          command: match[1],
-        });
-      }
-    });
-
-    return operations;
-  }
-
-  private hasPhasePrompt(content: string): boolean {
-    return content.includes("<phase_prompt>");
-  }
-
-  private removeOldOperations(newMessage: IConversationHistoryMessage): void {
-    const newOperations = this.extractOperations(newMessage.content);
-
-    // Track paths and commands that appear in the new message
-    const newFilePaths = new Set<string>();
-    const newCommands = new Set<string>();
-
-    newOperations.forEach((operation) => {
-      if (operation.type === "execute_command") {
-        newCommands.add(operation.command);
-      } else {
-        newFilePaths.add(operation.path);
-      }
-    });
-
-    // Remove old operations for files that appear in the new message
-    for (const [path] of this.fileOperations) {
-      if (newFilePaths.has(path)) {
-        this.fileOperations.delete(path);
-      }
-    }
-
-    // Remove old operations for commands that appear in the new message
-    for (const [command] of this.commandOperations) {
-      if (newCommands.has(command)) {
-        this.commandOperations.delete(command);
-      }
-    }
-
-    // Remove any conversation history entries that contain the old operations
-    this.conversationHistory = this.conversationHistory.filter((msg) => {
-      // Keep user messages
-      if (msg.role === "user") return true;
-
-      // Remove assistant messages that contain any of the new operations
-      if (msg.role === "assistant") {
-        return (
-          ![...newFilePaths].some((path) => msg.content.includes(path)) &&
-          ![...newCommands].some((cmd) => msg.content.includes(cmd))
-        );
-      }
-
-      // Remove system messages that contain any of the new operations
-      return (
-        ![...newFilePaths].some((path) => msg.content.includes(path)) &&
-        ![...newCommands].some((cmd) => msg.content.includes(cmd))
-      );
-    });
-  }
-
-  // Add this method to extract non-operation content
-  private extractNonOperationContent(content: string): string {
-    return content
-      .replace(/<read_file>[\s\S]*?<\/read_file>/g, "")
-      .replace(/<write_file>[\s\S]*?<\/write_file>/g, "")
-      .replace(/<execute_command>[\s\S]*?<\/execute_command>/g, "")
-      .replace(/<phase_prompt>[\s\S]*?<\/phase_prompt>/g, "")
-      .trim();
-  }
-
-  // Update the addMessage method
-  addMessage(role: MessageRole, content: string): void {
+  public buildMessageContext(
+    role: MessageRole,
+    content: string,
+    currentPhase: string,
+    contextData: IMessageContextData,
+  ): IMessageContextData {
     if (content.trim() === "") {
       throw new Error("Content cannot be empty");
     }
 
     const message: IConversationHistoryMessage = { role, content };
+    const phasePrompt = this.extractor.extractPhasePrompt(message.content);
+    const operations = this.extractor.extractOperations(message.content);
+    const updatedPhaseInstructions = new Map(contextData.phaseInstructions);
+    const updatedFileOperations = new Map(contextData.fileOperations);
+    const updatedCommandOperations = new Map(contextData.commandOperations);
+    const updatedConversationHistory = [...contextData.conversationHistory];
 
-    if (role === "user" || role === "assistant") {
-      this.removeOldOperations(message);
-      this.processMessage(message);
-    }
-
-    if (role === "user") {
-      this.conversationHistory.push(message);
-    } else if (role === "assistant") {
-      const operations = this.extractOperations(content);
-      if (operations.length === 0) {
-        this.conversationHistory.push(message);
-      } else {
-        const nonOpContent = this.extractNonOperationContent(content);
-        if (nonOpContent) {
-          const nonOpMessage: IConversationHistoryMessage = {
-            role,
-            content: nonOpContent,
-          };
-          this.conversationHistory.push(nonOpMessage);
-        }
-      }
-    } else {
-      // Handle system messages
-      if (!this.extractOperations(content).length) {
-        this.conversationHistory.push(message);
-      }
-    }
-  }
-
-  processMessage(message: IConversationHistoryMessage): void {
-    // Process phase instructions
-    const phasePrompt = this.extractPhasePrompt(message.content);
     if (phasePrompt) {
-      this.phaseInstructions = {
+      // Only store phase prompt for current phase
+      updatedPhaseInstructions.clear(); // Clear old phase prompts
+      updatedPhaseInstructions.set(currentPhase, {
         content: phasePrompt,
         timestamp: Date.now(),
-      };
+        phase: currentPhase,
+      });
     }
 
-    // Process operations
-    const operations = this.extractOperations(message.content);
-    operations.forEach((operation) => {
-      if (operation.type === "execute_command") {
-        this.commandOperations.set(operation.command, operation);
-      } else {
-        this.fileOperations.set(operation.path, operation);
-      }
-    });
+    updatedConversationHistory.push(message);
+
+    operations.forEach(
+      (operation: MessageFileOperation | MessageCommandOperation) => {
+        if (operation.type === "execute_command") {
+          const existingOperation = updatedCommandOperations.get(
+            operation.command,
+          );
+          updatedCommandOperations.set(operation.command, {
+            ...existingOperation,
+            ...operation,
+          });
+        } else {
+          const existingOperation = updatedFileOperations.get(operation.path);
+          updatedFileOperations.set(operation.path, {
+            ...existingOperation,
+            ...operation,
+          });
+        }
+      },
+    );
+
+    return {
+      ...contextData,
+      phaseInstructions: updatedPhaseInstructions,
+      conversationHistory: updatedConversationHistory,
+      fileOperations: updatedFileOperations,
+      commandOperations: updatedCommandOperations,
+    };
   }
 
-  updateOperationResult(
+  public updateOperationResult(
     type: "read_file" | "write_file" | "execute_command",
     identifier: string,
     result: string,
-  ): void {
+    contextData: IMessageContextData,
+    success?: boolean,
+    error?: string,
+  ): IMessageContextData {
+    const updatedFileOperations = new Map(contextData.fileOperations);
+    const updatedCommandOperations = new Map(contextData.commandOperations);
+
     if (type === "execute_command") {
-      const operation = this.commandOperations.get(identifier);
-      if (operation && operation.type === "execute_command") {
-        operation.output = result;
+      const existingOperation = updatedCommandOperations.get(identifier);
+      // Only update the operation if it doesn't exist or wasn't a success
+      if (existingOperation && existingOperation.success === true) {
+        return contextData;
       }
+
+      const operation = existingOperation || {
+        type: "execute_command",
+        command: identifier,
+        timestamp: Date.now(),
+      };
+
+      updatedCommandOperations.set(identifier, {
+        ...operation,
+        output: result,
+        success,
+        error,
+      });
     } else {
-      const operation = this.fileOperations.get(identifier);
-      if (
-        operation &&
-        (operation.type === "read_file" || operation.type === "write_file")
-      ) {
-        operation.content = result;
+      const existingOperation = updatedFileOperations.get(identifier);
+
+      // Only update the operation if it doesn't exist or wasn't a success
+      if (existingOperation && existingOperation.success === true) {
+        return contextData;
       }
+
+      const operation = existingOperation || {
+        type,
+        path: identifier,
+        timestamp: Date.now(),
+      };
+
+      updatedFileOperations.set(identifier, {
+        ...operation,
+        content: result,
+        success,
+        error,
+      });
     }
+
+    return {
+      ...contextData,
+      fileOperations: updatedFileOperations,
+      commandOperations: updatedCommandOperations,
+      phaseInstructions: new Map(contextData.phaseInstructions),
+      conversationHistory: [...contextData.conversationHistory],
+    };
   }
 
-  setSystemInstructions(instructions: string | null): void {
-    this.systemInstructions = instructions;
-  }
-
-  getSystemInstructions(): string | null {
-    return this.systemInstructions;
-  }
-
-  getConversationHistory(): IConversationHistoryMessage[] {
-    const baseContext = this.systemInstructions
-      ? [{ role: "system" as const, content: this.systemInstructions }]
+  public getMessageContext(
+    contextData: IMessageContextData,
+  ): IConversationHistoryMessage[] {
+    const baseContext = contextData.systemInstructions
+      ? [{ role: "system" as const, content: contextData.systemInstructions }]
       : [];
 
-    // Build context from operations
     const operationsContext: IConversationHistoryMessage[] = [];
 
-    // Add phase instructions if present
-    if (this.phaseInstructions) {
+    // Add current phase instructions only
+    const currentPhaseInstructions = Array.from(
+      contextData.phaseInstructions.values(),
+    ).sort((a, b) => b.timestamp - a.timestamp)[0];
+
+    if (currentPhaseInstructions) {
       operationsContext.push({
         role: "system",
-        content: `<phase_prompt>${this.phaseInstructions.content}</phase_prompt>`,
+        content: `<phase_prompt>${currentPhaseInstructions.content}</phase_prompt>`,
       });
     }
 
-    // Add file operations
-    for (const operation of this.fileOperations.values()) {
-      const content = operation.content
-        ? `${operation.type === "read_file" ? "Content of" : "Written to"} ${
-            operation.path
-          }:\n${operation.content}`
-        : `${operation.type} operation on ${operation.path}`;
+    // Sort operations by timestamp
+    const allOperations: MessageOperation[] = [
+      ...Array.from(contextData.fileOperations.values()),
+      ...Array.from(contextData.commandOperations.values()),
+    ].sort((a, b) => a.timestamp - b.timestamp);
 
-      operationsContext.push({
-        role: "system",
-        content,
-      });
+    // Add operations in chronological order
+    for (const operation of allOperations) {
+      if ("command" in operation) {
+        // Handle command operations
+        const status =
+          operation.success !== undefined
+            ? operation.success
+              ? "SUCCESS"
+              : "FAILED"
+            : "PENDING";
+        const errorInfo = operation.error ? ` (Error: ${operation.error})` : "";
+        const content = operation.output
+          ? `Command: ${operation.command} [${status}${errorInfo}]\nOutput:\n${operation.output}`
+          : `Command executed: ${operation.command} [${status}${errorInfo}]`;
+
+        operationsContext.push({
+          role: "system",
+          content,
+        });
+      } else {
+        // Handle file operations
+        const status =
+          operation.success !== undefined
+            ? operation.success
+              ? "SUCCESS"
+              : "FAILED"
+            : "PENDING";
+        const errorInfo = operation.error ? ` (Error: ${operation.error})` : "";
+
+        // Make successful write operations more prominent with file path
+        const content =
+          operation.type === "write_file" && operation.success
+            ? `FILE CREATED AND EXISTS: ${operation.path} [${status}${errorInfo}]${
+                operation.content ? `\nContent:\n${operation.content}` : ""
+              }`
+            : `${operation.type === "read_file" ? "Content of" : "Written to"} ${
+                operation.path
+              } [${status}${errorInfo}]${
+                operation.content ? `\nContent:\n${operation.content}` : ""
+              }`;
+
+        operationsContext.push({
+          role: "system",
+          content,
+        });
+      }
     }
 
-    // Add command operations
-    for (const operation of this.commandOperations.values()) {
-      const content = operation.output
-        ? `Command: ${operation.command}\nOutput:\n${operation.output}`
-        : `Command executed: ${operation.command}`;
-
-      operationsContext.push({
-        role: "system",
-        content,
-      });
-    }
-
-    return [...baseContext, ...operationsContext, ...this.conversationHistory];
+    return [
+      ...baseContext,
+      ...operationsContext,
+      ...contextData.conversationHistory,
+    ];
   }
 
-  clear(): void {
-    this.phaseInstructions = null;
-    this.fileOperations.clear();
-    this.commandOperations.clear();
-    this.conversationHistory = [];
-    this.systemInstructions = null;
+  public getLatestPhaseInstructions(
+    contextData: IMessageContextData,
+  ): string | null {
+    const instructions = Array.from(
+      contextData.phaseInstructions.values(),
+    ).sort((a, b) => b.timestamp - a.timestamp)[0];
+    return instructions?.content ?? null;
   }
 
-  getLatestPhaseInstructions(): string | null {
-    return this.phaseInstructions?.content ?? null;
+  public getFileOperation(
+    path: string,
+    contextData: IMessageContextData,
+  ): MessageFileOperation | undefined {
+    return contextData.fileOperations.get(path);
   }
 
-  getFileOperation(path: string): FileOperation | undefined {
-    return this.fileOperations.get(path);
-  }
-
-  getCommandOperation(command: string): CommandOperation | undefined {
-    return this.commandOperations.get(command);
+  public getCommandOperation(
+    command: string,
+    contextData: IMessageContextData,
+  ): MessageCommandOperation | undefined {
+    return contextData.commandOperations.get(command);
   }
 }

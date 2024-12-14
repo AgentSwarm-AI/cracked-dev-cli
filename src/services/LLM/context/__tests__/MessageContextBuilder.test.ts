@@ -1,844 +1,505 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
+// src/services/LLM/context/__tests__/MessageContextBuilder.test.ts
+
+import { UnitTestMocker } from "@/jest/mocks/UnitTestMocker";
+import { IConversationHistoryMessage } from "@services/LLM/ILLMProvider";
+import { container } from "tsyringe";
 import { MessageContextBuilder } from "../MessageContextBuilder";
+import { MessageContextExtractor } from "../MessageContextExtractor";
+import {
+  MessageCommandOperation,
+  MessageContextStore,
+  MessageFileOperation,
+} from "../MessageContextStore";
 
 describe("MessageContextBuilder", () => {
   let messageContextBuilder: MessageContextBuilder;
+  let messageContextStore: MessageContextStore;
+  let mocker: UnitTestMocker;
+  let messageContextExtractor: MessageContextExtractor;
 
   beforeEach(() => {
-    messageContextBuilder = new MessageContextBuilder();
+    // Resolve dependencies from the container
+    messageContextStore = container.resolve(MessageContextStore);
+    messageContextExtractor = container.resolve(MessageContextExtractor);
+    messageContextBuilder = container.resolve(MessageContextBuilder);
+    mocker = new UnitTestMocker();
   });
 
-  describe("processMessage", () => {
-    it("should process phase instructions", () => {
-      messageContextBuilder.processMessage({
-        role: "assistant",
-        content: `<phase_prompt>
-          Discovery Phase
-        </phase_prompt>
-        Some content`,
-      });
-
-      expect(messageContextBuilder.getLatestPhaseInstructions()).toBe(
-        "Discovery Phase",
-      );
-    });
-
-    it("should process file operations", () => {
-      messageContextBuilder.processMessage({
-        role: "assistant",
-        content: `<read_file>
-          <path>/path/to/file1</path>
-        </read_file>`,
-      });
-
-      const operation =
-        messageContextBuilder.getFileOperation("/path/to/file1");
-      expect(operation).toBeDefined();
-      expect(operation?.type).toBe("read_file");
-    });
-
-    it("should process command operations", () => {
-      messageContextBuilder.processMessage({
-        role: "assistant",
-        content: `<execute_command>
-          <command>npm install</command>
-        </execute_command>`,
-      });
-
-      const operation =
-        messageContextBuilder.getCommandOperation("npm install");
-      expect(operation).toBeDefined();
-      expect(operation?.type).toBe("execute_command");
-    });
-
-    it("should handle multiple operations in a single message", () => {
-      messageContextBuilder.processMessage({
-        role: "assistant",
-        content: `
-          <read_file>
-            <path>/path/to/file1</path>
-          </read_file>
-          <write_file>
-            <path>/path/to/file2</path>
-            <content>New Content</content>
-          </write_file>
-          <execute_command>
-            <command>ls -la</command>
-          </execute_command>
-        `,
-      });
-
-      const readOperation =
-        messageContextBuilder.getFileOperation("/path/to/file1");
-      const writeOperation =
-        messageContextBuilder.getFileOperation("/path/to/file2");
-      const commandOperation =
-        messageContextBuilder.getCommandOperation("ls -la");
-
-      expect(readOperation).toBeDefined();
-      expect(readOperation?.type).toBe("read_file");
-
-      expect(writeOperation).toBeDefined();
-      expect(writeOperation?.type).toBe("write_file");
-      expect(writeOperation?.content).toBeUndefined(); // Content is optional and not set yet
-
-      expect(commandOperation).toBeDefined();
-      expect(commandOperation?.type).toBe("execute_command");
-    });
-
-    it("should update existing operations with new ones", () => {
-      messageContextBuilder.processMessage({
-        role: "assistant",
-        content: `<read_file>
-          <path>/path/to/file1</path>
-        </read_file>`,
-      });
-
-      messageContextBuilder.processMessage({
-        role: "assistant",
-        content: `<read_file>
-          <path>/path/to/file1</path>
-        </read_file>`,
-      });
-
-      const operations = messageContextBuilder.getConversationHistory();
-      expect(operations.length).toBe(1);
-    });
-
-    it("should handle messages with multiple phase prompts by taking the latest", () => {
-      messageContextBuilder.processMessage({
-        role: "assistant",
-        content: `<phase_prompt>
-          Initial Phase
-        </phase_prompt>`,
-      });
-
-      messageContextBuilder.processMessage({
-        role: "assistant",
-        content: `<phase_prompt>
-          Updated Phase
-        </phase_prompt>`,
-      });
-
-      expect(messageContextBuilder.getLatestPhaseInstructions()).toBe(
-        "Updated Phase",
-      );
-    });
-
-    it("should handle messages with malformed XML gracefully", () => {
-      expect(() => {
-        messageContextBuilder.processMessage({
-          role: "assistant",
-          content: `<read_file>
-            <path>/path/to/file1</path>
-          <!-- Missing closing tag for read_file -->`,
-        });
-      }).not.toThrow();
-
-      const operation =
-        messageContextBuilder.getFileOperation("/path/to/file1");
-      expect(operation).toBeDefined();
-      expect(operation?.type).toBe("read_file");
-    });
-
-    it("should ignore unknown operation types", () => {
-      messageContextBuilder.processMessage({
-        role: "assistant",
-        content: `<unknown_operation>
-          <data>Some data</data>
-        </unknown_operation>`,
-      });
-
-      const history = messageContextBuilder.getConversationHistory();
-      expect(history.length).toBe(0);
+  afterEach(() => {
+    // Clear all mocks after each test
+    mocker.clearAllMocks();
+    // Reset the context store to its initial state
+    messageContextStore.setContextData({
+      systemInstructions: "",
+      phaseInstructions: new Map(),
+      conversationHistory: [],
+      fileOperations: new Map(),
+      commandOperations: new Map(),
     });
   });
 
-  describe("addMessage", () => {
-    it("should add user messages to conversation history", () => {
-      messageContextBuilder.addMessage("user", "Hello, how can I help you?");
-      const history = messageContextBuilder.getConversationHistory();
-      expect(history.length).toBe(1);
-      expect(history[0].role).toBe("user");
-      expect(history[0].content).toBe("Hello, how can I help you?");
-    });
+  it("should build message context for user role correctly", () => {
+    const contextData = messageContextStore.getContextData();
+    const updatedData = messageContextBuilder.buildMessageContext(
+      "user",
+      "hello",
+      "phase1",
+      contextData,
+    );
+    expect(updatedData.conversationHistory).toHaveLength(1);
+    expect(updatedData.conversationHistory[0].role).toBe("user");
+    expect(updatedData.conversationHistory[0].content).toBe("hello");
+    expect(updatedData.phaseInstructions.size).toBe(0);
 
-    it("should throw an error when adding a message with empty content", () => {
-      expect(() => {
-        messageContextBuilder.addMessage("user", "   ");
-      }).toThrow("Content cannot be empty");
-    });
-
-    it("should add assistant messages without operations to conversation history", () => {
-      messageContextBuilder.addMessage(
-        "assistant",
-        "Here is some information.",
-      );
-      const history = messageContextBuilder.getConversationHistory();
-      expect(history.length).toBe(1);
-      expect(history[0].role).toBe("assistant");
-      expect(history[0].content).toBe("Here is some information.");
-    });
-
-    it("should not add assistant messages with operations to conversation history", () => {
-      messageContextBuilder.addMessage(
-        "assistant",
-        `<read_file><path>/path/to/file1</path></read_file>`,
-      );
-      const history = messageContextBuilder.getConversationHistory();
-
-      // Expect one system message representing the read_file operation
-      expect(history.length).toBe(1);
-      expect(history[0].role).toBe("system");
-      expect(history[0].content).toBe("read_file operation on /path/to/file1");
-    });
-
-    it("should add assistant messages with both operations and non-operation content to conversation history", () => {
-      messageContextBuilder.addMessage(
-        "assistant",
-        `Here is the file content:
-     <read_file><path>/path/to/file1</path></read_file>`,
-      );
-      const history = messageContextBuilder.getConversationHistory();
-
-      // Expect two messages: one system message for the operation and one assistant message for the non-operation content
-      expect(history.length).toBe(2);
-
-      // Check the system message
-      expect(history[0].role).toBe("system");
-      expect(history[0].content).toBe("read_file operation on /path/to/file1");
-
-      // Check the assistant message
-      expect(history[1].role).toBe("assistant");
-      expect(history[1].content).toBe("Here is the file content:");
-    });
-
-    it("should handle system messages appropriately", () => {
-      messageContextBuilder.addMessage("system", "System initialized.");
-      const history = messageContextBuilder.getConversationHistory();
-      expect(history.length).toBe(1);
-      expect(history[0].role).toBe("system");
-      expect(history[0].content).toBe("System initialized.");
-    });
-
-    it("should not add system messages with operations to conversation history", () => {
-      messageContextBuilder.addMessage(
-        "system",
-        `<execute_command><command>ls</command></execute_command>`,
-      );
-      const history = messageContextBuilder.getConversationHistory();
-      expect(history.length).toBe(0);
-    });
+    const updatedData2 = messageContextBuilder.buildMessageContext(
+      "user",
+      "hello <phase_prompt>instruction</phase_prompt>",
+      "phase1",
+      updatedData,
+    );
+    expect(updatedData2.conversationHistory).toHaveLength(2);
+    expect(updatedData2.conversationHistory[1].role).toBe("user");
+    expect(updatedData2.conversationHistory[1].content).toBe(
+      "hello <phase_prompt>instruction</phase_prompt>",
+    );
+    expect(updatedData2.phaseInstructions.size).toBe(1);
+    expect(updatedData2.phaseInstructions.get("phase1")?.content).toBe(
+      "instruction",
+    );
   });
 
-  describe("updateOperationResult", () => {
-    it("should update read file operation result", () => {
-      messageContextBuilder.processMessage({
-        role: "assistant",
-        content: `<read_file>
-          <path>/path/to/file1</path>
-        </read_file>`,
-      });
+  it("should build message context for assistant role correctly with operations", () => {
+    mocker
+      .spyPrototype(MessageContextExtractor, "extractOperations")
+      .mockReturnValue([
+        { type: "read_file", path: "file1", timestamp: Date.now() },
+      ] as any);
+    const contextData = messageContextStore.getContextData();
+    const updatedData = messageContextBuilder.buildMessageContext(
+      "assistant",
+      "ok <read_file><path>file1</path></read_file>",
+      "phase1",
+      contextData,
+    );
+    expect(updatedData.conversationHistory).toHaveLength(1);
+    expect(updatedData.conversationHistory[0].role).toBe("assistant");
+    expect(updatedData.conversationHistory[0].content).toBe(
+      "ok <read_file><path>file1</path></read_file>",
+    );
+    expect(updatedData.fileOperations.size).toBe(1);
+    expect(updatedData.fileOperations.get("file1")?.type).toBe("read_file");
 
-      messageContextBuilder.updateOperationResult(
-        "read_file",
-        "/path/to/file1",
-        "file content",
-      );
-
-      const context = messageContextBuilder.getConversationHistory();
-      expect(context[0].content).toContain("file content");
-    });
-
-    it("should update command operation result", () => {
-      messageContextBuilder.processMessage({
-        role: "assistant",
-        content: `<execute_command>
-          <command>npm install</command>
-        </execute_command>`,
-      });
-
-      messageContextBuilder.updateOperationResult(
-        "execute_command",
-        "npm install",
-        "packages installed successfully",
-      );
-
-      const context = messageContextBuilder.getConversationHistory();
-      expect(context[0].content).toContain("packages installed successfully");
-    });
-
-    it("should handle updating non-existent operations gracefully", () => {
-      expect(() => {
-        messageContextBuilder.updateOperationResult(
-          "read_file",
-          "/non/existent/path",
-          "No content",
-        );
-      }).not.toThrow();
-
-      const context = messageContextBuilder.getConversationHistory();
-      expect(context.length).toBe(0);
-    });
-
-    it("should handle incorrect operation types gracefully", () => {
-      messageContextBuilder.processMessage({
-        role: "assistant",
-        content: `<read_file>
-          <path>/path/to/file1</path>
-        </read_file>`,
-      });
-
-      // Attempt to update with wrong type
-      messageContextBuilder.updateOperationResult(
-        "execute_command",
-        "/path/to/file1",
-        "Should not update",
-      );
-
-      const context = messageContextBuilder.getConversationHistory();
-      expect(context[0].content).not.toContain("Should not update");
-    });
+    mocker
+      .spyPrototype(MessageContextExtractor, "extractOperations")
+      .mockReturnValue([
+        { type: "read_file", path: "file1", timestamp: Date.now() },
+      ] as any);
+    const updatedData2 = messageContextBuilder.buildMessageContext(
+      "assistant",
+      "ok <read_file><path>file1</path></read_file> <phase_prompt>instruction</phase_prompt>",
+      "phase1",
+      updatedData,
+    );
+    expect(updatedData2.conversationHistory).toHaveLength(2);
+    expect(updatedData2.conversationHistory[1].role).toBe("assistant");
+    expect(updatedData2.conversationHistory[1].content).toBe(
+      "ok <read_file><path>file1</path></read_file> <phase_prompt>instruction</phase_prompt>",
+    );
+    expect(updatedData2.fileOperations.size).toBe(1);
+    expect(updatedData2.phaseInstructions.size).toBe(1);
+    expect(updatedData2.phaseInstructions.get("phase1")?.content).toBe(
+      "instruction",
+    );
   });
 
-  describe("getConversationHistory", () => {
-    it("should build context with all operations", () => {
-      messageContextBuilder.processMessage({
-        role: "assistant",
-        content: `<phase_prompt>
-          Discovery Phase
-        </phase_prompt>
-        <read_file>
-          <path>/path/to/file1</path>
-        </read_file>
-        <execute_command>
-          <command>npm install</command>
-        </execute_command>`,
-      });
-
-      messageContextBuilder.updateOperationResult(
-        "read_file",
-        "/path/to/file1",
-        "file content",
-      );
-      messageContextBuilder.updateOperationResult(
-        "execute_command",
-        "npm install",
-        "packages installed successfully",
-      );
-
-      const context = messageContextBuilder.getConversationHistory();
-      expect(context.length).toBe(3);
-      expect(context[0].role).toBe("system");
-      expect(context[0].content).toContain("Discovery Phase");
-      expect(context[1].role).toBe("system");
-      expect(context[1].content).toContain("file content");
-      expect(context[2].role).toBe("system");
-      expect(context[2].content).toContain("packages installed successfully");
-    });
-
-    it("should include system instructions in the context", () => {
-      messageContextBuilder.setSystemInstructions("System is operational.");
-      messageContextBuilder.addMessage("user", "Hello!");
-
-      const context = messageContextBuilder.getConversationHistory();
-      expect(context.length).toBe(2);
-      expect(context[0].role).toBe("system");
-      expect(context[0].content).toBe("System is operational.");
-      expect(context[1].role).toBe("user");
-      expect(context[1].content).toBe("Hello!");
-    });
-
-    it("should exclude system instructions if not set", () => {
-      messageContextBuilder.addMessage("user", "Hello!");
-
-      const context = messageContextBuilder.getConversationHistory();
-      expect(context.length).toBe(1);
-      expect(context[0].role).toBe("user");
-      expect(context[0].content).toBe("Hello!");
-    });
-
-    it("should build context correctly after clearing operations", () => {
-      messageContextBuilder.processMessage({
-        role: "assistant",
-        content: `<phase_prompt>
-          Discovery Phase
-        </phase_prompt>
-        <read_file>
-          <path>/path/to/file1</path>
-        </read_file>`,
-      });
-
-      messageContextBuilder.updateOperationResult(
-        "read_file",
-        "/path/to/file1",
-        "file content",
-      );
-
-      messageContextBuilder.clear();
-
-      const context = messageContextBuilder.getConversationHistory();
-      expect(context.length).toBe(0);
-      expect(messageContextBuilder.getLatestPhaseInstructions()).toBeNull();
-    });
+  it("should build message context for assistant role correctly without operations", () => {
+    mocker
+      .spyPrototype(MessageContextExtractor, "extractOperations")
+      .mockReturnValue([]);
+    const contextData = messageContextStore.getContextData();
+    const updatedData = messageContextBuilder.buildMessageContext(
+      "assistant",
+      "ok",
+      "phase1",
+      contextData,
+    );
+    expect(updatedData.conversationHistory).toHaveLength(1);
+    expect(updatedData.conversationHistory[0].role).toBe("assistant");
+    expect(updatedData.conversationHistory[0].content).toBe("ok");
+    expect(updatedData.fileOperations.size).toBe(0);
   });
 
-  describe("clear", () => {
-    it("should clear all stored operations", () => {
-      messageContextBuilder.processMessage({
-        role: "assistant",
-        content: `<phase_prompt>
-          Discovery Phase
-        </phase_prompt>
-        <read_file>
-          <path>/path/to/file1</path>
-        </read_file>`,
-      });
+  it("should build message context for system role correctly", () => {
+    mocker
+      .spyPrototype(MessageContextExtractor, "extractOperations")
+      .mockReturnValue([]);
+    const contextData = messageContextStore.getContextData();
+    const updatedData = messageContextBuilder.buildMessageContext(
+      "system",
+      "instructions",
+      "phase1",
+      contextData,
+    );
+    expect(updatedData.conversationHistory).toHaveLength(1);
+    expect(updatedData.conversationHistory[0].role).toBe("system");
+    expect(updatedData.conversationHistory[0].content).toBe("instructions");
+    expect(updatedData.fileOperations.size).toBe(0);
 
-      messageContextBuilder.clear();
-
-      expect(messageContextBuilder.getConversationHistory()).toEqual([]);
-      expect(messageContextBuilder.getLatestPhaseInstructions()).toBeNull();
-      expect(
-        messageContextBuilder.getFileOperation("/path/to/file1"),
-      ).toBeUndefined();
-      expect(
-        messageContextBuilder.getCommandOperation("npm install"),
-      ).toBeUndefined();
-      expect(messageContextBuilder.getSystemInstructions()).toBeNull();
-    });
+    mocker
+      .spyPrototype(MessageContextExtractor, "extractOperations")
+      .mockReturnValue([
+        { type: "read_file", path: "file1", timestamp: Date.now() },
+      ] as any);
+    const updatedData2 = messageContextBuilder.buildMessageContext(
+      "system",
+      "instructions <read_file><path>file1</path></read_file>",
+      "phase1",
+      updatedData,
+    );
+    expect(updatedData2.conversationHistory).toHaveLength(2);
+    expect(updatedData2.conversationHistory[1].role).toBe("system");
+    expect(updatedData2.conversationHistory[1].content).toBe(
+      "instructions <read_file><path>file1</path></read_file>",
+    );
+    expect(updatedData2.fileOperations.size).toBe(1);
+    expect(updatedData2.fileOperations.get("file1")?.type).toBe("read_file");
   });
 
-  describe("removeOldOperations", () => {
-    it("should replace old file operations with new ones", () => {
-      // Add first operation
-      messageContextBuilder.addMessage(
-        "assistant",
-        `<read_file><path>/path/to/file.txt</path></read_file>`,
+  it("should throw an error for empty content", () => {
+    const contextData = messageContextStore.getContextData();
+    expect(() => {
+      messageContextBuilder.buildMessageContext(
+        "user",
+        "   ",
+        "phase1",
+        contextData,
       );
-      messageContextBuilder.updateOperationResult(
-        "read_file",
-        "/path/to/file.txt",
-        "old file content",
-      );
-
-      // Add second operation on the same file
-      messageContextBuilder.addMessage(
-        "assistant",
-        `<read_file><path>/path/to/file.txt</path></read_file>`,
-      );
-      messageContextBuilder.updateOperationResult(
-        "read_file",
-        "/path/to/file.txt",
-        "new content",
-      );
-
-      const history = messageContextBuilder.getConversationHistory();
-      const fileOperations = history.filter(
-        (msg) =>
-          msg.role === "system" && msg.content.includes("/path/to/file.txt"),
-      );
-
-      expect(fileOperations.length).toBe(1);
-      expect(fileOperations[0].content).toContain("new content");
-      expect(fileOperations[0].content).not.toContain("old file content");
-    });
-
-    it("should handle mixed operations correctly", () => {
-      // File operation
-      messageContextBuilder.addMessage(
-        "assistant",
-        `<read_file><path>/path/to/file.txt</path></read_file>`,
-      );
-      messageContextBuilder.updateOperationResult(
-        "read_file",
-        "/path/to/file.txt",
-        "file content",
-      );
-
-      // Command operation
-      messageContextBuilder.addMessage(
-        "assistant",
-        `<execute_command><command>npm test</command></execute_command>`,
-      );
-      messageContextBuilder.updateOperationResult(
-        "execute_command",
-        "npm test",
-        "test output",
-      );
-
-      // New operation on the same file
-      messageContextBuilder.addMessage(
-        "assistant",
-        `<read_file><path>/path/to/file.txt</path></read_file>`,
-      );
-      messageContextBuilder.updateOperationResult(
-        "read_file",
-        "/path/to/file.txt",
-        "new content",
-      );
-
-      const history = messageContextBuilder.getConversationHistory();
-
-      const fileOperations = history.filter(
-        (msg) =>
-          msg.role === "system" && msg.content.includes("/path/to/file.txt"),
-      );
-      const commandOperations = history.filter(
-        (msg) => msg.role === "system" && msg.content.includes("npm test"),
-      );
-
-      expect(fileOperations.length).toBe(1);
-      expect(fileOperations[0].content).toContain("new content");
-      expect(fileOperations[0].content).not.toContain("file content");
-
-      expect(commandOperations.length).toBe(1);
-      expect(commandOperations[0].content).toContain("test output");
-    });
-
-    it("should keep only the latest operation for a specific file", () => {
-      // First read operation
-      messageContextBuilder.processMessage({
-        role: "assistant",
-        content: `<read_file><path>/path/to/file.txt</path></read_file>`,
-      });
-      messageContextBuilder.updateOperationResult(
-        "read_file",
-        "/path/to/file.txt",
-        "old content",
-      );
-
-      // Second read operation on the same file
-      messageContextBuilder.processMessage({
-        role: "assistant",
-        content: `<read_file><path>/path/to/file.txt</path></read_file>`,
-      });
-      messageContextBuilder.updateOperationResult(
-        "read_file",
-        "/path/to/file.txt",
-        "new content",
-      );
-
-      const history = messageContextBuilder.getConversationHistory();
-      const fileOperations = history.filter(
-        (msg) =>
-          msg.role === "system" && msg.content.includes("/path/to/file.txt"),
-      );
-
-      expect(fileOperations.length).toBe(1);
-      expect(fileOperations[0].content).toContain("new content");
-      expect(fileOperations[0].content).not.toContain("old content");
-    });
-
-    it("should keep operations for different files", () => {
-      // Operation on first file
-      messageContextBuilder.processMessage({
-        role: "assistant",
-        content: `<read_file><path>/path/to/file1.txt</path></read_file>`,
-      });
-      messageContextBuilder.updateOperationResult(
-        "read_file",
-        "/path/to/file1.txt",
-        "content 1",
-      );
-
-      // Operation on second file
-      messageContextBuilder.processMessage({
-        role: "assistant",
-        content: `<read_file><path>/path/to/file2.txt</path></read_file>`,
-      });
-      messageContextBuilder.updateOperationResult(
-        "read_file",
-        "/path/to/file2.txt",
-        "content 2",
-      );
-
-      const history = messageContextBuilder.getConversationHistory();
-      const fileOperations = history.filter(
-        (msg) =>
-          msg.role === "system" &&
-          (msg.content.includes("file1.txt") ||
-            msg.content.includes("file2.txt")),
-      );
-
-      expect(fileOperations.length).toBe(2);
-      expect(fileOperations[0].content).toContain("content 1");
-      expect(fileOperations[1].content).toContain("content 2");
-    });
-
-    it("should keep only the latest command operation", () => {
-      // First command operation
-      messageContextBuilder.processMessage({
-        role: "assistant",
-        content: `<execute_command><command>npm install</command></execute_command>`,
-      });
-      messageContextBuilder.updateOperationResult(
-        "execute_command",
-        "npm install",
-        "old output",
-      );
-
-      // Second command operation
-      messageContextBuilder.processMessage({
-        role: "assistant",
-        content: `<execute_command><command>npm install</command></execute_command>`,
-      });
-      messageContextBuilder.updateOperationResult(
-        "execute_command",
-        "npm install",
-        "new output",
-      );
-
-      const history = messageContextBuilder.getConversationHistory();
-      const commandOperations = history.filter(
-        (msg) => msg.role === "system" && msg.content.includes("npm install"),
-      );
-
-      expect(commandOperations.length).toBe(1);
-      expect(commandOperations[0].content).toContain("new output");
-      expect(commandOperations[0].content).not.toContain("old output");
-    });
-
-    it("should keep different command operations", () => {
-      // First command
-      messageContextBuilder.processMessage({
-        role: "assistant",
-        content: `<execute_command><command>npm install</command></execute_command>`,
-      });
-      messageContextBuilder.updateOperationResult(
-        "execute_command",
-        "npm install",
-        "install output",
-      );
-
-      // Second command
-      messageContextBuilder.processMessage({
-        role: "assistant",
-        content: `<execute_command><command>npm test</command></execute_command>`,
-      });
-      messageContextBuilder.updateOperationResult(
-        "execute_command",
-        "npm test",
-        "test output",
-      );
-
-      const history = messageContextBuilder.getConversationHistory();
-      const commandOperations = history.filter(
-        (msg) => msg.role === "system" && msg.content.includes("Command:"),
-      );
-
-      expect(commandOperations.length).toBe(2);
-      expect(commandOperations[0].content).toContain("install output");
-      expect(commandOperations[1].content).toContain("test output");
-    });
+    }).toThrowError("Content cannot be empty");
   });
 
-  describe("setSystemInstructions and getSystemInstructions", () => {
-    it("should set and get system instructions", () => {
-      messageContextBuilder.setSystemInstructions("Initialize system.");
+  it("should update operation result correctly for execute command", () => {
+    const contextData = messageContextStore.getContextData();
 
-      const instructions = messageContextBuilder.getSystemInstructions();
-      expect(instructions).toBe("Initialize system.");
+    // First update: Success
+    const updatedData = messageContextBuilder.updateOperationResult(
+      "execute_command",
+      "command1",
+      "output1",
+      contextData,
+      true,
+      undefined,
+    );
+    expect(updatedData.commandOperations.size).toBe(1);
+    expect(updatedData.commandOperations.get("command1")?.output).toBe(
+      "output1",
+    );
+    expect(updatedData.commandOperations.get("command1")?.success).toBe(true);
+    expect(
+      updatedData.commandOperations.get("command1")?.error,
+    ).toBeUndefined();
 
-      const history = messageContextBuilder.getConversationHistory();
-      expect(history[0].role).toBe("system");
-      expect(history[0].content).toBe("Initialize system.");
-    });
+    // Second update: Attempt to set to failure (should be ignored)
+    const updatedData2 = messageContextBuilder.updateOperationResult(
+      "execute_command",
+      "command1",
+      "output2",
+      updatedData,
+      false,
+      "error",
+    );
+    expect(updatedData2.commandOperations.size).toBe(1);
 
-    it("should overwrite existing system instructions", () => {
-      messageContextBuilder.setSystemInstructions("First instruction.");
-      messageContextBuilder.setSystemInstructions("Updated instruction.");
-
-      const instructions = messageContextBuilder.getSystemInstructions();
-      expect(instructions).toBe("Updated instruction.");
-
-      const history = messageContextBuilder.getConversationHistory();
-      expect(history.length).toBe(1);
-      expect(history[0].role).toBe("system");
-      expect(history[0].content).toBe("Updated instruction.");
-    });
-
-    it("should handle setting system instructions to null", () => {
-      messageContextBuilder.setSystemInstructions("Initial instruction.");
-      messageContextBuilder.setSystemInstructions(null);
-
-      const instructions = messageContextBuilder.getSystemInstructions();
-      expect(instructions).toBeNull();
-
-      const history = messageContextBuilder.getConversationHistory();
-      expect(history.length).toBe(0);
-    });
+    // Ensure the operation was not updated
+    expect(updatedData2.commandOperations.get("command1")?.output).toBe(
+      "output1",
+    );
+    expect(updatedData2.commandOperations.get("command1")?.success).toBe(true);
+    expect(
+      updatedData2.commandOperations.get("command1")?.error,
+    ).toBeUndefined();
   });
 
-  describe("getLatestPhaseInstructions", () => {
-    it("should return the latest phase instructions", () => {
-      messageContextBuilder.processMessage({
-        role: "assistant",
-        content: `<phase_prompt>Phase One</phase_prompt>`,
-      });
-      expect(messageContextBuilder.getLatestPhaseInstructions()).toBe(
-        "Phase One",
-      );
+  it("should update operation result correctly for write file", () => {
+    const contextData = messageContextStore.getContextData();
 
-      messageContextBuilder.processMessage({
-        role: "assistant",
-        content: `<phase_prompt>Phase Two</phase_prompt>`,
-      });
-      expect(messageContextBuilder.getLatestPhaseInstructions()).toBe(
-        "Phase Two",
-      );
-    });
+    // First update: Success
+    const updatedData = messageContextBuilder.updateOperationResult(
+      "write_file",
+      "file1",
+      "content1",
+      contextData,
+      true,
+      undefined,
+    );
+    expect(updatedData.fileOperations.size).toBe(1);
+    expect(updatedData.fileOperations.get("file1")?.content).toBe("content1");
+    expect(updatedData.fileOperations.get("file1")?.success).toBe(true);
+    expect(updatedData.fileOperations.get("file1")?.error).toBeUndefined();
 
-    it("should return null if no phase instructions are present", () => {
-      expect(messageContextBuilder.getLatestPhaseInstructions()).toBeNull();
-    });
+    // Second update: Attempt to set to failure (should be ignored)
+    const updatedData2 = messageContextBuilder.updateOperationResult(
+      "write_file",
+      "file1",
+      "content2",
+      updatedData,
+      false,
+      "error",
+    );
+    expect(updatedData2.fileOperations.size).toBe(1);
+
+    // Ensure the operation was not updated
+    expect(updatedData2.fileOperations.get("file1")?.content).toBe("content1");
+    expect(updatedData2.fileOperations.get("file1")?.success).toBe(true);
+    expect(updatedData2.fileOperations.get("file1")?.error).toBeUndefined();
   });
 
-  describe("getFileOperation and getCommandOperation", () => {
-    it("should retrieve specific file operations", () => {
-      messageContextBuilder.processMessage({
-        role: "assistant",
-        content: `<read_file><path>/path/to/file1.txt</path></read_file>`,
-      });
+  it("should not update operation result if already succeeded", () => {
+    const contextData = messageContextStore.getContextData();
 
-      const operation =
-        messageContextBuilder.getFileOperation("/path/to/file1.txt");
-      expect(operation).toBeDefined();
-      expect(operation?.type).toBe("read_file");
-    });
+    // First update for write_file: Success
+    const updatedData = messageContextBuilder.updateOperationResult(
+      "write_file",
+      "file1",
+      "content1",
+      contextData,
+      true,
+      undefined,
+    );
 
-    it("should retrieve specific command operations", () => {
-      messageContextBuilder.processMessage({
-        role: "assistant",
-        content: `<execute_command><command>git status</command></execute_command>`,
-      });
+    // Second update for write_file: Attempt to update (should be ignored)
+    const updatedData2 = messageContextBuilder.updateOperationResult(
+      "write_file",
+      "file1",
+      "content2",
+      updatedData,
+      true,
+      undefined,
+    );
+    expect(updatedData2.fileOperations.size).toBe(1);
+    expect(updatedData2.fileOperations.get("file1")?.content).toBe("content1");
 
-      const operation = messageContextBuilder.getCommandOperation("git status");
-      expect(operation).toBeDefined();
-      expect(operation?.type).toBe("execute_command");
-    });
+    // First update for execute_command: Success
+    const updatedData3 = messageContextBuilder.updateOperationResult(
+      "execute_command",
+      "command1",
+      "output1",
+      updatedData2,
+      true,
+      undefined,
+    );
 
-    it("should return undefined for non-existent file operations", () => {
-      const operation = messageContextBuilder.getFileOperation(
-        "/non/existent/file.txt",
-      );
-      expect(operation).toBeUndefined();
-    });
-
-    it("should return undefined for non-existent command operations", () => {
-      const operation = messageContextBuilder.getCommandOperation(
-        "non-existent command",
-      );
-      expect(operation).toBeUndefined();
-    });
+    // Second update for execute_command: Attempt to update (should be ignored)
+    const updatedData4 = messageContextBuilder.updateOperationResult(
+      "execute_command",
+      "command1",
+      "output2",
+      updatedData3,
+      true,
+      undefined,
+    );
+    expect(updatedData4.commandOperations.size).toBe(1);
+    expect(updatedData4.commandOperations.get("command1")?.output).toBe(
+      "output1",
+    );
   });
 
-  describe("hasPhasePrompt", () => {
-    it("should correctly identify presence of phase prompt", () => {
-      const contentWithPhase = `<phase_prompt>Phase One</phase_prompt>`;
-      const contentWithoutPhase = `No phase here.`;
+  it("should get message context correctly", () => {
+    // Define file operations
+    const fileOperations = new Map<string, MessageFileOperation>([
+      [
+        "file1",
+        {
+          type: "read_file",
+          path: "file1",
+          timestamp: 1,
+          success: true,
+          content: "content1",
+        },
+      ],
+      [
+        "file2",
+        {
+          type: "write_file",
+          path: "file2",
+          timestamp: 2,
+          success: false,
+          content: "content2",
+          error: "error",
+        },
+      ],
+    ]);
 
-      // @ts-ignore
-      expect(messageContextBuilder.hasPhasePrompt(contentWithPhase)).toBe(true);
-      // @ts-ignore
-      expect(messageContextBuilder.hasPhasePrompt(contentWithoutPhase)).toBe(
-        false,
-      );
+    // Define command operations
+    const commandOperations = new Map<string, MessageCommandOperation>([
+      [
+        "command1",
+        {
+          type: "execute_command",
+          command: "command1",
+          timestamp: 3,
+          success: true,
+          output: "output1",
+        },
+      ],
+      [
+        "command2",
+        {
+          type: "execute_command",
+          command: "command2",
+          timestamp: 4,
+          success: false,
+          output: "output2",
+          error: "error",
+        },
+      ],
+    ]);
+
+    // Set the complete context data
+    messageContextStore.setContextData({
+      systemInstructions: "system instruction",
+      phaseInstructions: new Map([
+        ["phase1", { phase: "phase1", content: "instruction", timestamp: 1 }],
+      ]),
+      conversationHistory: [
+        { role: "user", content: "hello" },
+      ] as IConversationHistoryMessage[],
+      fileOperations,
+      commandOperations,
     });
+
+    const messages = messageContextBuilder.getMessageContext(
+      messageContextStore.getContextData(),
+    );
+
+    expect(messages).toHaveLength(7);
+    expect(messages[0].content).toBe("system instruction");
+    expect(messages[1].content).toBe(
+      "<phase_prompt>instruction</phase_prompt>",
+    );
+    expect(messages[2].content).toBe(
+      "Content of file1 [SUCCESS]\nContent:\ncontent1",
+    );
+    expect(messages[3].content).toBe(
+      "Written to file2 [FAILED (Error: error)]\nContent:\ncontent2",
+    );
+    expect(messages[4].content).toBe(
+      "Command: command1 [SUCCESS]\nOutput:\noutput1",
+    );
+    expect(messages[5].content).toBe(
+      "Command: command2 [FAILED (Error: error)]\nOutput:\noutput2",
+    );
+    expect(messages[6].content).toBe("hello");
   });
 
-  describe("extractPhasePrompt", () => {
-    it("should extract phase prompt content", () => {
-      // @ts-ignore
-      const prompt = messageContextBuilder.extractPhasePrompt(
-        `<phase_prompt>Phase One</phase_prompt>`,
-      );
-      expect(prompt).toBe("Phase One");
+  it("should get latest phase instructions correctly", () => {
+    messageContextStore.setContextData({
+      phaseInstructions: new Map([
+        ["phase1", { phase: "phase1", content: "instruction1", timestamp: 1 }],
+        ["phase2", { phase: "phase2", content: "instruction2", timestamp: 2 }],
+      ]),
+      systemInstructions: "",
+      conversationHistory: [],
+      fileOperations: new Map(),
+      commandOperations: new Map(),
     });
 
-    it("should return null if no phase prompt is present", () => {
-      // @ts-ignore
-      const prompt = messageContextBuilder.extractPhasePrompt(`No phase here.`);
-      expect(prompt).toBeNull();
-    });
-
-    it("should handle multiple phase prompts by extracting the first one", () => {
-      // @ts-ignore
-      const prompt = messageContextBuilder.extractPhasePrompt(
-        `<phase_prompt>Phase One</phase_prompt>
-         <phase_prompt>Phase Two</phase_prompt>`,
-      );
-      expect(prompt).toBe("Phase One");
-    });
-
-    it("should trim whitespace from phase prompt content", () => {
-      // @ts-ignore
-      const prompt = messageContextBuilder.extractPhasePrompt(
-        `<phase_prompt>
-          Phase One
-        </phase_prompt>`,
-      );
-      expect(prompt).toBe("Phase One");
-    });
+    const latestInstructions = messageContextBuilder.getLatestPhaseInstructions(
+      messageContextStore.getContextData(),
+    );
+    expect(latestInstructions).toBe("instruction2");
   });
 
-  describe("extractOperations", () => {
-    it("should extract all operations from content", () => {
-      // @ts-ignore
-      const operations = messageContextBuilder.extractOperations(`
-        <read_file><path>/path/to/file1.txt</path></read_file>
-        <write_file><path>/path/to/file2.txt</path><content>Data</content></write_file>
-        <execute_command><command>echo Hello</command></execute_command>
-      `);
-
-      expect(operations.length).toBe(3);
-      expect(operations).toContainEqual({
-        type: "read_file",
-        path: "/path/to/file1.txt",
-      });
-      expect(operations).toContainEqual({
-        type: "write_file",
-        path: "/path/to/file2.txt",
-      });
-      expect(operations).toContainEqual({
-        type: "execute_command",
-        command: "echo Hello",
-      });
+  it("should get file operation correctly", () => {
+    messageContextStore.setContextData({
+      fileOperations: new Map([
+        [
+          "file1",
+          {
+            type: "read_file",
+            path: "file1",
+            timestamp: 1,
+            content: "content1",
+            success: true,
+          },
+        ],
+        [
+          "file2",
+          {
+            type: "write_file",
+            path: "file2",
+            timestamp: 2,
+            content: "content2",
+            success: false,
+            error: "error",
+          },
+        ],
+      ]),
+      systemInstructions: "",
+      phaseInstructions: new Map(),
+      conversationHistory: [],
+      commandOperations: new Map(),
     });
+    const fileOperation = messageContextBuilder.getFileOperation(
+      "file1",
+      messageContextStore.getContextData(),
+    );
+    expect(fileOperation?.content).toBe("content1");
+    expect(fileOperation?.success).toBe(true);
+    expect(fileOperation?.error).toBeUndefined();
 
-    it("should return an empty array if no operations are present", () => {
-      // @ts-ignore
-      const operations = messageContextBuilder.extractOperations(
-        "No operations here.",
-      );
-      expect(operations).toEqual([]);
-    });
-
-    it("should handle malformed operation tags gracefully", () => {
-      // @ts-ignore
-      const operations = messageContextBuilder.extractOperations(`
-        <read_file><path>/path/to/file1.txt</path>
-        <write_file><path>/path/to/file2.txt</path><content>Data</content>
-        <!-- Missing closing tags -->
-      `);
-
-      // Depending on implementation, it might partially extract or ignore malformed
-      // Here, assuming it extracts what it can
-      expect(operations.length).toBeGreaterThanOrEqual(2);
-    });
+    const fileOperation2 = messageContextBuilder.getFileOperation(
+      "file2",
+      messageContextStore.getContextData(),
+    );
+    expect(fileOperation2?.content).toBe("content2");
+    expect(fileOperation2?.success).toBe(false);
+    expect(fileOperation2?.error).toBe("error");
   });
 
-  describe("hasPhasePrompt", () => {
-    it("should correctly identify if content has a phase prompt", () => {
-      const contentWithPhase = `<phase_prompt>Phase One</phase_prompt>`;
-      const contentWithoutPhase = `No phase here.`;
-
-      expect(messageContextBuilder["hasPhasePrompt"](contentWithPhase)).toBe(
-        true,
-      );
-      expect(messageContextBuilder["hasPhasePrompt"](contentWithoutPhase)).toBe(
-        false,
-      );
+  it("should get command operation correctly", () => {
+    messageContextStore.setContextData({
+      commandOperations: new Map([
+        [
+          "command1",
+          {
+            type: "execute_command",
+            command: "command1",
+            timestamp: 1,
+            output: "output1",
+            success: true,
+          },
+        ],
+        [
+          "command2",
+          {
+            type: "execute_command",
+            command: "command2",
+            timestamp: 2,
+            output: "output2",
+            success: false,
+            error: "error",
+          },
+        ],
+      ]),
+      systemInstructions: "",
+      phaseInstructions: new Map(),
+      conversationHistory: [],
+      fileOperations: new Map(),
     });
+    const commandOperation = messageContextBuilder.getCommandOperation(
+      "command1",
+      messageContextStore.getContextData(),
+    );
+    expect(commandOperation?.output).toBe("output1");
+    expect(commandOperation?.success).toBe(true);
+    expect(commandOperation?.error).toBeUndefined();
+
+    const commandOperation2 = messageContextBuilder.getCommandOperation(
+      "command2",
+      messageContextStore.getContextData(),
+    );
+    expect(commandOperation2?.output).toBe("output2");
+    expect(commandOperation2?.success).toBe(false);
+    expect(commandOperation2?.error).toBe("error");
   });
 });
