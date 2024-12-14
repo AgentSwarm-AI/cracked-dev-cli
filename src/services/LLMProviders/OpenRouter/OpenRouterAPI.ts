@@ -1,10 +1,10 @@
 /* eslint-disable no-useless-catch */
-import { ModelScaler } from "@/services/LLM/ModelScaler";
 import { openRouterClient } from "@constants/openRouterClient";
 import { ILLMProvider, IMessage } from "@services/LLM/ILLMProvider";
 import { MessageContextManager } from "@services/LLM/MessageContextManager";
 import { ModelInfo } from "@services/LLM/ModelInfo";
 import { ModelManager } from "@services/LLM/ModelManager";
+import { ModelScaler } from "@services/LLM/ModelScaler";
 import {
   formatMessageContent,
   IMessageContent,
@@ -41,6 +41,8 @@ export class OpenRouterAPI implements ILLMProvider {
   private streamBuffer: string = "";
   private maxRetries: number = 3;
   private retryDelay: number = 1000;
+  private stream: any;
+  static aborted: boolean = false;
 
   constructor(
     private messageContextManager: MessageContextManager,
@@ -237,8 +239,6 @@ export class OpenRouterAPI implements ILLMProvider {
     message: string,
     callback: (chunk: string, error?: LLMError) => void,
   ): Promise<void> {
-    console.log(JSON.stringify(error, null, 2));
-
     this.debugLogger.log("Model", "Stream error", {
       error: error.type,
       message,
@@ -265,6 +265,9 @@ export class OpenRouterAPI implements ILLMProvider {
     retries: number = this.maxRetries,
   ): Promise<T> {
     try {
+      if (OpenRouterAPI.aborted) {
+        throw new LLMError("Aborted", "ABORTED");
+      }
       return await operation();
     } catch (error) {
       if (retries > 0 && this.isRetryableError(error)) {
@@ -387,16 +390,27 @@ export class OpenRouterAPI implements ILLMProvider {
         );
 
         try {
-          const stream = response.data;
+          this.stream = response.data;
 
           await new Promise<void>((resolve, reject) => {
-            stream.on("data", (chunk: Buffer) => {
+            const handleError = (err: Error) => {
+              this.debugLogger.log("Error", "Stream error", { error: err });
+              reject(err);
+            };
+
+            this.stream.on("data", (chunk: Buffer) => {
+              if (OpenRouterAPI.aborted) {
+                this.stream.removeAllListeners();
+                this.stream.destroy();
+                this.stream = null;
+                return;
+              }
+
               const { content, error } = this.parseStreamChunk(
                 chunk.toString(),
               );
 
               if (error) {
-                console.log(JSON.stringify(error, null, 2));
                 const llmError = new LLMError(
                   error.message || "Stream error",
                   "STREAM_ERROR",
@@ -413,20 +427,21 @@ export class OpenRouterAPI implements ILLMProvider {
               }
             });
 
-            stream.on("end", () => {
+            this.stream.on("end", () => {
+              if (OpenRouterAPI.aborted) return;
+
               if (this.streamBuffer) {
                 const { content, error } = this.processCompleteMessage(
                   this.streamBuffer,
                 );
                 if (error) {
-                  console.log(JSON.stringify(error, null, 2));
-                  const llmError = new LLMError(
-                    error.message || "Stream error",
-                    "STREAM_ERROR",
-                    error.details,
+                  handleError(
+                    new LLMError(
+                      error.message || "Stream error",
+                      "STREAM_ERROR",
+                      error.details,
+                    ),
                   );
-                  this.handleStreamError(llmError, message, callback);
-                  reject(llmError);
                   return;
                 }
                 if (content) {
@@ -434,15 +449,14 @@ export class OpenRouterAPI implements ILLMProvider {
                   callback(content);
                 }
               }
+              this.cleanupStream();
               resolve();
             });
 
-            stream.on("error", (err: Error) => {
-              reject(err);
-            });
+            this.stream.on("error", handleError);
           });
 
-          if (assistantMessage) {
+          if (assistantMessage && !OpenRouterAPI.aborted) {
             this.messageContextManager.addMessage("user", message);
             this.messageContextManager.addMessage(
               "assistant",
@@ -455,8 +469,6 @@ export class OpenRouterAPI implements ILLMProvider {
           }
         } catch (error) {
           throw error;
-        } finally {
-          this.streamBuffer = "";
         }
       };
 
@@ -466,7 +478,7 @@ export class OpenRouterAPI implements ILLMProvider {
         error instanceof LLMError ? error : await this.handleLLMError(error);
       await this.handleStreamError(llmError, message, callback);
 
-      if (assistantMessage) {
+      if (assistantMessage && !OpenRouterAPI.aborted) {
         this.messageContextManager.addMessage("user", message);
         this.messageContextManager.addMessage("assistant", assistantMessage);
 
@@ -474,6 +486,35 @@ export class OpenRouterAPI implements ILLMProvider {
           this.messageContextManager.getTotalTokenCount(),
         );
       }
+    } finally {
+      this.cleanupStream();
     }
+  }
+
+  private cleanupStream(): void {
+    if (this.stream) {
+      this.stream.removeAllListeners();
+      this.stream.destroy();
+      this.stream = null;
+    }
+    this.streamBuffer = "";
+    OpenRouterAPI.aborted = false;
+  }
+
+  cancelStream() {
+    OpenRouterAPI.aborted = true;
+    if (this.stream) {
+      this.stream.removeAllListeners();
+      this.stream.destroy();
+      this.stream = null;
+    }
+  }
+
+  public static setAborted(value: boolean) {
+    OpenRouterAPI.aborted = value;
+  }
+
+  public static getAborted() {
+    return OpenRouterAPI.aborted;
   }
 }

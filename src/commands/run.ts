@@ -2,8 +2,11 @@ import { Args, Command, Flags } from "@oclif/core";
 import { CrackedAgent, CrackedAgentOptions } from "@services/CrackedAgent";
 import { LLMProviderType } from "@services/LLM/LLMProvider";
 import { ModelManager } from "@services/LLM/ModelManager";
+import { OpenRouterAPI } from "@services/LLMProviders/OpenRouter/OpenRouterAPI";
+import { StreamHandler } from "@services/streaming/StreamHandler";
 import * as readline from "readline";
 import { container } from "tsyringe";
+import * as tty from "tty";
 import { ConfigService } from "../services/ConfigService";
 
 export class Run extends Command {
@@ -31,11 +34,18 @@ export class Run extends Command {
 
   private configService: ConfigService;
   private modelManager: ModelManager;
+  private streamHandler: StreamHandler;
+  private openRouterAPI: OpenRouterAPI;
+  private rl: readline.Interface;
+  private currentMessage: string = "";
 
   constructor(argv: string[], config: any) {
     super(argv, config);
     this.configService = container.resolve(ConfigService);
     this.modelManager = container.resolve(ModelManager);
+    this.streamHandler = container.resolve(StreamHandler);
+    this.openRouterAPI = container.resolve(OpenRouterAPI);
+    this.rl = this.createReadlineInterface();
   }
 
   private parseOptions(optionsString: string): Record<string, unknown> {
@@ -68,44 +78,124 @@ export class Run extends Command {
     });
   }
 
+  private setupKeypressHandling() {
+    if (process.stdin instanceof tty.ReadStream) {
+      process.stdin.setRawMode(true);
+      process.stdin.resume();
+      process.stdin.on("data", async (buffer) => {
+        const key = buffer.toString();
+        if (key === "\u001B") {
+          // Escape key
+          this.openRouterAPI.cancelStream();
+          console.log("\nStreaming cancelled.");
+          await this.restartStream();
+        }
+      });
+    }
+  }
+
+  private async restartStream() {
+    console.log("Please type your new prompt and press enter...");
+
+    this.rl.prompt();
+
+    const config = this.configService.getConfig();
+    const options: CrackedAgentOptions = {
+      ...config,
+      options: this.parseOptions(config.options || ""),
+      provider: config.provider as LLMProviderType,
+    };
+
+    const agent = container.resolve(CrackedAgent);
+
+    // If we have a current message, restart with it
+    if (this.currentMessage) {
+      await this.startStream(agent, options);
+    } else {
+      // Otherwise, prompt for new input
+      this.rl.prompt();
+    }
+  }
+
   private async startInteractiveMode(
     agent: CrackedAgent,
     options: CrackedAgentOptions,
   ) {
-    const rl = this.createReadlineInterface();
     console.log(
       'Interactive mode started. Type "exit" or press Ctrl+C to quit.',
     );
 
-    rl.prompt();
+    this.setupKeypressHandling();
 
-    rl.on("line", async (input) => {
-      if (input.toLowerCase() === "exit") {
-        console.log("Goodbye!");
-        rl.close();
-        return;
-      }
+    this.rl.prompt();
 
-      try {
-        const result = await agent.execute(input, options);
-        if (!options.stream && result) {
-          console.log("\nResponse:", result.response);
-          if (result.actions?.length) {
-            console.log("\nExecuted Actions:");
-            result.actions.forEach(({ action, result }) => {
-              console.log(`\nAction: ${action}`);
-              console.log(`Result: ${JSON.stringify(result, null, 2)}`);
-            });
-          }
+    this.rl
+      .on("line", async (input) => {
+        if (input.toLowerCase() === "exit") {
+          console.log("Goodbye!");
+          this.rl.close();
+          process.exit(0);
         }
-      } catch (error) {
-        console.error("Error:", (error as Error).message);
-      }
 
-      rl.prompt();
-    }).on("close", () => {
-      process.exit(0);
-    });
+        this.currentMessage = input;
+
+        try {
+          const result = await agent.execute(input, options);
+          if (!options.stream && result) {
+            console.log("\nResponse:", result.response);
+            if (result.actions?.length) {
+              console.log("\nExecuted Actions:");
+              result.actions.forEach(({ action, result }) => {
+                console.log(`\nAction: ${action}`);
+                console.log(`Result: ${JSON.stringify(result, null, 2)}`);
+              });
+            }
+          }
+        } catch (error) {
+          console.error("Error:", (error as Error).message);
+        }
+
+        this.rl.prompt();
+      })
+      .on("close", () => {
+        process.exit(0);
+      });
+  }
+
+  private async startStream(agent: CrackedAgent, options: CrackedAgentOptions) {
+    this.rl.prompt();
+
+    this.rl
+      .on("line", async (input) => {
+        if (input.toLowerCase() === "exit") {
+          console.log("Goodbye!");
+          this.rl.close();
+          process.exit(0);
+        }
+
+        this.currentMessage = input;
+
+        try {
+          const result = await agent.execute(input, options);
+          if (!options.stream && result) {
+            console.log("\nResponse:", result.response);
+            if (result.actions?.length) {
+              console.log("\nExecuted Actions:");
+              result.actions.forEach(({ action, result }) => {
+                console.log(`\nAction: ${action}`);
+                console.log(`Result: ${JSON.stringify(result, null, 2)}`);
+              });
+            }
+          }
+        } catch (error) {
+          console.error("Error:", (error as Error).message);
+        }
+
+        this.rl.prompt();
+      })
+      .on("close", () => {
+        process.exit(0);
+      });
   }
 
   async run(): Promise<void> {
@@ -159,17 +249,25 @@ export class Run extends Command {
       if (isInteractive) {
         await this.startInteractiveMode(agent, options);
       } else {
-        const result = await agent.execute(args.message!, options);
-        if (!options.stream && result) {
-          this.log(result.response);
-          if (result.actions?.length) {
-            this.log("\nExecuted Actions:");
-            result.actions.forEach(({ action, result }) => {
-              this.log(`\nAction: ${action}`);
-              this.log(`Result: ${JSON.stringify(result, null, 2)}`);
-            });
+        console.log("Press Enter to start the stream...");
+        this.rl.once("line", async () => {
+          this.currentMessage = args.message!;
+          try {
+            const result = await agent.execute(args.message!, options);
+            if (!options.stream && result) {
+              this.log(result.response);
+              if (result.actions?.length) {
+                this.log("\nExecuted Actions:");
+                result.actions.forEach(({ action, result }) => {
+                  this.log(`\nAction: ${action}`);
+                  this.log(`Result: ${JSON.stringify(result, null, 2)}`);
+                });
+              }
+            }
+          } catch (error) {
+            this.error((error as Error).message);
           }
-        }
+        });
       }
     } catch (error) {
       this.error((error as Error).message);
