@@ -3,16 +3,18 @@ import { IConversationHistoryMessage } from "@services/LLM/ILLMProvider";
 import { DebugLogger } from "@services/logging/DebugLogger";
 import * as fs from "fs";
 import * as path from "path";
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
+import { MessageContextBuilder } from "./MessageContextBuilder";
+import { MessageContextStore } from "./MessageContextStore";
 
-export interface IActionResult {
+export interface MessageIActionResult {
   success: boolean;
   error?: Error;
   result?: string;
 }
 
 @singleton()
-export class MessageConversationLogger {
+export class MessageContextLogger {
   private readonly logDirectory: string;
   private readonly conversationLogPath: string;
   private readonly conversationHistoryPath: string;
@@ -20,6 +22,10 @@ export class MessageConversationLogger {
   constructor(
     private debugLogger: DebugLogger,
     private configService: ConfigService,
+    @inject(MessageContextBuilder)
+    private messageContextBuilder: MessageContextBuilder,
+    @inject(MessageContextStore)
+    private messageContextStore: MessageContextStore,
   ) {
     this.logDirectory = this.getLogDirectory();
     this.conversationLogPath = path.join(
@@ -53,14 +59,14 @@ export class MessageConversationLogger {
       if (!fs.existsSync(this.conversationHistoryPath)) {
         fs.writeFileSync(this.conversationHistoryPath, "[]", "utf8");
         this.debugLogger.log(
-          "ConversationLogger",
+          "MessageLogger",
           "Created conversation history file",
           { path: this.conversationHistoryPath },
         );
       }
     } catch (error) {
       this.debugLogger.log(
-        "ConversationLogger",
+        "MessageLogger",
         "Error creating conversation history file",
         { error, path: this.conversationHistoryPath },
       );
@@ -72,15 +78,14 @@ export class MessageConversationLogger {
       this.ensureLogDirectoryExists();
       fs.writeFileSync(this.conversationLogPath, "", "utf8");
       fs.writeFileSync(this.conversationHistoryPath, "[]", "utf8");
-      this.debugLogger.log("ConversationLogger", "Log files cleaned up", {
+      this.debugLogger.log("MessageLogger", "Log files cleaned up", {
         logDirectory: this.logDirectory,
       });
     } catch (error) {
-      this.debugLogger.log(
-        "ConversationLogger",
-        "Error cleaning up log files",
-        { error, logDirectory: this.logDirectory },
-      );
+      this.debugLogger.log("MessageLogger", "Error cleaning up log files", {
+        error,
+        logDirectory: this.logDirectory,
+      });
     }
   }
 
@@ -91,16 +96,16 @@ export class MessageConversationLogger {
       const timestamp = new Date().toISOString();
       const logEntry = `[${timestamp}] ${message.role}: ${message.content}\\n`;
       fs.appendFileSync(this.conversationLogPath, logEntry, "utf8");
-      this.debugLogger.log("ConversationLogger", "Message logged", { message });
+      this.debugLogger.log("MessageLogger", "Message logged", { message });
     } catch (error) {
-      this.debugLogger.log("ConversationLogger", "Error writing to log file", {
+      this.debugLogger.log("MessageLogger", "Error writing to log file", {
         error,
         logDirectory: this.logDirectory,
       });
     }
   }
 
-  logActionResult(action: string, result: IActionResult): void {
+  logActionResult(action: string, result: MessageIActionResult): void {
     try {
       this.ensureLogDirectoryExists();
       this.ensureHistoryFileExists();
@@ -113,9 +118,22 @@ export class MessageConversationLogger {
           : "";
       const logEntry = `[${timestamp}] ACTION ${action}: ${status}${details}\\n`;
       fs.appendFileSync(this.conversationLogPath, logEntry, "utf8");
+
+      // Update operation result in context
+      const contextData = this.messageContextStore.getContextData();
+      const updatedContextData =
+        this.messageContextBuilder.updateOperationResult(
+          action as any,
+          action,
+          result.result || "",
+          contextData,
+          result.success,
+          result.error?.message,
+        );
+      this.messageContextStore.setContextData(updatedContextData); // <-- Corrected line
     } catch (error) {
       this.debugLogger.log(
-        "ConversationLogger",
+        "MessageLogger",
         "Error writing action result to log file",
         { error, logDirectory: this.logDirectory },
       );
@@ -160,17 +178,13 @@ export class MessageConversationLogger {
         "utf8",
       );
 
-      this.debugLogger.log(
-        "ConversationLogger",
-        "Conversation history updated",
-        {
-          messagesCount: messages.length,
-          hasSystemInstructions: !!systemInstructions,
-          logDirectory: this.logDirectory,
-        },
-      );
+      this.debugLogger.log("MessageLogger", "Conversation history updated", {
+        messagesCount: messages.length,
+        hasSystemInstructions: !!systemInstructions,
+        logDirectory: this.logDirectory,
+      });
     } catch (error) {
-      this.debugLogger.log("ConversationLogger", "Error updating log files", {
+      this.debugLogger.log("MessageLogger", "Error updating log files", {
         error,
         logDirectory: this.logDirectory,
       });
@@ -195,7 +209,7 @@ export class MessageConversationLogger {
       return JSON.parse(historyData).messages;
     } catch (error) {
       this.debugLogger.log(
-        "ConversationLogger",
+        "MessageLogger",
         "Error reading conversation history",
         { error, logDirectory: this.logDirectory },
       );
