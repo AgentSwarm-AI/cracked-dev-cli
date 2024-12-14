@@ -400,9 +400,7 @@ export class OpenRouterAPI implements ILLMProvider {
 
             this.stream.on("data", (chunk: Buffer) => {
               if (OpenRouterAPI.aborted) {
-                this.stream.removeAllListeners();
-                this.stream.destroy();
-                this.stream = null;
+                this.cleanupStream();
                 return;
               }
 
@@ -498,11 +496,11 @@ export class OpenRouterAPI implements ILLMProvider {
       this.stream = null;
     }
     this.streamBuffer = "";
-    OpenRouterAPI.aborted = false;
+    OpenRouterAPI.setAborted(false);
   }
 
   cancelStream() {
-    OpenRouterAPI.aborted = true;
+    OpenRouterAPI.setAborted(true);
     if (this.stream) {
       this.stream.removeAllListeners();
       this.stream.destroy();
