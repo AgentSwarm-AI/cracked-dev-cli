@@ -107,6 +107,7 @@ describe("ConfigService", () => {
           directoryFirst: true,
           excludeDirectories: false,
         },
+        referenceExamples: {}, // Added referenceExamples
       };
 
       (fs.existsSync as jest.Mock).mockReturnValue(true);

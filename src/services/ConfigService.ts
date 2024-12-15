@@ -53,6 +53,7 @@ const configSchema = z.object({
       directoryFirst: true,
       excludeDirectories: false,
     }),
+  referenceExamples: z.record(z.string(), z.string()).optional().default({}),
 });
 
 export type Config = z.infer<typeof configSchema>;
@@ -136,6 +137,12 @@ export class ConfigService {
           allFiles: true,
           directoryFirst: true,
           excludeDirectories: false,
+        },
+        referenceExamples: {
+          example1: "path/to/example1/file.ts",
+          example2: "path/to/example2/file.ts",
+          myService: "src/services/MyService.ts",
+          anotherKey: "path/to/some/other/example.ts",
         },
       };
       fs.writeFileSync(
