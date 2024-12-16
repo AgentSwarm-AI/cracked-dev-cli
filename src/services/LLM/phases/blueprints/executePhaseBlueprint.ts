@@ -11,9 +11,6 @@ export const executePhaseBlueprint: IPhaseConfig = {
 <phase_prompt>
 ## Execute Phase
 
-### Current Task
-${args.message}
-
 ## Initial Instructions
 
 - Focus on goal; end_task after tests.
@@ -21,6 +18,7 @@ ${args.message}
 - Prioritize steps.
 - Sequential actions.
 - Use raw text only.
+- When your goal is met, end_task.
 
 ## EXAMPLE BEHAVIOR
 

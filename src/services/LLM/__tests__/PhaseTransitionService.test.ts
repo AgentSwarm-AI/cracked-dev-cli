@@ -19,24 +19,24 @@ describe("PhaseTransitionService", () => {
   beforeEach(() => {
     mocker = new UnitTestMocker();
 
-    phaseManagerMock = mocker.spyOnPrototypeAndReturn(
+    phaseManagerMock = mocker.mockPrototype(
       PhaseManager,
       "nextPhase",
       undefined,
     );
 
-    mocker.spyOnPrototypeAndReturn(PhaseManager, "getCurrentPhaseConfig", {
+    mocker.mockPrototype(PhaseManager, "getCurrentPhaseConfig", {
       model: "test-model",
       generatePrompt: (data: { message: string }) => `Prompt: ${data.message}`,
     });
 
-    modelManagerMock = mocker.spyOnPrototypeAndReturn(
+    modelManagerMock = mocker.mockPrototype(
       ModelManager,
       "setCurrentModel",
       undefined,
     );
 
-    messageContextManagerMock = mocker.spyOnPrototypeAndReturn(
+    messageContextManagerMock = mocker.mockPrototype(
       MessageContextManager,
       "cleanupPhaseContent",
       undefined,

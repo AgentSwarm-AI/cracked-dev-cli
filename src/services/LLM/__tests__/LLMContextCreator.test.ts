@@ -26,14 +26,14 @@ describe("LLMContextCreator", () => {
     };
 
     // Setup mocks using UnitTestMocker
-    mocker.spyOnPrototypeAndReturn(DirectoryScanner, "scan", {
+    mocker.mockPrototype(DirectoryScanner, "scan", {
       success: true,
       data: "file1\nfile2",
     });
-    mocker.spyOnPrototypeAndReturn(ActionExecutor, "executeAction", {
+    mocker.mockPrototype(ActionExecutor, "executeAction", {
       success: true,
     });
-    mocker.spyOnPrototypeAndReturn(ProjectInfo, "gatherProjectInfo", {
+    mocker.mockPrototype(ProjectInfo, "gatherProjectInfo", {
       mainDependencies: ["dep1", "dep2"],
       scripts: {
         test: "jest",
@@ -41,16 +41,16 @@ describe("LLMContextCreator", () => {
       },
       dependencyFile: "package.json",
     });
-    mocker.spyOnPrototypeAndReturn(ConfigService, "getConfig", {
+    mocker.mockPrototype(ConfigService, "getConfig", {
       includeAllFilesOnEnvToContext: true,
     });
-    mocker.spyOnPrototypeAndReturn(
+    mocker.mockPrototype(
       PhaseManager,
       "getCurrentPhaseConfig",
       mockPhaseConfig,
     );
-    mocker.spyOnPrototypeMethod(PhaseManager, "resetPhase");
-    mocker.spyOnPrototypeMethod(MessageContextManager, "clear");
+    mocker.spyPrototype(PhaseManager, "resetPhase");
+    mocker.spyPrototype(MessageContextManager, "clear");
 
     contextCreator = container.resolve(LLMContextCreator);
   });
@@ -78,7 +78,7 @@ describe("LLMContextCreator", () => {
       const message = "test message";
       const root = "/test/root";
 
-      mocker.spyOnPrototypeAndReturn(ProjectInfo, "gatherProjectInfo", {
+      mocker.mockPrototype(ProjectInfo, "gatherProjectInfo", {
         mainDependencies: [],
         scripts: {},
       });
@@ -110,7 +110,7 @@ describe("LLMContextCreator", () => {
       const root = "/test/root";
       const error = new Error("Scan failed");
 
-      mocker.spyOnPrototypeAndReturn(DirectoryScanner, "scan", {
+      mocker.mockPrototype(DirectoryScanner, "scan", {
         success: false,
         error,
       });
@@ -124,7 +124,7 @@ describe("LLMContextCreator", () => {
       const message = "test message";
       const root = "/test/root";
 
-      mocker.spyOnPrototypeAndReturn(ConfigService, "getConfig", {
+      mocker.mockPrototype(ConfigService, "getConfig", {
         includeAllFilesOnEnvToContext: false,
       });
 

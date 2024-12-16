@@ -1,6 +1,7 @@
-import { inject, injectable } from "tsyringe";
+import { injectable } from "tsyringe";
 import { WriteActionData } from "./actions/types/ActionTypes";
-import { MessageContextManager } from "./context/MessageContextManager";
+import { MessageContextHistory } from "./context/MessageContextHistory";
+import { MessageContextPhase } from "./context/MessageContextPhase";
 import { ModelManager } from "./ModelManager";
 import { PhaseManager } from "./PhaseManager";
 import { Phase } from "./types/PhaseTypes";
@@ -8,24 +9,22 @@ import { Phase } from "./types/PhaseTypes";
 @injectable()
 export class PhaseTransitionService {
   constructor(
-    @inject(PhaseManager) private phaseManager: PhaseManager,
-    @inject(ModelManager) private modelManager: ModelManager,
-    @inject(MessageContextManager)
-    private messageContextManager: MessageContextManager,
+    private phaseManager: PhaseManager,
+    private modelManager: ModelManager,
+    private messageContextPhase: MessageContextPhase,
+    private messageContextHistory: MessageContextHistory,
   ) {}
 
   async transitionToNextPhase(): Promise<WriteActionData> {
-    // Clean up previous phase content
-    this.messageContextManager.cleanupPhaseContent();
-
-    // If current phase is Strategy, merge conversation history before transitioning
     const currentPhase = this.phaseManager.getCurrentPhase();
+
+    this.messageContextPhase.cleanupPhaseContent();
     if (currentPhase === Phase.Strategy) {
-      this.messageContextManager.mergeConversationHistory();
+      this.messageContextHistory.mergeConversationHistory();
     }
+    const nextPhase = this.getNextPhase(currentPhase);
 
     // Log phase transition with emojis
-    const nextPhase = this.getNextPhase(currentPhase);
     console.log(
       `🔄 Phase Transition: ${this.getPhaseEmoji(currentPhase)}${currentPhase} ➡️ ${this.getPhaseEmoji(nextPhase)}${nextPhase}`,
     );
@@ -43,6 +42,11 @@ export class PhaseTransitionService {
     nextPhaseConfig.generatePrompt({
       message: "Continue with the next phase based on previous findings.",
     });
+
+    this.messageContextHistory.addMessage(
+      "system",
+      `Current phase is ${nextPhase}`,
+    );
 
     return {
       regenerate: true,

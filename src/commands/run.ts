@@ -150,6 +150,8 @@ export class Run extends Command {
         throw new Error(`Invalid provider: ${options.provider}`);
       }
 
+      this.modelManager.setCurrentModel(config.discoveryModel);
+
       console.log(
         `Using ${options.provider} provider and model: ${this.modelManager.getCurrentModel()}`,
       );

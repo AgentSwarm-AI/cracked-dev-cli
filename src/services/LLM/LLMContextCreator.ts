@@ -3,8 +3,8 @@ import { DirectoryScanner } from "@services/FileManagement/DirectoryScanner";
 import { ActionExecutor } from "@services/LLM/actions/ActionExecutor";
 import { IActionResult } from "@services/LLM/actions/types/ActionTypes";
 import { ProjectInfo } from "@services/LLM/utils/ProjectInfo";
-import { autoInjectable, inject } from "tsyringe";
-import { MessageContextManager } from "./context/MessageContextManager";
+import { autoInjectable } from "tsyringe";
+import { MessageContextCleaner } from "./context/MessageContextCleanup";
 import { PhaseManager } from "./PhaseManager";
 import { IPhasePromptArgs } from "./types/PhaseTypes";
 
@@ -17,13 +17,12 @@ interface MessageContext {
 @autoInjectable()
 export class LLMContextCreator {
   constructor(
-    @inject(DirectoryScanner) private directoryScanner: DirectoryScanner,
-    @inject(ActionExecutor) private actionExecutor: ActionExecutor,
-    @inject(ProjectInfo) private projectInfo: ProjectInfo,
-    @inject(ConfigService) private configService: ConfigService,
-    @inject(PhaseManager) private phaseManager: PhaseManager,
-    @inject(MessageContextManager)
-    private messageContextManager: MessageContextManager,
+    private directoryScanner: DirectoryScanner,
+    private actionExecutor: ActionExecutor,
+    private projectInfo: ProjectInfo,
+    private configService: ConfigService,
+    private phaseManager: PhaseManager,
+    private messageContextCleanup: MessageContextCleaner,
   ) {}
 
   async create(
@@ -39,7 +38,7 @@ export class LLMContextCreator {
       // Reset to discovery phase on first message
       this.phaseManager.resetPhase();
       // Clear message context only on first message
-      this.messageContextManager.clear();
+      this.messageContextCleanup.cleanupContext();
 
       const [environmentDetails, projectInfo] = await Promise.all([
         this.getEnvironmentDetails(root),
@@ -108,14 +107,15 @@ Run Type Check: ${runTypeCheckCmd}`;
       runTypeCheckCmd: config.runTypeCheckCmd,
     };
 
-    return `<instructions details="NEVER_OUTPUT">
-<!-- These are internal instructions. Just follow them. Do not output. -->
+    return `
 
-# Your Main Task
-<task>
-<!-- This is the most important thing you have to achieve. Always have this in mind! -->
+    <task>
 ${context.message}
 </task>
+    
+    <instructions details="NEVER_OUTPUT">
+<!-- These are internal instructions. Just follow them. Do not output. -->
+ 
 
 ## Initial Instructions
 - Keep messages brief, clear, and concise.
@@ -123,6 +123,7 @@ ${context.message}
 - Use available actions sequentially. 
 
 ## Instructions
+
 ${phaseConfig.generatePrompt(promptArgs)}
 
 </instructions>

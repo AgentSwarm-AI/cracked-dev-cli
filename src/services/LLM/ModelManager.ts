@@ -1,59 +1,24 @@
 import { DebugLogger } from "@services/logging/DebugLogger";
-import { singleton } from "tsyringe";
-import { ConfigService } from "../ConfigService";
-import { MessageContextManager } from "./context/MessageContextManager";
-import { ModelInfo } from "./ModelInfo";
+import { autoInjectable, singleton } from "tsyringe";
+import { ModelInfo } from "../LLM/ModelInfo";
 
 @singleton()
+@autoInjectable()
 export class ModelManager {
-  private currentModel: string;
+  private currentModel: string = "";
 
   constructor(
-    private debugLogger: DebugLogger,
     private modelInfo: ModelInfo,
-    private messageContextManager: MessageContextManager,
-    private configService: ConfigService,
-  ) {
-    // Initialize with discovery phase model from config
-    const config = this.configService.getConfig();
-    this.currentModel = config.discoveryModel;
-    this.modelInfo.setCurrentModel(this.currentModel);
-    this.debugLogger.log("Model", "Initialized model manager", {
-      model: this.currentModel,
-    });
-  }
+    private debugLogger: DebugLogger,
+  ) {}
 
-  getCurrentModel(): string {
-    return this.currentModel;
-  }
-
-  async setCurrentModel(model: string): Promise<void> {
-    if (model === this.currentModel) return;
-
-    const oldModel = this.currentModel;
+  public setCurrentModel(model: string): void {
     this.currentModel = model;
-    await this.modelInfo.setCurrentModel(model);
+    this.modelInfo.setCurrentModel(model);
+    this.debugLogger.log("ModelManager", "Model updated", { model });
+  }
 
-    this.debugLogger.log("Model", "Checking context for model change", {
-      oldModel,
-      newModel: model,
-      currentTokens: this.messageContextManager.getTotalTokenCount(),
-    });
-
-    // Clean up context if needed for new model
-    const wasCleanupPerformed =
-      await this.messageContextManager.cleanupContext();
-
-    if (wasCleanupPerformed) {
-      this.debugLogger.log("Model", "Context cleaned up for model change", {
-        newModel: model,
-        newTokenCount: this.messageContextManager.getTotalTokenCount(),
-      });
-    }
-
-    // Log token usage after potential cleanup
-    await this.modelInfo.logCurrentModelUsage(
-      this.messageContextManager.getTotalTokenCount(),
-    );
+  public getCurrentModel(): string {
+    return this.currentModel;
   }
 }

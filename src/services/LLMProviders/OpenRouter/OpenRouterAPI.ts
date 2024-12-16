@@ -1,6 +1,8 @@
+// services/LLM/OpenRouterAPI.ts
 /* eslint-disable no-useless-catch */
-import { MessageContextManager } from "@/services/LLM/context/MessageContextManager";
-import { ModelScaler } from "@/services/LLM/ModelScaler";
+import { MessageContextHistory } from "@/services/LLM/context/MessageContextHistory";
+import { MessageContextLimiter } from "@/services/LLM/context/MessageContextLimiter";
+import { MesssageContextTokenCount } from "@/services/LLM/context/MessageContextTokenCount";
 import { openRouterClient } from "@constants/openRouterClient";
 import {
   IConversationHistoryMessage,
@@ -46,12 +48,13 @@ export class OpenRouterAPI implements ILLMProvider {
   private retryDelay: number = 1000;
 
   constructor(
-    private messageContextManager: MessageContextManager,
     private htmlEntityDecoder: HtmlEntityDecoder,
     private modelManager: ModelManager,
     private modelInfo: ModelInfo,
     private debugLogger: DebugLogger,
-    private modelScaler: ModelScaler,
+    private messageContextTokenCount: MesssageContextTokenCount,
+    private messageContextHistory: MessageContextHistory,
+    private messageContextLimiter: MessageContextLimiter,
   ) {
     this.httpClient = openRouterClient;
     this.initializeModelInfo();
@@ -116,7 +119,7 @@ export class OpenRouterAPI implements ILLMProvider {
           "CONTEXT_LENGTH_EXCEEDED",
           {
             maxLength: contextLimit,
-            currentLength: this.messageContextManager.getTotalTokenCount(),
+            currentLength: this.messageContextTokenCount.getTotalTokenCount(),
           },
         );
       }
@@ -169,6 +172,8 @@ export class OpenRouterAPI implements ILLMProvider {
         currentModel,
       );
 
+      console.log("SENDING", formattedMessages);
+
       const response = await this.makeRequest("/chat/completions", {
         model: currentModel,
         messages: formattedMessages,
@@ -177,11 +182,11 @@ export class OpenRouterAPI implements ILLMProvider {
 
       const assistantMessage = response.data.choices[0].message.content;
 
-      this.messageContextManager.addMessage("user", message);
-      this.messageContextManager.addMessage("assistant", assistantMessage);
+      this.messageContextHistory.addMessage("user", message);
+      this.messageContextHistory.addMessage("assistant", assistantMessage);
 
       await this.modelInfo.logCurrentModelUsage(
-        this.messageContextManager.getTotalTokenCount(),
+        this.messageContextTokenCount.getTotalTokenCount(),
       );
 
       return assistantMessage;
@@ -203,17 +208,17 @@ export class OpenRouterAPI implements ILLMProvider {
   }
 
   async clearConversationContext(): Promise<void> {
-    this.messageContextManager.clear();
+    this.messageContextHistory.clear();
   }
 
   getConversationContext(): IConversationHistoryMessage[] {
-    return this.messageContextManager.getMessages();
+    return this.messageContextHistory.getMessages();
   }
 
   addSystemInstructions(instructions: string): void {
-    this.messageContextManager.setSystemInstructions(instructions);
+    this.messageContextHistory.setSystemInstructions(instructions);
     this.modelInfo.logCurrentModelUsage(
-      this.messageContextManager.getTotalTokenCount(),
+      this.messageContextTokenCount.getTotalTokenCount(),
     );
   }
 
@@ -249,7 +254,7 @@ export class OpenRouterAPI implements ILLMProvider {
 
     if (error.type === "CONTEXT_LENGTH_EXCEEDED") {
       const wasContextCleaned =
-        await this.messageContextManager.cleanupContext();
+        await this.messageContextLimiter.cleanupContext();
       if (wasContextCleaned) {
         await this.streamMessage(
           this.modelManager.getCurrentModel(),
@@ -374,6 +379,8 @@ export class OpenRouterAPI implements ILLMProvider {
         currentModel,
       );
 
+      console.log(formattedMessages);
+
       const streamOperation = async () => {
         const response = await this.makeRequest(
           "/chat/completions",
@@ -444,16 +451,15 @@ export class OpenRouterAPI implements ILLMProvider {
               reject(err);
             });
           });
-
           if (assistantMessage) {
-            this.messageContextManager.addMessage("user", message);
-            this.messageContextManager.addMessage(
+            this.messageContextHistory.addMessage("user", message);
+            this.messageContextHistory.addMessage(
               "assistant",
               assistantMessage,
             );
 
             await this.modelInfo.logCurrentModelUsage(
-              this.messageContextManager.getTotalTokenCount(),
+              this.messageContextTokenCount.getTotalTokenCount(),
             );
           }
         } catch (error) {
@@ -470,11 +476,11 @@ export class OpenRouterAPI implements ILLMProvider {
       await this.handleStreamError(llmError, message, callback);
 
       if (assistantMessage) {
-        this.messageContextManager.addMessage("user", message);
-        this.messageContextManager.addMessage("assistant", assistantMessage);
+        this.messageContextHistory.addMessage("user", message);
+        this.messageContextHistory.addMessage("assistant", assistantMessage);
 
         await this.modelInfo.logCurrentModelUsage(
-          this.messageContextManager.getTotalTokenCount(),
+          this.messageContextTokenCount.getTotalTokenCount(),
         );
       }
     }

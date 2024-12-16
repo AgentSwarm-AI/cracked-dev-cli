@@ -1,10 +1,10 @@
 // src/services/LLM/__tests__/LLMProvider.test.ts
-import { MessageContextManager } from "@/services/LLM/context/MessageContextManager";
 import { ILLMProvider } from "@services/LLM/ILLMProvider";
 import { LLMProvider, LLMProviderType } from "@services/LLM/LLMProvider";
 import { OpenRouterAPI } from "@services/LLMProviders/OpenRouter/OpenRouterAPI";
 import { UnitTestMocker } from "@tests/mocks/UnitTestMocker";
 import { container } from "tsyringe";
+import { MessageContextHistory } from "../context/MessageContextHistory";
 
 describe("LLMProvider", () => {
   let provider: ILLMProvider;
@@ -14,62 +14,37 @@ describe("LLMProvider", () => {
     mocker = new UnitTestMocker();
 
     // Mock OpenRouterAPI methods
-    mocker.spyOnPrototypeWithImplementation(
+    mocker.mockPrototypeWith(
       OpenRouterAPI,
       "sendMessage",
       async () => "response",
     );
-    mocker.spyOnPrototypeWithImplementation(
+    mocker.mockPrototypeWith(
       OpenRouterAPI,
       "sendMessageWithContext",
       async () => "response",
     );
-    mocker.spyOnPrototypeWithImplementation(
+    mocker.mockPrototypeWith(
       OpenRouterAPI,
       "clearConversationContext",
       () => {},
     );
-    mocker.spyOnPrototypeWithImplementation(
-      OpenRouterAPI,
-      "getConversationContext",
-      () => [],
-    );
-    mocker.spyOnPrototypeWithImplementation(
-      OpenRouterAPI,
-      "addSystemInstructions",
-      () => {},
-    );
-    mocker.spyOnPrototypeWithImplementation(
-      OpenRouterAPI,
-      "getAvailableModels",
-      async () => ["model1", "model2"],
-    );
-    mocker.spyOnPrototypeWithImplementation(
-      OpenRouterAPI,
-      "validateModel",
-      async () => true,
-    );
-    mocker.spyOnPrototypeWithImplementation(
-      OpenRouterAPI,
-      "getModelInfo",
-      async () => ({}),
-    );
-    mocker.spyOnPrototypeWithImplementation(
-      OpenRouterAPI,
-      "streamMessage",
-      async () => {},
-    );
+    mocker.mockPrototypeWith(OpenRouterAPI, "getConversationContext", () => []);
+    mocker.mockPrototypeWith(OpenRouterAPI, "addSystemInstructions", () => {});
+    mocker.mockPrototypeWith(OpenRouterAPI, "getAvailableModels", async () => [
+      "model1",
+      "model2",
+    ]);
+    mocker.mockPrototypeWith(OpenRouterAPI, "validateModel", async () => true);
+    mocker.mockPrototypeWith(OpenRouterAPI, "getModelInfo", async () => ({}));
+    mocker.mockPrototypeWith(OpenRouterAPI, "streamMessage", async () => {});
 
     // Mock MessageContextManager methods
-    mocker.spyOnPrototypeAndReturn(MessageContextManager, "getMessages", []);
-    mocker.spyOnPrototypeAndReturn(
-      MessageContextManager,
-      "addMessage",
-      undefined,
-    );
-    mocker.spyOnPrototypeAndReturn(MessageContextManager, "clear", undefined);
-    mocker.spyOnPrototypeAndReturn(
-      MessageContextManager,
+    mocker.mockPrototype(MessageContextHistory, "getMessages", []);
+    mocker.mockPrototype(MessageContextHistory, "addMessage", undefined);
+    mocker.mockPrototype(MessageContextHistory, "clear", undefined);
+    mocker.mockPrototype(
+      MessageContextHistory,
       "setSystemInstructions",
       undefined,
     );
@@ -179,14 +154,10 @@ describe("LLMProvider", () => {
     });
 
     it("should throw an error when sendMessage is called with an unsupported model", async () => {
-      mocker.spyOnPrototypeWithImplementation(
-        OpenRouterAPI,
-        "sendMessage",
-        async () => {
-          throw new Error("Model not available");
-        },
-      );
-      mocker.spyOnPrototypeWithImplementation(
+      mocker.mockPrototypeWith(OpenRouterAPI, "sendMessage", async () => {
+        throw new Error("Model not available");
+      });
+      mocker.mockPrototypeWith(
         OpenRouterAPI,
         "validateModel",
         async () => false,
@@ -198,14 +169,14 @@ describe("LLMProvider", () => {
     });
 
     it("should throw an error when sendMessageWithContext is called with an unsupported model", async () => {
-      mocker.spyOnPrototypeWithImplementation(
+      mocker.mockPrototypeWith(
         OpenRouterAPI,
         "sendMessageWithContext",
         async () => {
           throw new Error("Model not available");
         },
       );
-      mocker.spyOnPrototypeWithImplementation(
+      mocker.mockPrototypeWith(
         OpenRouterAPI,
         "validateModel",
         async () => false,

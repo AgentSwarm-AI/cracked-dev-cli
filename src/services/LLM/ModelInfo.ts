@@ -1,10 +1,9 @@
 import { openRouterClient } from "@constants/openRouterClient";
 import { DebugLogger } from "@services/logging/DebugLogger";
-import { autoInjectable, singleton } from "tsyringe";
+import { singleton } from "tsyringe";
 import { IModelInfo } from "./types/ModelTypes";
 
 @singleton()
-@autoInjectable()
 export class ModelInfo {
   private modelInfoMap: Map<string, IModelInfo> = new Map();
   private currentModel: string | null = null;
