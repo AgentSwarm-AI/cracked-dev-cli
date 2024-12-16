@@ -6,7 +6,7 @@ import { z } from "zod";
 
 const configSchema = z.object({
   provider: z.string(),
-  customInstructions: z.string(),
+  customInstructions: z.string().optional(),
   customInstructionsPath: z.string().optional(),
   interactive: z.boolean(),
   stream: z.boolean(),

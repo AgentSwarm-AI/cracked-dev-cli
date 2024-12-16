@@ -3,11 +3,11 @@ import { DirectoryScanner } from "@services/FileManagement/DirectoryScanner";
 import { ActionExecutor } from "@services/LLM/actions/ActionExecutor";
 import { IActionResult } from "@services/LLM/actions/types/ActionTypes";
 import { ProjectInfo } from "@services/LLM/utils/ProjectInfo";
+import * as fs from "fs";
 import { autoInjectable, inject } from "tsyringe";
 import { MessageContextManager } from "./MessageContextManager";
 import { PhaseManager } from "./PhaseManager";
 import { IPhasePromptArgs } from "./types/PhaseTypes";
-import * as fs from "fs";
 
 interface MessageContext {
   message: string;
@@ -27,7 +27,7 @@ export class LLMContextCreator {
     private messageContextManager: MessageContextManager,
   ) {}
 
-  private async loadCustomInstructions(): Promise<string> {
+  private async loadCustomInstructions(): Promise<string | undefined> {
     const config = this.configService.getConfig();
 
     if (config.customInstructionsPath) {
@@ -38,14 +38,11 @@ export class LLMContextCreator {
         );
         return instructions.trim();
       } catch (error) {
-        console.warn(
-          `Failed to load custom instructions from ${config.customInstructionsPath}, falling back to config.customInstructions`,
+        throw Error(
+          `Failed to load custom instructions from ${config.customInstructionsPath}, check if the file exists and is accessible.`,
         );
-        return config.customInstructions;
       }
     }
-
-    return config.customInstructions;
   }
 
   async create(
@@ -139,10 +136,23 @@ Run Type Check: ${runTypeCheckCmd}`;
 # Your Main Task
 ${context.message}
 
-## Initial Instructions
-${customInstructions}
+${
+  customInstructions &&
+  `
+# Custom Instructions
+${customInstructions}`
+}
 
-## Instructions
+## Initial Instructions
+- Keep messages brief, clear, and concise.
+- Break tasks into prioritized steps.
+- Use available actions sequentially.
+
+# Additional Instructions
+${envDetails ? `\n${envDetails}` : ""}
+${context.projectInfo ? `\n${context.projectInfo}` : ""}
+
+## Phase Instructions
 ${phaseConfig.generatePrompt(promptArgs)}
 
 </instructions>
