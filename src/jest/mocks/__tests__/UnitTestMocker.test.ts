@@ -191,6 +191,64 @@ describe("UnitTestMocker", () => {
       expect(spy).toHaveBeenCalledWith("test");
       expect(result).toBe("mocked return");
     });
+
+    // New tests for auto-wrapping functionality
+    it("should auto-wrap non-promise return value for async method", async () => {
+      const spy = mocker.mockPrototype<TestClass, number>(
+        TestClass,
+        "asyncMethod",
+        42,
+      );
+      const instance = new TestClass();
+      const result = await instance.asyncMethod("test");
+
+      expect(spy).toHaveBeenCalled();
+      expect(spy).toHaveBeenCalledWith("test");
+      expect(result).toBe(42);
+    });
+
+    it("should auto-wrap null return value for async method", async () => {
+      const spy = mocker.mockPrototype<TestClass, null>(
+        TestClass,
+        "asyncMethod",
+        null,
+      );
+      const instance = new TestClass();
+      const result = await instance.asyncMethod("test");
+
+      expect(spy).toHaveBeenCalled();
+      expect(spy).toHaveBeenCalledWith("test");
+      expect(result).toBe(null);
+    });
+
+    it("should auto-wrap undefined return value for async method", async () => {
+      const spy = mocker.mockPrototype<TestClass, undefined>(
+        TestClass,
+        "asyncMethod",
+        undefined,
+      );
+      const instance = new TestClass();
+      const result = await instance.asyncMethod("test");
+
+      expect(spy).toHaveBeenCalled();
+      expect(spy).toHaveBeenCalledWith("test");
+      expect(result).toBe(undefined);
+    });
+
+    it("should auto-wrap object return value for async method", async () => {
+      const returnValue = { foo: "bar" };
+      const spy = mocker.mockPrototype<TestClass, object>(
+        TestClass,
+        "asyncMethod",
+        returnValue,
+      );
+      const instance = new TestClass();
+      const result = await instance.asyncMethod("test");
+
+      expect(spy).toHaveBeenCalled();
+      expect(spy).toHaveBeenCalledWith("test");
+      expect(result).toBe(returnValue);
+    });
   });
 
   describe("spyOnPrototypeWithImplementation", () => {
@@ -306,6 +364,34 @@ describe("UnitTestMocker", () => {
       expect(spy).toHaveBeenCalled();
       expect(spy).toHaveBeenCalledWith("test", 123);
       expect(result).toBe("mocked async module return");
+    });
+
+    // New tests for auto-wrapping functionality in modules
+    it("should auto-wrap non-promise return value for async module function", async () => {
+      const spy = mocker.mockModule<typeof testModule, number>(
+        testModule,
+        "asyncTestFunction",
+        42,
+      );
+      const result = await testModule.asyncTestFunction("test");
+
+      expect(spy).toHaveBeenCalled();
+      expect(spy).toHaveBeenCalledWith("test");
+      expect(result).toBe(42);
+    });
+
+    it("should auto-wrap object return value for async module function", async () => {
+      const returnValue = { foo: "bar" };
+      const spy = mocker.mockModule<typeof testModule, object>(
+        testModule,
+        "asyncTestFunction",
+        returnValue,
+      );
+      const result = await testModule.asyncTestFunction("test");
+
+      expect(spy).toHaveBeenCalled();
+      expect(spy).toHaveBeenCalledWith("test");
+      expect(result).toBe(returnValue);
     });
   });
 

@@ -26,14 +26,14 @@ export class UnitTestMocker {
   ): jest.SpyInstance<Return> {
     const prototype = Class.prototype;
     const descriptor = Object.getOwnPropertyDescriptor(prototype, method);
-    const isAsync =
-      descriptor?.value?.constructor?.name === "AsyncFunction" ||
-      returnValue instanceof Promise;
+    const isAsync = descriptor?.value?.constructor?.name === "AsyncFunction";
 
     const spy = jest.spyOn(prototype, method as string);
-    if (isAsync) {
+    if (isAsync && !(returnValue instanceof Promise)) {
+      // If method is async but return value isn't a Promise, wrap it
       spy.mockResolvedValue(returnValue);
     } else {
+      // If method is sync or return value is already a Promise, use as is
       spy.mockReturnValue(returnValue);
     }
 
@@ -102,19 +102,20 @@ export class UnitTestMocker {
     returnValue: Return,
   ): jest.SpyInstance<Return> {
     const descriptor = Object.getOwnPropertyDescriptor(module, method);
-    const isAsync =
-      descriptor?.value?.constructor?.name === "AsyncFunction" ||
-      returnValue instanceof Promise;
+    const isAsync = descriptor?.value?.constructor?.name === "AsyncFunction";
 
-    const spy = jest
+    const spy = jest.spyOn(
       //@ts-ignore
-      .spyOn(module, method as string);
+      module,
+      method as string,
+    ) as jest.SpyInstance<Return>;
 
-    if (isAsync) {
+    if (isAsync && !(returnValue instanceof Promise)) {
+      // If method is async but return value isn't a Promise, wrap it
       //@ts-ignore
       spy.mockResolvedValue(returnValue);
     } else {
-      //@ts-ignore
+      // If method is sync or return value is already a Promise, use as is
       spy.mockReturnValue(returnValue);
     }
 
@@ -154,6 +155,5 @@ export class UnitTestMocker {
         spy.mockClear();
       });
     });
-    this.moduleMocks.clear();
   }
 }

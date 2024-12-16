@@ -1,66 +1,71 @@
-import { IConversationHistoryMessage } from "@services/LLM/ILLMProvider";
+import { DebugLogger } from "@/services/logging/DebugLogger";
 import { singleton } from "tsyringe";
+import { ModelInfo } from "../ModelInfo";
 import { MessageContextBuilder } from "./MessageContextBuilder";
+import { MessageContextHistory } from "./MessageContextHistory";
+import { MessageContextStore } from "./MessageContextStore";
 
 @singleton()
-export class MessageContextCleanup {
-  constructor(private contextBuilder: MessageContextBuilder) {}
+export class MessageContextCleaner {
+  constructor(
+    private debugLogger: DebugLogger,
+    private modelInfo: ModelInfo,
+    private messageContextStore: MessageContextStore,
+    private messageContextBuilder: MessageContextBuilder,
+    private messageContextHistory: MessageContextHistory,
+  ) {}
 
-  async cleanupContext(
-    maxTokens: number,
-    estimateTokenCount: (text: string) => number,
-  ): Promise<boolean> {
-    const history = this.contextBuilder.getConversationHistory();
-    if (history.length === 0) {
-      return false;
-    }
+  async cleanupContext(): Promise<boolean> {
+    const contextData = this.messageContextStore.getContextData();
+    const maxTokens = await this.modelInfo.getCurrentModelContextLength();
 
-    const totalTokens = history.reduce(
-      (sum, msg) => sum + estimateTokenCount(msg.content),
+    const estimateTokenCount = (text: string) =>
+      this.messageContextStore.estimateTokenCount(text);
+
+    const messages = this.messageContextBuilder.getMessageContext(contextData);
+
+    const currentTokens = messages.reduce(
+      (sum, message) => sum + estimateTokenCount(message.content),
       0,
     );
 
-    if (totalTokens <= maxTokens) {
-      return false;
+    if (currentTokens <= maxTokens) {
+      return false; // No cleanup needed
     }
 
-    // Keep only the most recent messages that fit within the token limit
-    let currentTokens = 0;
-    const keptMessages: IConversationHistoryMessage[] = [];
+    const cleanedHistory = [...messages];
 
-    // Process messages from newest to oldest
-    for (let i = history.length - 1; i >= 0; i--) {
-      const msg = history[i];
-      const cleanedContent = this.removeHtmlComments(msg.content);
-      const msgTokens = estimateTokenCount(cleanedContent);
-      if (currentTokens + msgTokens <= maxTokens) {
-        keptMessages.unshift({ ...msg, content: cleanedContent });
-        currentTokens += msgTokens;
-      } else {
-        break;
+    let cleanedTokens = currentTokens;
+
+    while (cleanedTokens > maxTokens && cleanedHistory.length > 0) {
+      const removedMessage = cleanedHistory.shift();
+      if (removedMessage) {
+        cleanedTokens -= estimateTokenCount(removedMessage.content);
       }
     }
-
-    // Save system instructions before clearing
-    const systemInstructions = this.contextBuilder.getSystemInstructions();
-
-    // Clear and rebuild context with kept messages
-    this.contextBuilder.clear();
-    
-    // Restore system instructions
-    if (systemInstructions) {
-      this.contextBuilder.setSystemInstructions(systemInstructions);
-    }
-
-    // Add back kept messages
-    keptMessages.forEach((msg) =>
-      this.contextBuilder.addMessage(msg.role, msg.content),
+    const removedHistory = messages.slice(
+      0,
+      messages.length - cleanedHistory.length,
     );
 
-    return true;
-  }
+    if (removedHistory.length > 0) {
+      const updatedHistory = contextData.conversationHistory.slice(
+        removedHistory.length,
+      );
 
-  private removeHtmlComments(text: string): string {
-    return text.replace(/<!--[\s\S]*?-->/g, '');
+      this.debugLogger.log("Context", "Context cleanup performed", {
+        maxTokens,
+        removedMessages: removedHistory.length,
+      });
+
+      await this.modelInfo.logCurrentModelUsage(
+        this.messageContextStore.getTotalTokenCount(),
+      );
+
+      // Update history through the history service
+      this.messageContextHistory.mergeConversationHistory();
+      return true; // Cleanup was performed
+    }
+    return false; // No cleanup was performed
   }
 }
