@@ -45,6 +45,7 @@ describe("LLMContextCreator", () => {
     });
     mocker.mockPrototype(ConfigService, "getConfig", {
       includeAllFilesOnEnvToContext: true,
+      customInstructions: "Default custom instructions", // Added default custom instructions
     });
     mocker.mockPrototype(
       PhaseManager,
@@ -76,6 +77,42 @@ describe("LLMContextCreator", () => {
       expect(fs.promises.readFile).toHaveBeenCalledWith(
         "/path/to/instructions",
         "utf-8",
+      );
+    });
+
+    it("should use config.customInstructions as fallback when path is not provided", async () => {
+      const fallbackInstructions = "Fallback instructions";
+      mocker.mockPrototype(ConfigService, "getConfig", {
+        customInstructions: fallbackInstructions,
+      });
+
+      // @ts-ignore - accessing private method for testing
+      const result = await contextCreator["loadCustomInstructions"]();
+
+      expect(result).toBe(fallbackInstructions);
+    });
+
+    it("should throw error when neither path nor instructions are provided", async () => {
+      mocker.mockPrototype(ConfigService, "getConfig", {});
+
+      // @ts-ignore - accessing private method for testing
+      await expect(contextCreator["loadCustomInstructions"]()).rejects.toThrow(
+        "No custom instructions provided. Either customInstructionsPath or customInstructions must be set in config.",
+      );
+    });
+
+    it("should throw error when file read fails", async () => {
+      mocker.mockPrototype(ConfigService, "getConfig", {
+        customInstructionsPath: "/path/to/instructions",
+      });
+
+      jest
+        .spyOn(fs.promises, "readFile")
+        .mockRejectedValueOnce(new Error("File not found"));
+
+      // @ts-ignore - accessing private method for testing
+      await expect(contextCreator["loadCustomInstructions"]()).rejects.toThrow(
+        "Failed to load custom instructions from /path/to/instructions",
       );
     });
   });
@@ -151,6 +188,7 @@ describe("LLMContextCreator", () => {
 
       mocker.mockPrototype(ConfigService, "getConfig", {
         includeAllFilesOnEnvToContext: false,
+        customInstructions: "Default custom instructions", // Added custom instructions
       });
 
       const result = await contextCreator.create(message, root, true);

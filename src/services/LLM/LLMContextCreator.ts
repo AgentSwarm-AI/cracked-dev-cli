@@ -27,7 +27,7 @@ export class LLMContextCreator {
     private messageContextManager: MessageContextManager,
   ) {}
 
-  private async loadCustomInstructions(): Promise<string | undefined> {
+  private async loadCustomInstructions(): Promise<string> {
     const config = this.configService.getConfig();
 
     if (config.customInstructionsPath) {
@@ -43,6 +43,14 @@ export class LLMContextCreator {
         );
       }
     }
+
+    if (config.customInstructions) {
+      return config.customInstructions;
+    }
+
+    throw new Error(
+      "No custom instructions provided. Either customInstructionsPath or customInstructions must be set in config.",
+    );
   }
 
   async create(
