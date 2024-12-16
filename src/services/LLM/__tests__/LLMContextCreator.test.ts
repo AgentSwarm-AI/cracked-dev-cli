@@ -1,8 +1,10 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 import { ConfigService } from "@services/ConfigService";
 import { DirectoryScanner } from "@services/FileManagement/DirectoryScanner";
 import { ActionExecutor } from "@services/LLM/actions/ActionExecutor";
 import { LLMContextCreator } from "@services/LLM/LLMContextCreator";
 import { ProjectInfo } from "@services/LLM/utils/ProjectInfo";
+import * as fs from "fs";
 import { container } from "tsyringe";
 import { UnitTestMocker } from "../../../jest/mocks/UnitTestMocker";
 import { MessageContextManager } from "../context/MessageContextManager";
@@ -43,6 +45,7 @@ describe("LLMContextCreator", () => {
     });
     mocker.mockPrototype(ConfigService, "getConfig", {
       includeAllFilesOnEnvToContext: true,
+      customInstructions: "Default custom instructions", // Added default custom instructions
     });
     mocker.mockPrototype(
       PhaseManager,
@@ -53,6 +56,65 @@ describe("LLMContextCreator", () => {
     mocker.spyPrototype(MessageContextManager, "clear");
 
     contextCreator = container.resolve(LLMContextCreator);
+  });
+
+  describe("loadCustomInstructions", () => {
+    it("should load custom instructions from file when path is provided", async () => {
+      const customInstructions = "Custom instructions from file";
+      mocker.mockPrototype(ConfigService, "getConfig", {
+        customInstructionsPath: "/path/to/instructions",
+        customInstructions: "Fallback instructions",
+      });
+
+      jest
+        .spyOn(fs.promises, "readFile")
+        .mockResolvedValueOnce(customInstructions);
+
+      // @ts-ignore - accessing private method for testing
+      const result = await contextCreator["loadCustomInstructions"]();
+
+      expect(result).toBe(customInstructions);
+      expect(fs.promises.readFile).toHaveBeenCalledWith(
+        "/path/to/instructions",
+        "utf-8",
+      );
+    });
+
+    it("should use config.customInstructions as fallback when path is not provided", async () => {
+      const fallbackInstructions = "Fallback instructions";
+      mocker.mockPrototype(ConfigService, "getConfig", {
+        customInstructions: fallbackInstructions,
+      });
+
+      // @ts-ignore - accessing private method for testing
+      const result = await contextCreator["loadCustomInstructions"]();
+
+      expect(result).toBe(fallbackInstructions);
+    });
+
+    it("should throw error when neither path nor instructions are provided", async () => {
+      mocker.mockPrototype(ConfigService, "getConfig", {});
+
+      // @ts-ignore - accessing private method for testing
+      await expect(contextCreator["loadCustomInstructions"]()).rejects.toThrow(
+        "No custom instructions provided. Either customInstructionsPath or customInstructions must be set in config.",
+      );
+    });
+
+    it("should throw error when file read fails", async () => {
+      mocker.mockPrototype(ConfigService, "getConfig", {
+        customInstructionsPath: "/path/to/instructions",
+      });
+
+      jest
+        .spyOn(fs.promises, "readFile")
+        .mockRejectedValueOnce(new Error("File not found"));
+
+      // @ts-ignore - accessing private method for testing
+      await expect(contextCreator["loadCustomInstructions"]()).rejects.toThrow(
+        "Failed to load custom instructions from /path/to/instructions",
+      );
+    });
   });
 
   describe("create", () => {
@@ -126,6 +188,7 @@ describe("LLMContextCreator", () => {
 
       mocker.mockPrototype(ConfigService, "getConfig", {
         includeAllFilesOnEnvToContext: false,
+        customInstructions: "Default custom instructions", // Added custom instructions
       });
 
       const result = await contextCreator.create(message, root, true);

@@ -3,6 +3,7 @@ import { DirectoryScanner } from "@services/FileManagement/DirectoryScanner";
 import { ActionExecutor } from "@services/LLM/actions/ActionExecutor";
 import { IActionResult } from "@services/LLM/actions/types/ActionTypes";
 import { ProjectInfo } from "@services/LLM/utils/ProjectInfo";
+import * as fs from "fs";
 import { autoInjectable, inject } from "tsyringe";
 import { MessageContextManager } from "./context/MessageContextManager";
 import { PhaseManager } from "./PhaseManager";
@@ -25,6 +26,32 @@ export class LLMContextCreator {
     @inject(MessageContextManager)
     private messageContextManager: MessageContextManager,
   ) {}
+
+  private async loadCustomInstructions(): Promise<string> {
+    const config = this.configService.getConfig();
+
+    if (config.customInstructionsPath) {
+      try {
+        const instructions = await fs.promises.readFile(
+          config.customInstructionsPath,
+          "utf-8",
+        );
+        return instructions.trim();
+      } catch (error) {
+        throw Error(
+          `Failed to load custom instructions from ${config.customInstructionsPath}, check if the file exists and is accessible.`,
+        );
+      }
+    }
+
+    if (config.customInstructions) {
+      return config.customInstructions;
+    }
+
+    throw new Error(
+      "No custom instructions provided. Either customInstructionsPath or customInstructions must be set in config.",
+    );
+  }
 
   async create(
     message: string,
@@ -91,9 +118,12 @@ Run Single Test: ${runOneTestCmd}
 Run Type Check: ${runTypeCheckCmd}`;
   }
 
-  private formatFirstTimeMessage(context: MessageContext): string {
+  private async formatFirstTimeMessage(
+    context: MessageContext,
+  ): Promise<string> {
     const config = this.configService.getConfig();
     const phaseConfig = this.phaseManager.getCurrentPhaseConfig();
+    const customInstructions = await this.loadCustomInstructions();
 
     const envDetails = config.includeAllFilesOnEnvToContext
       ? context.environmentDetails
@@ -114,12 +144,23 @@ Run Type Check: ${runTypeCheckCmd}`;
 # Your Main Task
 ${context.message}
 
+${
+  customInstructions &&
+  `
+# Custom Instructions
+${customInstructions}`
+}
+
 ## Initial Instructions
 - Keep messages brief, clear, and concise.
 - Break tasks into prioritized steps.
-- Use available actions sequentially. 
+- Use available actions sequentially.
 
-## Instructions
+# Additional Instructions
+${envDetails ? `\n${envDetails}` : ""}
+${context.projectInfo ? `\n${context.projectInfo}` : ""}
+
+## Phase Instructions
 ${phaseConfig.generatePrompt(promptArgs)}
 
 </instructions>

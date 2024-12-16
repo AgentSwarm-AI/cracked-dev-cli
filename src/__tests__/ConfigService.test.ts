@@ -55,6 +55,7 @@ describe("ConfigService", () => {
       const mockConfig = {
         provider: "open-router",
         customInstructions: "Follow clean code principles",
+        customInstructionsPath: "",
         interactive: true,
         stream: true,
         debug: false,

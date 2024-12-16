@@ -6,7 +6,8 @@ import { z } from "zod";
 
 const configSchema = z.object({
   provider: z.string(),
-  customInstructions: z.string(),
+  customInstructions: z.string().optional(),
+  customInstructionsPath: z.string().optional(),
   interactive: z.boolean(),
   stream: z.boolean(),
   debug: z.boolean(),
@@ -85,6 +86,7 @@ export class ConfigService {
       const defaultConfig = {
         provider: "open-router",
         customInstructions: "Follow clean code principles",
+        customInstructionsPath: "",
         interactive: true,
         stream: true,
         debug: false,
