@@ -1,6 +1,5 @@
 // OpenRouterAPICostTracking.ts
-import { ModelInfo } from "@services/LLM/ModelInfo";
-import { injectable } from "tsyringe";
+import { autoInjectable } from "tsyringe";
 
 interface PriceInfo {
   prompt: string;
@@ -19,9 +18,9 @@ interface UsageHistory {
   [modelName: string]: UsageEntry[];
 }
 
-@injectable()
+@autoInjectable()
 export class OpenRouterAPICostTracking {
-  constructor(private modelInfo: ModelInfo) {}
+  constructor() {}
 
   private calculateCosts(priceAll: PriceInfo, usage: UsageHistory) {
     const promptRate = parseFloat(priceAll.prompt);
