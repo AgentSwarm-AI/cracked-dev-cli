@@ -3,10 +3,10 @@ import { CrackedAgent, CrackedAgentOptions } from "@services/CrackedAgent";
 import { LLMProviderType } from "@services/LLM/LLMProvider";
 import { ModelManager } from "@services/LLM/ModelManager";
 import { OpenRouterAPI } from "@services/LLMProviders/OpenRouter/OpenRouterAPI";
+import { InteractiveSessionManager } from "@services/streaming/InteractiveSessionManager";
 import { StreamHandler } from "@services/streaming/StreamHandler";
 import * as readline from "readline";
 import { container } from "tsyringe";
-import * as tty from "tty";
 import { ConfigService } from "../services/ConfigService";
 
 export class Run extends Command {
@@ -36,8 +36,8 @@ export class Run extends Command {
   private modelManager: ModelManager;
   private streamHandler: StreamHandler;
   private openRouterAPI: OpenRouterAPI;
+  private sessionManager: InteractiveSessionManager;
   private rl: readline.Interface;
-  private currentMessage: string = "";
 
   constructor(argv: string[], config: any) {
     super(argv, config);
@@ -45,7 +45,12 @@ export class Run extends Command {
     this.modelManager = container.resolve(ModelManager);
     this.streamHandler = container.resolve(StreamHandler);
     this.openRouterAPI = container.resolve(OpenRouterAPI);
-    this.rl = this.createReadlineInterface();
+    this.sessionManager = container.resolve(InteractiveSessionManager);
+    this.rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+      prompt: "> ",
+    });
   }
 
   private parseOptions(optionsString: string): Record<string, unknown> {
@@ -68,134 +73,6 @@ export class Run extends Command {
     }
 
     return options;
-  }
-
-  private createReadlineInterface() {
-    return readline.createInterface({
-      input: process.stdin,
-      output: process.stdout,
-      prompt: "> ",
-    });
-  }
-
-  private setupKeypressHandling() {
-    if (process.stdin instanceof tty.ReadStream) {
-      process.stdin.setRawMode(true);
-      process.stdin.resume();
-      process.stdin.on("data", async (buffer) => {
-        const key = buffer.toString();
-        if (key === "\u001B") {
-          // Escape key
-          this.openRouterAPI.cancelStream();
-          console.log("\nStreaming cancelled.");
-          await this.restartStream();
-        }
-      });
-    }
-  }
-
-  private async restartStream() {
-    console.log("Please type your new prompt and press enter...");
-
-    this.rl.prompt();
-
-    const config = this.configService.getConfig();
-    const options: CrackedAgentOptions = {
-      ...config,
-      options: this.parseOptions(config.options || ""),
-      provider: config.provider as LLMProviderType,
-    };
-
-    const agent = container.resolve(CrackedAgent);
-
-    // If we have a current message, restart with it
-    if (this.currentMessage) {
-      await this.startStream(agent, options);
-    } else {
-      // Otherwise, prompt for new input
-      this.rl.prompt();
-    }
-  }
-
-  private async startInteractiveMode(
-    agent: CrackedAgent,
-    options: CrackedAgentOptions,
-  ) {
-    console.log(
-      'Interactive mode started. Type "exit" or press Ctrl+C to quit.',
-    );
-
-    this.setupKeypressHandling();
-
-    this.rl.prompt();
-
-    this.rl
-      .on("line", async (input) => {
-        if (input.toLowerCase() === "exit") {
-          console.log("Goodbye!");
-          this.rl.close();
-          process.exit(0);
-        }
-
-        this.currentMessage = input;
-
-        try {
-          const result = await agent.execute(input, options);
-          if (!options.stream && result) {
-            console.log("\nResponse:", result.response);
-            if (result.actions?.length) {
-              console.log("\nExecuted Actions:");
-              result.actions.forEach(({ action, result }) => {
-                console.log(`\nAction: ${action}`);
-                console.log(`Result: ${JSON.stringify(result, null, 2)}`);
-              });
-            }
-          }
-        } catch (error) {
-          console.error("Error:", (error as Error).message);
-        }
-
-        this.rl.prompt();
-      })
-      .on("close", () => {
-        process.exit(0);
-      });
-  }
-
-  private async startStream(agent: CrackedAgent, options: CrackedAgentOptions) {
-    this.rl.prompt();
-
-    this.rl
-      .on("line", async (input) => {
-        if (input.toLowerCase() === "exit") {
-          console.log("Goodbye!");
-          this.rl.close();
-          process.exit(0);
-        }
-
-        this.currentMessage = input;
-
-        try {
-          const result = await agent.execute(input, options);
-          if (!options.stream && result) {
-            console.log("\nResponse:", result.response);
-            if (result.actions?.length) {
-              console.log("\nExecuted Actions:");
-              result.actions.forEach(({ action, result }) => {
-                console.log(`\nAction: ${action}`);
-                console.log(`Result: ${JSON.stringify(result, null, 2)}`);
-              });
-            }
-          }
-        } catch (error) {
-          console.error("Error:", (error as Error).message);
-        }
-
-        this.rl.prompt();
-      })
-      .on("close", () => {
-        process.exit(0);
-      });
   }
 
   async run(): Promise<void> {
@@ -245,13 +122,13 @@ export class Run extends Command {
       );
 
       const agent = container.resolve(CrackedAgent);
+      this.sessionManager.initialize(this.rl, agent, options);
 
       if (isInteractive) {
-        await this.startInteractiveMode(agent, options);
+        await this.sessionManager.start();
       } else {
         console.log("Press Enter to start the stream...");
         this.rl.once("line", async () => {
-          this.currentMessage = args.message!;
           try {
             const result = await agent.execute(args.message!, options);
             if (!options.stream && result) {
@@ -264,12 +141,16 @@ export class Run extends Command {
                 });
               }
             }
+            this.sessionManager.cleanup();
+            process.exit(0);
           } catch (error) {
+            this.sessionManager.cleanup();
             this.error((error as Error).message);
           }
         });
       }
     } catch (error) {
+      this.sessionManager.cleanup();
       this.error((error as Error).message);
     }
   }
