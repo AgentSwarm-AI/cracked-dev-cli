@@ -24,3 +24,111 @@ jobs:
           model_id: "anthropic/claude-3.5-sonnet:beta" # Default model
           max_tokens: "2048" # Default max tokens
           review_label: "ai-review"
+          custom_prompt: |
+            ### **AI PR Review Instructions**
+
+            **Objective:**  
+            Provide a clear, concise, and actionable review of the Pull Request (PR). Focus on overall codebase quality, including readability, maintainability, functionality, and adherence to best practices. Avoid minor nitty-picky comments and repetitive feedback.
+
+            **Focus Areas:**
+            1. **Code Quality:** Assess the readability, organization, and maintainability of the code.
+            2. **Functionality:** Ensure the PR meets its intended purpose and functions as expected.
+            3. **Best Practices:** Evaluate adherence to coding standards, design patterns, and project guidelines.
+            4. **Performance:** Identify any potential performance improvements or optimizations.
+            5. **Testing:** Review the comprehensiveness and effectiveness of the test coverage.
+
+            **Review Structure:**
+            1. **Overall Summary**
+               - **Score:** Provide an overall score out of 5 stars.
+               - **Summary:** Brief overview of the PR, highlighting its purpose and main changes.
+
+            2. **Key Strengths**
+               - Highlight 2-3 major strengths related to code quality and overall implementation.
+
+            3. **Areas for Improvement**
+               - Identify 2-3 significant areas that need enhancement.
+               - Provide actionable suggestions for each identified issue.
+
+            4. **Performance Considerations** (if applicable)
+               - Mention any high-level performance optimizations or concerns.
+
+            5. **Best Practices**
+               - Recommendations on adhering to coding standards, design patterns, or other best practices relevant to the project.
+
+            6. **Testing**
+               - Evaluate the adequacy of test coverage and suggest areas for additional tests if necessary.
+
+            7. **Conclusion**
+               - A short closing statement summarizing the overall quality of the PR and its readiness for merging.
+
+            **Scoring Criteria:**
+            - ⭐⭐⭐⭐⭐ (5/5): Exceptional quality, no major issues, and well-optimized.
+            - ⭐⭐⭐⭐ (4/5): High quality, minor improvements possible.
+            - ⭐⭐⭐ (3/5): Average quality, some issues need attention.
+            - ⭐⭐ (2/5): Below average quality, significant improvements required.
+            - ⭐ (1/5): Poor quality, major issues, and refactoring needed.
+
+            **Formatting Guidelines:**
+            - Use clear and concise language.
+            - Limit each section to the most critical points (2-3 items per section).
+            - Avoid repetitive phrases or focusing on minor code style issues unless they impact overall quality.
+            - Use bullet points and clear headings for readability.
+
+            ** Notes:**
+            - If you have nothing to say about a particular section, you can omit it from the review.
+            - If you think there are no issues and the PR is good to go, mention it in the conclusion. No need to add unnecessary feedback.
+
+            **Example Output:**
+
+            ---
+
+            ### **AI Review Summary**
+
+            **🏆 Overall Score:** ⭐⭐⭐⭐ (4/5)  
+            *The PR successfully implements the new feature with clean and well-structured code. Minor improvements are recommended to enhance maintainability and performance.*
+
+            ---
+
+            **✅ Key Strengths**
+            - **Feature Implementation:** Effectively adds the new feature, enhancing the application's functionality.
+            - **Code Structure:** Well-organized code with logical separation of concerns.
+            - **Documentation:** Comprehensive comments and documentation facilitate easier maintenance.
+
+            ---
+
+            **⚠️ Areas for Improvement**
+            - **Error Handling:**  
+              *Suggestion:* Implement more robust error handling to cover edge cases and unexpected inputs.
+              
+            - **Code Reusability:**  
+              *Suggestion:* Refactor repetitive code into reusable functions or components to improve maintainability.
+
+            - **Testing Coverage:**  
+              *Suggestion:* Add additional unit tests to cover critical functionalities and edge cases.
+
+            ---
+
+            **⚡ Performance Considerations**
+            - **Optimizing Loops:**  
+              *Suggestion:* Review and optimize nested loops to reduce computational complexity and improve performance.
+
+            ---
+
+            **📏 Best Practices**
+            - **Consistent Naming Conventions:**  
+              *Suggestion:* Adopt consistent naming conventions for variables and functions to enhance code readability.
+
+            ---
+
+            **🧪 Testing**
+            - **Comprehensive Test Cases:**  
+              *Suggestion:* Include test cases for edge scenarios to ensure robustness and reliability.
+
+            ---
+
+            **🔚 Conclusion**  
+            *The PR is well-executed with clear benefits to the project. Addressing the highlighted areas will further strengthen the codebase and ensure seamless integration.*
+
+            ---
+
+            **End of Review**
