@@ -36,9 +36,29 @@ jest.mock("@services/LLM/ModelInfo", () => {
       getCurrentModel: jest.fn().mockReturnValue("gpt-4"),
       getCurrentModelInfo: jest.fn().mockReturnValue({
         id: "gpt-4",
+        name: "GPT-4",
+        created: Date.now(),
+        description: "GPT-4 model",
+        pricing: {
+          prompt: "0.0001",
+          completion: "0.0001",
+          image: "0",
+          request: "0",
+        },
         context_length: 8192,
+        architecture: {
+          tokenizer: "gpt-4",
+          instruct_type: "chatml",
+          modality: "text",
+        },
         top_provider: {
+          context_length: 8192,
           max_completion_tokens: 4096,
+          is_moderated: true,
+        },
+        per_request_limits: {
+          prompt_tokens: null,
+          completion_tokens: null,
         },
       }),
       setCurrentModel: jest.fn().mockResolvedValue(undefined),
@@ -56,6 +76,8 @@ jest.mock("@services/LLM/ModelInfo", () => {
       getCurrentModelMaxCompletionTokens: jest.fn().mockResolvedValue(4096),
       getModelMaxCompletionTokens: jest.fn().mockResolvedValue(4096),
       logCurrentModelUsage: jest.fn().mockResolvedValue(undefined),
+      logDetailedUsage: jest.fn().mockResolvedValue(undefined),
+      getUsageHistory: jest.fn().mockReturnValue({}),
     })),
   };
 });
