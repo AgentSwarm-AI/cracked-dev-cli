@@ -1,7 +1,7 @@
 // src/services/LLM/__tests__/LLMProvider.test.ts
+import { MessageContextManager } from "@/services/LLM/context/MessageContextManager";
 import { ILLMProvider } from "@services/LLM/ILLMProvider";
 import { LLMProvider, LLMProviderType } from "@services/LLM/LLMProvider";
-import { MessageContextManager } from "@services/LLM/MessageContextManager";
 import { OpenRouterAPI } from "@services/LLMProviders/OpenRouter/OpenRouterAPI";
 import { UnitTestMocker } from "@tests/mocks/UnitTestMocker";
 import { container } from "tsyringe";
@@ -14,61 +14,36 @@ describe("LLMProvider", () => {
     mocker = new UnitTestMocker();
 
     // Mock OpenRouterAPI methods
-    mocker.spyOnPrototypeWithImplementation(
+    mocker.mockPrototypeWith(
       OpenRouterAPI,
       "sendMessage",
       async () => "response",
     );
-    mocker.spyOnPrototypeWithImplementation(
+    mocker.mockPrototypeWith(
       OpenRouterAPI,
       "sendMessageWithContext",
       async () => "response",
     );
-    mocker.spyOnPrototypeWithImplementation(
+    mocker.mockPrototypeWith(
       OpenRouterAPI,
       "clearConversationContext",
       () => {},
     );
-    mocker.spyOnPrototypeWithImplementation(
-      OpenRouterAPI,
-      "getConversationContext",
-      () => [],
-    );
-    mocker.spyOnPrototypeWithImplementation(
-      OpenRouterAPI,
-      "addSystemInstructions",
-      () => {},
-    );
-    mocker.spyOnPrototypeWithImplementation(
-      OpenRouterAPI,
-      "getAvailableModels",
-      async () => ["model1", "model2"],
-    );
-    mocker.spyOnPrototypeWithImplementation(
-      OpenRouterAPI,
-      "validateModel",
-      async () => true,
-    );
-    mocker.spyOnPrototypeWithImplementation(
-      OpenRouterAPI,
-      "getModelInfo",
-      async () => ({}),
-    );
-    mocker.spyOnPrototypeWithImplementation(
-      OpenRouterAPI,
-      "streamMessage",
-      async () => {},
-    );
+    mocker.mockPrototypeWith(OpenRouterAPI, "getConversationContext", () => []);
+    mocker.mockPrototypeWith(OpenRouterAPI, "addSystemInstructions", () => {});
+    mocker.mockPrototypeWith(OpenRouterAPI, "getAvailableModels", async () => [
+      "model1",
+      "model2",
+    ]);
+    mocker.mockPrototypeWith(OpenRouterAPI, "validateModel", async () => true);
+    mocker.mockPrototypeWith(OpenRouterAPI, "getModelInfo", async () => ({}));
+    mocker.mockPrototypeWith(OpenRouterAPI, "streamMessage", async () => {});
 
     // Mock MessageContextManager methods
-    mocker.spyOnPrototypeAndReturn(MessageContextManager, "getMessages", []);
-    mocker.spyOnPrototypeAndReturn(
-      MessageContextManager,
-      "addMessage",
-      undefined,
-    );
-    mocker.spyOnPrototypeAndReturn(MessageContextManager, "clear", undefined);
-    mocker.spyOnPrototypeAndReturn(
+    mocker.mockPrototype(MessageContextManager, "getMessages", []);
+    mocker.mockPrototype(MessageContextManager, "addMessage", undefined);
+    mocker.mockPrototype(MessageContextManager, "clear", undefined);
+    mocker.mockPrototype(
       MessageContextManager,
       "setSystemInstructions",
       undefined,
@@ -179,14 +154,10 @@ describe("LLMProvider", () => {
     });
 
     it("should throw an error when sendMessage is called with an unsupported model", async () => {
-      mocker.spyOnPrototypeWithImplementation(
-        OpenRouterAPI,
-        "sendMessage",
-        async () => {
-          throw new Error("Model not available");
-        },
-      );
-      mocker.spyOnPrototypeWithImplementation(
+      mocker.mockPrototypeWith(OpenRouterAPI, "sendMessage", async () => {
+        throw new Error("Model not available");
+      });
+      mocker.mockPrototypeWith(
         OpenRouterAPI,
         "validateModel",
         async () => false,
@@ -198,14 +169,14 @@ describe("LLMProvider", () => {
     });
 
     it("should throw an error when sendMessageWithContext is called with an unsupported model", async () => {
-      mocker.spyOnPrototypeWithImplementation(
+      mocker.mockPrototypeWith(
         OpenRouterAPI,
         "sendMessageWithContext",
         async () => {
           throw new Error("Model not available");
         },
       );
-      mocker.spyOnPrototypeWithImplementation(
+      mocker.mockPrototypeWith(
         OpenRouterAPI,
         "validateModel",
         async () => false,
@@ -233,12 +204,7 @@ describe("LLMProvider", () => {
       await provider.sendMessageWithContext("model", "", "systemInstructions");
       expect(
         OpenRouterAPI.prototype.sendMessageWithContext,
-      ).toHaveBeenCalledWith(
-        "model",
-        "",
-        "systemInstructions",
-        undefined,
-      );
+      ).toHaveBeenCalledWith("model", "", "systemInstructions", undefined);
     });
 
     it("should handle null message in sendMessage", async () => {
@@ -251,39 +217,28 @@ describe("LLMProvider", () => {
     });
 
     it("should handle null message in sendMessageWithContext", async () => {
-      await provider.sendMessageWithContext("model", null as any, "systemInstructions");
+      await provider.sendMessageWithContext(
+        "model",
+        null as any,
+        "systemInstructions",
+      );
       expect(
         OpenRouterAPI.prototype.sendMessageWithContext,
-      ).toHaveBeenCalledWith(
-        "model",
-        null,
-        "systemInstructions",
-        undefined,
-      );
+      ).toHaveBeenCalledWith("model", null, "systemInstructions", undefined);
     });
 
     it("should handle empty system instructions in sendMessageWithContext", async () => {
       await provider.sendMessageWithContext("model", "message", "");
       expect(
         OpenRouterAPI.prototype.sendMessageWithContext,
-      ).toHaveBeenCalledWith(
-        "model",
-        "message",
-        "",
-        undefined,
-      );
+      ).toHaveBeenCalledWith("model", "message", "", undefined);
     });
 
     it("should handle null system instructions in sendMessageWithContext", async () => {
       await provider.sendMessageWithContext("model", "message", null as any);
       expect(
         OpenRouterAPI.prototype.sendMessageWithContext,
-      ).toHaveBeenCalledWith(
-        "model",
-        "message",
-        null,
-        undefined,
-      );
+      ).toHaveBeenCalledWith("model", "message", null, undefined);
     });
 
     it("should handle empty model in sendMessage", async () => {
@@ -305,27 +260,25 @@ describe("LLMProvider", () => {
     });
 
     it("should handle empty model in sendMessageWithContext", async () => {
-      await provider.sendMessageWithContext("", "message", "systemInstructions");
-      expect(
-        OpenRouterAPI.prototype.sendMessageWithContext,
-      ).toHaveBeenCalledWith(
+      await provider.sendMessageWithContext(
         "",
         "message",
         "systemInstructions",
-        undefined,
       );
+      expect(
+        OpenRouterAPI.prototype.sendMessageWithContext,
+      ).toHaveBeenCalledWith("", "message", "systemInstructions", undefined);
     });
 
     it("should handle null model in sendMessageWithContext", async () => {
-      await provider.sendMessageWithContext(null as any, "message", "systemInstructions");
-      expect(
-        OpenRouterAPI.prototype.sendMessageWithContext,
-      ).toHaveBeenCalledWith(
-        null,
+      await provider.sendMessageWithContext(
+        null as any,
         "message",
         "systemInstructions",
-        undefined,
       );
+      expect(
+        OpenRouterAPI.prototype.sendMessageWithContext,
+      ).toHaveBeenCalledWith(null, "message", "systemInstructions", undefined);
     });
 
     it("should handle empty model in getConversationContext", () => {
@@ -340,12 +293,16 @@ describe("LLMProvider", () => {
 
     it("should handle empty model in addSystemInstructions", () => {
       provider.addSystemInstructions("");
-      expect(OpenRouterAPI.prototype.addSystemInstructions).toHaveBeenCalledWith("");
+      expect(
+        OpenRouterAPI.prototype.addSystemInstructions,
+      ).toHaveBeenCalledWith("");
     });
 
     it("should handle null model in addSystemInstructions", () => {
       provider.addSystemInstructions(null as any);
-      expect(OpenRouterAPI.prototype.addSystemInstructions).toHaveBeenCalledWith(null);
+      expect(
+        OpenRouterAPI.prototype.addSystemInstructions,
+      ).toHaveBeenCalledWith(null);
     });
 
     it("should handle empty model in getAvailableModels", async () => {

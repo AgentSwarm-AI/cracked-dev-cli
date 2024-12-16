@@ -62,7 +62,6 @@ export class ReadFileAction extends BaseAction {
   ): Promise<IActionResult> {
     // Extract paths either from path tags or from raw content
     const filePaths = Array.isArray(params.path) ? params.path : [params.path];
-    this.logInfo(`File paths: ${filePaths.join(", ")}`);
 
     // If only one path, use single file read
     if (filePaths.length === 1) {

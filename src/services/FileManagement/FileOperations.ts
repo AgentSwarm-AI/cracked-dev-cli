@@ -44,6 +44,12 @@ export class FileOperations implements IFileOperations {
     }
   }
 
+  async getAdjustedPath(filePath: string): Promise<string> {
+    await this.ensureInitialized();
+    const adjustedPath = await this.pathAdjuster.adjustPath(filePath);
+    return adjustedPath || filePath;
+  }
+
   private async adjustPath(filePath: string): Promise<string> {
     await this.ensureInitialized();
 

@@ -9,51 +9,49 @@ export const discoveryPhaseBlueprint: IPhaseConfig = {
   model: config.discoveryModel,
   generatePrompt: (args: IPhasePromptArgs) => `
 
-  <phase_prompt>
+ <!-- Follow EXACTLY the instructions below. DO NOT SKIP ANY STEP! -->
+
+<phase_prompt>
 ## Discovery Phase
 
-### Critical
-- Always briefly mention whatever you are doing in the phase, FIRST! Before triggering any actions.
-- First action should be always a read_file. Use search_string and search_file to if necessary. DO NOT TRIGGER A end_phase IMMEDIATELY AFTER IT. Read the files and submit first.
-- If asked to fix tests, MAKE SURE TO execute_command to run them/it first! PRIORITIZE RUNNING ONLY THE TEST THATS NEEDED (or group of tests, in a folder, for example). Avoid running the whole thing unless necessary.
-- Read first the files that are most likely to contain the information you need. Pick the core one, check the imports, and see if there are additional files that you should read too.
-- Use the search_string and search_file actions to find the files you need to read.
+### Critical 
+- After reading a file, immediately <end_phase>.
+- After reading a file, immediately <end_phase>.
+- After reading a file, immediately <end_phase>.
+- At the START of this phase, briefly state what you are doing.
+- FIRST action: always <read_file> on a relevant file. If unsure which file, use <search_string> or <search_file> first.
+- If asked to fix tests, run only those specific tests first with <execute_command>.
+- If still missing info, use <search_string> or <search_file> actions to locate more files.
+- Before ending the phase, confirm you have all info needed for the next phase.
+- DO NOT READ THE SAME FILE MULTIPLE TIMES
+- DONT EVER EVER READ MORE THAN 5 FILES TOTAL
 
-### Overall Objective
-Analyze and understand the codebase to provide the necessary context for resolving issues. This involves scanning relevant files to gather information, identifying patterns and dependencies, and examining related code. 
 
 ### Key objectives:
-- CRITICAL: Keep yourself focused. Just find the related files, read them, see if running tests or typechecks are needed, and MOVE TO THE NEXT PHASE (end_phase)
-- Identifying relevant files and code patterns
-- Understanding the project structure and dependencies
-- Gathering essential context for problem-solving
-- Mapping out affected areas of the codebase
-- When you feel you have enough, MOVE ON TO NEXT PHASE!
-- Run typechecks and tests here, if needed.
+- Stay focused. Find related files, read them, optionally run typechecks/tests if needed.
+- Once confident you have enough info, then <end_phase> to move on.
+- Keep reads and tests minimal and targeted.
 
-
-### EXAMPLE OF HOW TO BEHAVE:
-
-To achieve the goal of XYZ, I'll need to read the following files:
+### Example:
+To solve XYZ, I'll read these files:
 
 <read_file>
-  <path>src/someRelatedFile.ts</path>
-  <path>src/someRelatedFile.ts</path>
-  <path>src/someRelatedFile.ts</path>
-  <path>src/someRelatedFile.ts</path>
+  <path>src/importantFile.ts</path>
+  <path>src/relatedFile.ts</path>
 </read_file>
 
-<!-- Note that you can also run typecheks and tests here, if you need to. -->
+(If needed, run tests/typechecks here)
 
-<!-- Then, once its done, you can move to the next phase. DONT DO IT ON THE SAME PROMPT! -->
-
-Ok, now I have enough context to move to the next phase.
-
-<!-- MAKE SURE YOU ONLY CALL end_phase if you had read_file FIRST! -->  
+Ok, I have enough context now.
 
 <end_phase>
   strategy_phase
 </end_phase>
+</phase_prompt>
+
+
+
+
 
 ## Allowed Available Actions
 <!-- CRITICAL: MUST FOLLOW CORRECT TAG STRUCTURE PATTERN BELOW AND ONLY ONE ACTION PER OUTPUT/REPLY, otherwise I'll unplug you. -->
@@ -111,7 +109,7 @@ REMEMBER: ONLY ONE ACTION PER REPLY!!!
 
 - **Run all tests:** ${args.runAllTestsCmd || "yarn test"}
 - **Run a specific test:** ${args.runOneTestCmd || "yarn test {relativeTestPath}"}
-- **Run type check:** ${args.runTypeCheckCmd || "yarn type-check"}
+- **Run type check:** ${args.runTypeCheckCmd || "yarn tsc"}
 
 ## Environment 
 ${args.projectInfo || ""}

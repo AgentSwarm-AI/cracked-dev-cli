@@ -32,7 +32,7 @@ describe("ReadFileAction", () => {
     it("should fail when no path is provided", async () => {
       const actionContent = "<read_file></read_file>";
 
-      mocker.spyOnPrototypeAndReturn(ActionTagsExtractor, "extractTag", null);
+      mocker.mockPrototype(ActionTagsExtractor, "extractTag", null);
 
       const result = await readFileAction.execute(actionContent);
 
@@ -45,7 +45,7 @@ describe("ReadFileAction", () => {
     it("should fail when path is empty", async () => {
       const actionContent = "<read_file><path></path></read_file>";
 
-      mocker.spyOnPrototypeAndReturn(ActionTagsExtractor, "extractTag", "");
+      mocker.mockPrototype(ActionTagsExtractor, "extractTag", "");
 
       const result = await readFileAction.execute(actionContent);
 
@@ -60,16 +60,12 @@ describe("ReadFileAction", () => {
       const fileContent = "test content";
       const actionContent = `<read_file><path>${filePath}</path></read_file>`;
 
-      mocker.spyOnPrototypeWithImplementation(
-        ActionTagsExtractor,
-        "extractTag",
-        (_, tag) => {
-          if (tag === "path") return filePath;
-          return null;
-        },
-      );
+      mocker.mockPrototypeWith(ActionTagsExtractor, "extractTag", (_, tag) => {
+        if (tag === "path") return filePath;
+        return null;
+      });
 
-      mocker.spyOnPrototypeAndReturn(
+      mocker.mockPrototype(
         FileOperations,
         "read",
         Promise.resolve({
@@ -91,16 +87,12 @@ describe("ReadFileAction", () => {
       const filePath = "/test/file.txt";
       const actionContent = `<read_file><path>${filePath}</path></read_file>`;
 
-      mocker.spyOnPrototypeWithImplementation(
-        ActionTagsExtractor,
-        "extractTag",
-        (_, tag) => {
-          if (tag === "path") return filePath;
-          return null;
-        },
-      );
+      mocker.mockPrototypeWith(ActionTagsExtractor, "extractTag", (_, tag) => {
+        if (tag === "path") return filePath;
+        return null;
+      });
 
-      mocker.spyOnPrototypeAndReturn(
+      mocker.mockPrototype(
         FileOperations,
         "read",
         Promise.resolve({
@@ -126,7 +118,7 @@ describe("ReadFileAction", () => {
         <path>${filePaths[1]}</path>
       </read_file>`;
 
-      mocker.spyOnPrototypeWithImplementation(
+      mocker.mockPrototypeWith(
         ActionTagsExtractor,
         "extractTag",
         (content: string) => {
@@ -135,7 +127,7 @@ describe("ReadFileAction", () => {
         },
       );
 
-      mocker.spyOnPrototypeAndReturn(
+      mocker.mockPrototype(
         FileOperations,
         "readMultiple",
         Promise.resolve({
@@ -160,7 +152,7 @@ describe("ReadFileAction", () => {
         <path>${filePaths[1]}</path>
       </read_file>`;
 
-      mocker.spyOnPrototypeWithImplementation(
+      mocker.mockPrototypeWith(
         ActionTagsExtractor,
         "extractTag",
         (content: string) => {
@@ -169,7 +161,7 @@ describe("ReadFileAction", () => {
         },
       );
 
-      mocker.spyOnPrototypeAndReturn(
+      mocker.mockPrototype(
         FileOperations,
         "readMultiple",
         Promise.resolve({
@@ -193,7 +185,7 @@ describe("ReadFileAction", () => {
         <path>${filePaths[1]}</path>
       </read_file>`;
 
-      mocker.spyOnPrototypeWithImplementation(
+      mocker.mockPrototypeWith(
         ActionTagsExtractor,
         "extractTag",
         (content: string) => {
@@ -202,7 +194,7 @@ describe("ReadFileAction", () => {
         },
       );
 
-      mocker.spyOnPrototypeAndReturn(
+      mocker.mockPrototype(
         FileOperations,
         "readMultiple",
         Promise.resolve({

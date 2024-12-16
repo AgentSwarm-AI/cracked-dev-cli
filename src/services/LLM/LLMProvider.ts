@@ -1,4 +1,7 @@
-import { ILLMProvider, IMessage } from "@services/LLM/ILLMProvider";
+import {
+  IConversationHistoryMessage,
+  ILLMProvider,
+} from "@services/LLM/ILLMProvider";
 import { OpenRouterAPI } from "@services/LLMProviders/OpenRouter/OpenRouterAPI";
 import { autoInjectable, container, singleton } from "tsyringe";
 
@@ -79,7 +82,7 @@ export class LLMProvider implements ILLMProvider {
     this.currentProvider.clearConversationContext();
   }
 
-  public getConversationContext(): IMessage[] {
+  public getConversationContext(): IConversationHistoryMessage[] {
     if (!this.currentProvider) {
       throw new Error("Current provider not set");
     }

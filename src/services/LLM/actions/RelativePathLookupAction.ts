@@ -84,10 +84,6 @@ export class RelativePathLookupAction extends BaseAction {
         threshold = 0.6,
       } = params as RelativePathLookupParams;
 
-      this.logInfo(`Source path: ${source_path}`);
-      this.logInfo(`Relative path: ${relativePath}`);
-      this.logInfo(`Threshold: ${threshold}`);
-
       // Get the directory of the source file to resolve relative paths from
       const sourceDir = path.dirname(source_path);
 
@@ -100,8 +96,6 @@ export class RelativePathLookupAction extends BaseAction {
         threshold,
       );
 
-      this.logInfo(`Adjusted path: ${adjustedPath}`);
-
       if (adjustedPath) {
         // Convert the adjusted absolute path back to a relative path from the source file
         const newRelativePath = path.relative(sourceDir, adjustedPath);
@@ -110,13 +104,19 @@ export class RelativePathLookupAction extends BaseAction {
           ? newRelativePath
           : "./" + newRelativePath;
 
-        return this.createSuccessResult({
+        const result = {
           originalPath: relativePath,
           newPath: formattedPath.replace(/\\/g, "/"), // Ensure forward slashes
           absolutePath: adjustedPath,
-        });
+        };
+
+        this.logSuccess(
+          `Found adjusted path: ${result.newPath} (absolute: ${result.absolutePath})`,
+        );
+        return this.createSuccessResult(result);
       }
 
+      this.logInfo("No adjusted path found");
       return this.createSuccessResult(null);
     } catch (error) {
       this.logError(`Path lookup failed: ${(error as Error).message}`);

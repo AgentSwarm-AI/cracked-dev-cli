@@ -2,9 +2,9 @@ import { ConfigService } from "@services/ConfigService";
 import { IConversationHistoryMessage } from "@services/LLM/ILLMProvider";
 import { ModelInfo } from "@services/LLM/ModelInfo";
 import { DebugLogger } from "@services/logging/DebugLogger";
-import * as fs from "fs";
 import * as path from "path";
 import { autoInjectable, singleton } from "tsyringe";
+import { MessageConversationLogger } from "./MessageConversationLogger";
 
 interface FileOperation {
   type: "read_file" | "write_file" | "execute_command";
@@ -34,6 +34,7 @@ export class MessageContextManager {
     private debugLogger: DebugLogger,
     private modelInfo: ModelInfo,
     private configService: ConfigService,
+    private conversationLogger: MessageConversationLogger,
   ) {
     // Clean up log file on startup, but not in test environment
     if (process.env.NODE_ENV !== "test") {
@@ -43,85 +44,33 @@ export class MessageContextManager {
 
   private cleanupLogFile(): void {
     if (!this.isLoggingEnabled()) return;
-
-    try {
-      fs.writeFileSync(this.logPath, "", "utf8");
-    } catch (error) {
-      this.debugLogger.log("Context", "Error cleaning up log file", { error });
-    }
+    this.conversationLogger.cleanupLogFiles();
   }
 
   private isLoggingEnabled(): boolean {
     const config = this.configService.getConfig();
-    return config.enableConversationLog ?? true;
+    return !!config.enableConversationLog;
   }
 
   private logMessage(message: IConversationHistoryMessage): void {
     // Skip logging in test environment or if disabled
     if (process.env.NODE_ENV === "test" || !this.isLoggingEnabled()) return;
-
-    try {
-      const timestamp = new Date().toISOString();
-      const logEntry = `[${timestamp}] ${message.role}: ${message.content}\n`;
-      fs.appendFileSync(this.logPath, logEntry, "utf8");
-    } catch (error) {
-      this.debugLogger.log("Context", "Error writing to log file", { error });
-    }
+    this.conversationLogger.logMessage(message);
   }
 
   private logActionResult(action: string, result: ActionResult): void {
     // Skip logging in test environment or if disabled
     if (process.env.NODE_ENV === "test" || !this.isLoggingEnabled()) return;
-
-    try {
-      const timestamp = new Date().toISOString();
-      const status = result.success ? "SUCCESS" : "FAILED";
-      const details = result.error
-        ? ` - Error: ${result.error.message}`
-        : result.result
-          ? ` - ${result.result}`
-          : "";
-      const logEntry = `[${timestamp}] ACTION ${action}: ${status}${details}\n`;
-      fs.appendFileSync(this.logPath, logEntry, "utf8");
-    } catch (error) {
-      this.debugLogger.log(
-        "Context",
-        "Error writing action result to log file",
-        { error },
-      );
-    }
+    this.conversationLogger.logActionResult(action, result);
   }
 
   private updateLogFile(): void {
     // Skip logging in test environment or if disabled
     if (process.env.NODE_ENV === "test" || !this.isLoggingEnabled()) return;
-
-    try {
-      // Clear the log file
-      fs.writeFileSync(this.logPath, "", "utf8");
-
-      // Write system instructions if present
-      if (this.systemInstructions) {
-        const timestamp = new Date().toISOString();
-        fs.appendFileSync(
-          this.logPath,
-          `[${timestamp}] system: ${this.systemInstructions}\n`,
-          "utf8",
-        );
-      }
-
-      // Write all conversation messages
-      this.conversationHistory.forEach((message) => {
-        const timestamp = new Date().toISOString();
-        fs.appendFileSync(
-          this.logPath,
-          `[${timestamp}] ${message.role}: ${message.content}\n`,
-          "utf8",
-        );
-      });
-    } catch (error) {
-      this.debugLogger.log("Context", "Error updating log file", { error });
-    }
+    this.conversationLogger.updateConversationHistory(
+      this.conversationHistory,
+      this.systemInstructions,
+    );
   }
 
   private extractOperations(content: string): FileOperation[] {
@@ -179,24 +128,36 @@ export class MessageContextManager {
     const newOperations = this.extractOperations(newMessage.content);
     const hasNewPhasePrompt = this.hasPhasePrompt(newMessage.content);
 
+    // If the new message has read_file operations, we'll keep only this message
+    const hasNewReadFileOps = newOperations.some(
+      (op) => op.type === "read_file",
+    );
+
     this.conversationHistory = this.conversationHistory.filter((msg) => {
       // If new message has a phase prompt, remove old phase prompts
       if (hasNewPhasePrompt && this.hasPhasePrompt(msg.content)) {
         return false;
       }
 
-      // Keep messages without operations
+      const msgOperations = this.extractOperations(msg.content);
+      const hasReadFileOps = msgOperations.some(
+        (op) => op.type === "read_file",
+      );
+
+      // If new message has read_file operations, remove old messages with read_file
+      if (hasNewReadFileOps && hasReadFileOps) {
+        return false;
+      }
+
+      // Keep messages without write_file or execute_command operations
       if (
-        !msg.content.includes("<read_file>") &&
         !msg.content.includes("<write_file>") &&
         !msg.content.includes("<execute_command>")
       ) {
         return true;
       }
 
-      const msgOperations = this.extractOperations(msg.content);
-
-      // Remove message if it has any matching operations
+      // Remove message if it has any matching write_file or execute_command operations
       return !msgOperations.some((msgOp) =>
         newOperations.some((newOp) => {
           if (
@@ -205,7 +166,10 @@ export class MessageContextManager {
           ) {
             return newOp.command === msgOp.command;
           }
-          return newOp.type === msgOp.type && newOp.path === msgOp.path;
+          if (newOp.type === "write_file" && msgOp.type === "write_file") {
+            return newOp.path === msgOp.path;
+          }
+          return false;
         }),
       );
     });
@@ -229,6 +193,28 @@ export class MessageContextManager {
     });
 
     // Update the log file with cleaned conversation history
+    this.updateLogFile();
+  }
+
+  mergeConversationHistory(): void {
+    this.debugLogger.log("Context", "Merging conversation history");
+
+    if (this.conversationHistory.length === 0) {
+      return;
+    }
+
+    const mergedContent = this.conversationHistory
+      .map((msg) => `${msg.role}: ${msg.content}`)
+      .join("\n\n");
+
+    this.conversationHistory = [
+      {
+        role: "assistant",
+        content: mergedContent,
+      },
+    ];
+
+    // Update the log file with merged conversation history
     this.updateLogFile();
   }
 
@@ -346,48 +332,55 @@ export class MessageContextManager {
       : 0;
     const availableTokens = maxTokens - systemTokens;
 
-    let conversationTokens = this.getConversationTokenCount();
+    const conversationTokens = this.getConversationTokenCount();
     if (conversationTokens <= availableTokens) {
       return false;
     }
 
     const initialMessageCount = this.conversationHistory.length;
 
-    // Find first user message index
-    const firstUserMessageIndex = this.conversationHistory.findIndex(
-      (msg) => msg.role === "user",
-    );
+    // Split messages into phase prompts and regular messages
+    const phasePrompts: IConversationHistoryMessage[] = [];
+    const regularMessages: IConversationHistoryMessage[] = [];
 
-    // Keep track of protected messages (first user message and subsequent message)
-    const protectedMessages =
-      firstUserMessageIndex >= 0
-        ? this.conversationHistory.slice(
-            firstUserMessageIndex,
-            firstUserMessageIndex + 2,
-          )
-        : [];
-    const protectedTokens = protectedMessages.reduce(
+    this.conversationHistory.forEach((msg) => {
+      if (this.hasPhasePrompt(msg.content)) {
+        phasePrompts.push(msg);
+      } else {
+        regularMessages.push(msg);
+      }
+    });
+
+    // Calculate tokens for phase prompts
+    const phasePromptTokens = phasePrompts.reduce(
       (total, msg) => total + this.estimateTokenCount(msg.content),
       0,
     );
 
-    // Remove messages from the middle, keeping protected messages
-    while (
-      conversationTokens - protectedTokens >
-        availableTokens - protectedTokens &&
-      this.conversationHistory.length > protectedMessages.length
-    ) {
-      // Start removing from after protected messages
-      const indexToRemove = firstUserMessageIndex + 2;
-      if (indexToRemove >= this.conversationHistory.length) {
+    // Available tokens for regular messages
+    const availableRegularTokens = availableTokens - phasePromptTokens;
+    let currentTokens = 0;
+
+    // Keep messages from the beginning until we hit the token limit
+    const keptMessages: IConversationHistoryMessage[] = [];
+    for (const msg of regularMessages) {
+      const msgTokens = this.estimateTokenCount(msg.content);
+      if (currentTokens + msgTokens <= availableRegularTokens) {
+        keptMessages.push(msg);
+        currentTokens += msgTokens;
+      } else {
         break;
       }
-
-      const messageToRemove = this.conversationHistory[indexToRemove];
-      const messageTokens = this.estimateTokenCount(messageToRemove.content);
-      this.conversationHistory.splice(indexToRemove, 1);
-      conversationTokens -= messageTokens;
     }
+
+    // Combine phase prompts and kept messages in chronological order
+    const allMessages = [...phasePrompts, ...keptMessages].sort((a, b) => {
+      const aIndex = this.conversationHistory.indexOf(a);
+      const bIndex = this.conversationHistory.indexOf(b);
+      return aIndex - bIndex;
+    });
+
+    this.conversationHistory = allMessages;
 
     // Update the log file after cleanup
     this.updateLogFile();
@@ -399,7 +392,6 @@ export class MessageContextManager {
       initialMessageCount,
       remainingMessages: this.conversationHistory.length,
       removedMessages: removedCount,
-      protectedMessages: protectedMessages.length,
     });
 
     await this.modelInfo.logCurrentModelUsage(this.getTotalTokenCount());

@@ -37,6 +37,7 @@ const configSchema = z.object({
   runOneTestCmd: z.string().optional(),
   runTypeCheckCmd: z.string().optional(),
   enableConversationLog: z.boolean().optional(),
+  logDirectory: z.string().optional(),
   directoryScanner: z
     .object({
       defaultIgnore: z
@@ -125,6 +126,7 @@ export class ConfigService {
         runOneTestCmd: "yarn test {relativeTestPath}",
         runTypeCheckCmd: "yarn typecheck",
         enableConversationLog: false,
+        logDirectory: "logs",
         directoryScanner: {
           defaultIgnore: [
             "dist",

@@ -5,7 +5,7 @@ import { IActionResult } from "@services/LLM/actions/types/ActionTypes";
 import { ProjectInfo } from "@services/LLM/utils/ProjectInfo";
 import * as fs from "fs";
 import { autoInjectable, inject } from "tsyringe";
-import { MessageContextManager } from "./MessageContextManager";
+import { MessageContextManager } from "./context/MessageContextManager";
 import { PhaseManager } from "./PhaseManager";
 import { IPhasePromptArgs } from "./types/PhaseTypes";
 

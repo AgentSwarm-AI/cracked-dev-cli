@@ -7,7 +7,7 @@ import { ProjectInfo } from "@services/LLM/utils/ProjectInfo";
 import * as fs from "fs";
 import { container } from "tsyringe";
 import { UnitTestMocker } from "../../../jest/mocks/UnitTestMocker";
-import { MessageContextManager } from "../MessageContextManager";
+import { MessageContextManager } from "../context/MessageContextManager";
 import { PhaseManager } from "../PhaseManager";
 import { IPhasePromptArgs } from "../types/PhaseTypes";
 
@@ -28,14 +28,14 @@ describe("LLMContextCreator", () => {
     };
 
     // Setup mocks using UnitTestMocker
-    mocker.spyOnPrototypeAndReturn(DirectoryScanner, "scan", {
+    mocker.mockPrototype(DirectoryScanner, "scan", {
       success: true,
       data: "file1\nfile2",
     });
-    mocker.spyOnPrototypeAndReturn(ActionExecutor, "executeAction", {
+    mocker.mockPrototype(ActionExecutor, "executeAction", {
       success: true,
     });
-    mocker.spyOnPrototypeAndReturn(ProjectInfo, "gatherProjectInfo", {
+    mocker.mockPrototype(ProjectInfo, "gatherProjectInfo", {
       mainDependencies: ["dep1", "dep2"],
       scripts: {
         test: "jest",
@@ -43,16 +43,16 @@ describe("LLMContextCreator", () => {
       },
       dependencyFile: "package.json",
     });
-    mocker.spyOnPrototypeAndReturn(ConfigService, "getConfig", {
+    mocker.mockPrototype(ConfigService, "getConfig", {
       includeAllFilesOnEnvToContext: true,
     });
-    mocker.spyOnPrototypeAndReturn(
+    mocker.mockPrototype(
       PhaseManager,
       "getCurrentPhaseConfig",
       mockPhaseConfig,
     );
-    mocker.spyOnPrototypeMethod(PhaseManager, "resetPhase");
-    mocker.spyOnPrototypeMethod(MessageContextManager, "clear");
+    mocker.spyPrototype(PhaseManager, "resetPhase");
+    mocker.spyPrototype(MessageContextManager, "clear");
 
     contextCreator = container.resolve(LLMContextCreator);
   });
@@ -60,7 +60,7 @@ describe("LLMContextCreator", () => {
   describe("loadCustomInstructions", () => {
     it("should load custom instructions from file when path is provided", async () => {
       const customInstructions = "Custom instructions from file";
-      mocker.spyOnPrototypeAndReturn(ConfigService, "getConfig", {
+      mocker.mockPrototype(ConfigService, "getConfig", {
         customInstructionsPath: "/path/to/instructions",
         customInstructions: "Fallback instructions",
       });
@@ -103,7 +103,7 @@ describe("LLMContextCreator", () => {
       const message = "test message";
       const root = "/test/root";
 
-      mocker.spyOnPrototypeAndReturn(ProjectInfo, "gatherProjectInfo", {
+      mocker.mockPrototype(ProjectInfo, "gatherProjectInfo", {
         mainDependencies: [],
         scripts: {},
       });
@@ -135,7 +135,7 @@ describe("LLMContextCreator", () => {
       const root = "/test/root";
       const error = new Error("Scan failed");
 
-      mocker.spyOnPrototypeAndReturn(DirectoryScanner, "scan", {
+      mocker.mockPrototype(DirectoryScanner, "scan", {
         success: false,
         error,
       });
@@ -149,7 +149,7 @@ describe("LLMContextCreator", () => {
       const message = "test message";
       const root = "/test/root";
 
-      mocker.spyOnPrototypeAndReturn(ConfigService, "getConfig", {
+      mocker.mockPrototype(ConfigService, "getConfig", {
         includeAllFilesOnEnvToContext: false,
       });
 

@@ -21,11 +21,11 @@ describe("PathAdjuster", () => {
     mocker = new UnitTestMocker();
 
     // Mock fast-glob sync method
-    mocker.spyOnModuleFunction(fg, "sync", mockFiles);
+    mocker.mockModule(fg, "sync", mockFiles);
 
     // Mock fs-extra methods
-    mocker.spyOnModuleFunction(fs, "pathExistsSync", true);
-    mocker.spyOnModuleFunction(fs, "lstatSync", { isFile: () => true });
+    mocker.mockModule(fs, "pathExistsSync", true);
+    mocker.mockModule(fs, "lstatSync", { isFile: () => true });
   });
 
   afterAll(async () => {
