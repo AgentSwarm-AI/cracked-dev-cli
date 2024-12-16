@@ -19,7 +19,7 @@ describe("ModelScaler", () => {
 
   beforeEach(() => {
     // Mock ConfigService.getConfig first
-    mocker.spyOnPrototypeAndReturn(ConfigService, "getConfig", {
+    mocker.mockPrototype(ConfigService, "getConfig", {
       autoScaler: true,
       discoveryModel: "openai/gpt-3.5-turbo",
       executeModel: "openai/gpt-4",
@@ -32,25 +32,17 @@ describe("ModelScaler", () => {
     });
 
     // Mock MessageContextManager methods
-    mocker.spyOnPrototypeAndReturn(
-      MessageContextManager,
-      "getTotalTokenCount",
-      0,
-    );
-    mocker.spyOnPrototypeAndReturn(
-      MessageContextManager,
-      "cleanupContext",
-      false,
-    );
+    mocker.mockPrototype(MessageContextManager, "getTotalTokenCount", 0);
+    mocker.mockPrototype(MessageContextManager, "cleanupContext", false);
 
     // Spy on ModelManager.setCurrentModel
-    modelManagerSetCurrentModelSpy = mocker.spyOnPrototypeMethod(
+    modelManagerSetCurrentModelSpy = mocker.spyPrototype(
       ModelManager,
       "setCurrentModel",
     );
 
     // Spy on ModelScaler.handleModelScaling
-    modelScalerHandleModelScalingSpy = mocker.spyOnPrototypeMethod(
+    modelScalerHandleModelScalingSpy = mocker.spyPrototype(
       ModelScaler,
       "handleModelScaling" as keyof ModelScaler,
     );
@@ -71,22 +63,14 @@ describe("ModelScaler", () => {
   });
 
   it("should not auto scale a model when on Discovery phase", async () => {
-    mocker.spyOnPrototypeAndReturn(
-      PhaseManager,
-      "getCurrentPhase",
-      Phase.Discovery,
-    );
+    mocker.mockPrototype(PhaseManager, "getCurrentPhase", Phase.Discovery);
     await modelScaler.incrementTryCount("file1");
 
     expect(modelManagerSetCurrentModelSpy).not.toHaveBeenCalled();
   });
 
   it("should use executeModel during execute phase if <= 3 tries on the same file when autoScaler is on", async () => {
-    mocker.spyOnPrototypeAndReturn(
-      PhaseManager,
-      "getCurrentPhase",
-      Phase.Execute,
-    );
+    mocker.mockPrototype(PhaseManager, "getCurrentPhase", Phase.Execute);
 
     await modelScaler.incrementTryCount("file1");
     await modelScaler.incrementTryCount("file1");
@@ -96,11 +80,7 @@ describe("ModelScaler", () => {
   });
 
   it("should handle multiple files independently in execute phase", async () => {
-    mocker.spyOnPrototypeAndReturn(
-      PhaseManager,
-      "getCurrentPhase",
-      Phase.Execute,
-    );
+    mocker.mockPrototype(PhaseManager, "getCurrentPhase", Phase.Execute);
 
     // File 1 gets 4 tries
     await modelScaler.incrementTryCount("file1");
@@ -132,7 +112,7 @@ describe("ModelScaler", () => {
 
   it("should not increment try count when auto scaler is disabled", async () => {
     // Override the config to disable auto scaler
-    mocker.spyOnPrototypeAndReturn(ConfigService, "getConfig", {
+    mocker.mockPrototype(ConfigService, "getConfig", {
       autoScaler: false,
       discoveryModel: "openai/gpt-3.5-turbo",
       executeModel: "openai/gpt-4",
@@ -167,29 +147,17 @@ describe("ModelScaler", () => {
 
   it("should handle phase transitions correctly", async () => {
     // Start in Discovery phase
-    mocker.spyOnPrototypeAndReturn(
-      PhaseManager,
-      "getCurrentPhase",
-      Phase.Discovery,
-    );
+    mocker.mockPrototype(PhaseManager, "getCurrentPhase", Phase.Discovery);
     await modelScaler.incrementTryCount("file1");
     expect(modelManagerSetCurrentModelSpy).not.toHaveBeenCalled();
 
     // Transition to Strategy phase
-    mocker.spyOnPrototypeAndReturn(
-      PhaseManager,
-      "getCurrentPhase",
-      Phase.Strategy,
-    );
+    mocker.mockPrototype(PhaseManager, "getCurrentPhase", Phase.Strategy);
     await modelScaler.incrementTryCount("file1");
     expect(modelManagerSetCurrentModelSpy).not.toHaveBeenCalled();
 
     // Transition to Execute phase
-    mocker.spyOnPrototypeAndReturn(
-      PhaseManager,
-      "getCurrentPhase",
-      Phase.Execute,
-    );
+    mocker.mockPrototype(PhaseManager, "getCurrentPhase", Phase.Execute);
     await modelScaler.incrementTryCount("file1");
     await modelScaler.incrementTryCount("file1");
     await modelScaler.incrementTryCount("file1");

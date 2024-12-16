@@ -17,20 +17,12 @@ describe("StreamHandler", () => {
   });
 
   beforeEach(() => {
-    mocker.spyOnPrototypeAndReturn(DebugLogger, "log", jest.fn());
-    mocker.spyOnPrototypeAndReturn(ActionsParser, "appendToBuffer", jest.fn());
-    mocker.spyOnPrototypeAndReturn(ActionsParser, "clearBuffer", jest.fn());
-    mocker.spyOnPrototypeAndReturn(
-      ActionsParser,
-      "isCompleteMessage",
-      jest.fn(),
-    );
-    mocker.spyOnPrototypeAndReturn(
-      ActionsParser,
-      "parseAndExecuteActions",
-      jest.fn(),
-    );
-    mocker.spyOnPrototypeAndReturn(ActionsParser, "reset", jest.fn());
+    mocker.mockPrototype(DebugLogger, "log", jest.fn());
+    mocker.mockPrototype(ActionsParser, "appendToBuffer", jest.fn());
+    mocker.mockPrototype(ActionsParser, "clearBuffer", jest.fn());
+    mocker.mockPrototype(ActionsParser, "isCompleteMessage", jest.fn());
+    mocker.mockPrototype(ActionsParser, "parseAndExecuteActions", jest.fn());
+    mocker.mockPrototype(ActionsParser, "reset", jest.fn());
 
     // Mock getters/setters
     jest

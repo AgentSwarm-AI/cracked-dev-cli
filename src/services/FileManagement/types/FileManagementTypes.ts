@@ -29,6 +29,7 @@ export interface IFileOperations {
   move(source: string, destination: string): Promise<IFileOperationResult>;
   exists(path: string): Promise<boolean>;
   stats(path: string): Promise<IFileOperationResult>;
+  getAdjustedPath(path: string): Promise<string>;
 }
 
 export interface IFileSearch {

@@ -15,35 +15,19 @@ describe("OpenRouterAPI", () => {
 
   const setupMocks = () => {
     // Message Context Manager mocks
-    mocker.spyOnPrototypeWithImplementation(
-      MessageContextManager,
-      "getMessages",
-      () => [],
-    );
-    mocker.spyOnPrototypeWithImplementation(
-      MessageContextManager,
-      "addMessage",
-      () => {},
-    );
+    mocker.mockPrototypeWith(MessageContextManager, "getMessages", () => []);
+    mocker.mockPrototypeWith(MessageContextManager, "addMessage", () => {});
 
-    mocker.spyOnPrototypeWithImplementation(
-      MessageContextManager,
-      "clear",
-      () => {},
-    );
-    mocker.spyOnPrototypeWithImplementation(
+    mocker.mockPrototypeWith(MessageContextManager, "clear", () => {});
+    mocker.mockPrototypeWith(
       MessageContextManager,
       "setSystemInstructions",
       () => {},
     );
 
     // Other service mocks
-    mocker.spyOnPrototypeWithImplementation(
-      HtmlEntityDecoder,
-      "decode",
-      (str) => str,
-    );
-    mocker.spyOnPrototypeWithImplementation(DebugLogger, "log", () => {});
+    mocker.mockPrototypeWith(HtmlEntityDecoder, "decode", (str) => str);
+    mocker.mockPrototypeWith(DebugLogger, "log", () => {});
   };
 
   beforeEach(() => {
@@ -51,7 +35,7 @@ describe("OpenRouterAPI", () => {
     setupMocks();
     openRouterAPI = container.resolve(OpenRouterAPI);
     postSpy = jest.spyOn(openRouterAPI["httpClient"], "post");
-    mocker.spyOnPrototypeWithImplementation(
+    mocker.mockPrototypeWith(
       ModelManager,
       "getCurrentModel",
       () => "anthropic/claude-3-opus", // Fix model name consistency
@@ -153,7 +137,7 @@ describe("OpenRouterAPI", () => {
       });
 
       it("should format messages without cache control for non-anthropic models", async () => {
-        mocker.spyOnPrototypeWithImplementation(
+        mocker.mockPrototypeWith(
           ModelManager,
           "getCurrentModel",
           () => "gpt-4",
@@ -221,7 +205,7 @@ describe("OpenRouterAPI", () => {
 
     it("should get conversation context", () => {
       const messages = [{ role: "user", content: "Hi" }];
-      mocker.spyOnPrototypeWithImplementation(
+      mocker.mockPrototypeWith(
         MessageContextManager,
         "getMessages",
         () => messages,
@@ -288,16 +272,12 @@ describe("OpenRouterAPI", () => {
 
   describe("Conversation History", () => {
     beforeEach(() => {
-      mocker.spyOnPrototypeWithImplementation(
-        ModelManager,
-        "getCurrentModel",
-        () => "gpt-4",
-      );
+      mocker.mockPrototypeWith(ModelManager, "getCurrentModel", () => "gpt-4");
     });
 
     it("should maintain conversation history across multiple messages", async () => {
       const messages: IOpenRouterMessage[] = [];
-      mocker.spyOnPrototypeWithImplementation(
+      mocker.mockPrototypeWith(
         MessageContextManager,
         "getMessages",
         () => messages,
@@ -343,7 +323,7 @@ describe("OpenRouterAPI", () => {
         { role: "assistant", content: "Previous response" },
       ];
 
-      mocker.spyOnPrototypeWithImplementation(
+      mocker.mockPrototypeWith(
         MessageContextManager,
         "getMessages",
         () => mockMessages,

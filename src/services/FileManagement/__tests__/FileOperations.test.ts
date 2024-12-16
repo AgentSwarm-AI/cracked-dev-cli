@@ -30,33 +30,25 @@ describe("FileOperations.ts", () => {
     ) as jest.Mocked<DebugLogger>;
 
     // Setup default mocks
-    mocker.spyOnPrototypeAndReturn(PathAdjuster, "isInitialized", true);
-    mocker.spyOnPrototypeAndReturn(
-      PathAdjuster,
-      "getInitializationError",
-      null,
-    );
-    mocker.spyOnPrototypeAndReturn(
+    mocker.mockPrototype(PathAdjuster, "isInitialized", true);
+    mocker.mockPrototype(PathAdjuster, "getInitializationError", null);
+    mocker.mockPrototype(
       PathAdjuster,
       "adjustPath",
       async (filePath: string) => filePath,
     );
-    mocker.spyOnPrototypeAndReturn(
-      FileSearch,
-      "findByName",
-      Promise.resolve([]),
-    );
-    mocker.spyOnPrototypeMethod(DebugLogger, "log");
+    mocker.mockPrototype(FileSearch, "findByName", Promise.resolve([]));
+    mocker.spyPrototype(DebugLogger, "log");
 
     // Setup fs-extra mocks
-    mocker.spyOnModuleFunction(fs, "pathExists", Promise.resolve(true));
-    mocker.spyOnModuleFunction(fs, "readFile", Promise.resolve(testContent));
-    mocker.spyOnModuleFunction(fs, "writeFile", Promise.resolve());
-    mocker.spyOnModuleFunction(fs, "ensureDir", Promise.resolve());
-    mocker.spyOnModuleFunction(fs, "remove", Promise.resolve());
-    mocker.spyOnModuleFunction(fs, "copy", Promise.resolve());
-    mocker.spyOnModuleFunction(fs, "move", Promise.resolve());
-    mocker.spyOnModuleFunction(
+    mocker.mockModule(fs, "pathExists", Promise.resolve(true));
+    mocker.mockModule(fs, "readFile", Promise.resolve(testContent));
+    mocker.mockModule(fs, "writeFile", Promise.resolve());
+    mocker.mockModule(fs, "ensureDir", Promise.resolve());
+    mocker.mockModule(fs, "remove", Promise.resolve());
+    mocker.mockModule(fs, "copy", Promise.resolve());
+    mocker.mockModule(fs, "move", Promise.resolve());
+    mocker.mockModule(
       fs,
       "stat",
       Promise.resolve({
@@ -78,8 +70,8 @@ describe("FileOperations.ts", () => {
   });
 
   it("should handle PathAdjuster initialization timeout", async () => {
-    mocker.spyOnPrototypeAndReturn(PathAdjuster, "isInitialized", false);
-    mocker.spyOnPrototypeAndReturn(
+    mocker.mockPrototype(PathAdjuster, "isInitialized", false);
+    mocker.mockPrototype(
       PathAdjuster,
       "getInitializationError",
       new Error("PathAdjuster initialization timed out"),
@@ -94,8 +86,8 @@ describe("FileOperations.ts", () => {
   }, 10000);
 
   it("should read a single file correctly", async () => {
-    mocker.spyOnModuleFunction(fs, "pathExists", Promise.resolve(true));
-    mocker.spyOnModuleFunction(fs, "readFile", Promise.resolve(testContent));
+    mocker.mockModule(fs, "pathExists", Promise.resolve(true));
+    mocker.mockModule(fs, "readFile", Promise.resolve(testContent));
 
     const result = await fileOperations.read(testFile);
 
@@ -110,8 +102,8 @@ describe("FileOperations.ts", () => {
 
     it("should read multiple files correctly", async () => {
       let fileCount = 0;
-      mocker.spyOnModuleFunction(fs, "pathExists", Promise.resolve(true));
-      mocker.spyOnModuleFunction(fs, "readFile", () => {
+      mocker.mockModule(fs, "pathExists", Promise.resolve(true));
+      mocker.mockModule(fs, "readFile", () => {
         return Promise.resolve(fileCount++ === 0 ? testContent : testContent2);
       });
 
@@ -134,13 +126,9 @@ describe("FileOperations.ts", () => {
         });
 
       // Ensure FileSearch.findByName returns an empty array
-      mocker.spyOnPrototypeAndReturn(
-        FileSearch,
-        "findByName",
-        Promise.resolve([]),
-      );
+      mocker.mockPrototype(FileSearch, "findByName", Promise.resolve([]));
 
-      mocker.spyOnPrototypeAndReturn(
+      mocker.mockPrototype(
         PathAdjuster,
         "adjustPath",
         async (filePath: string) => filePath,
@@ -169,7 +157,7 @@ describe("FileOperations.ts", () => {
 
   it("should write to a file successfully", async () => {
     const content = "New content";
-    mocker.spyOnModuleFunction(fs, "writeFile", Promise.resolve());
+    mocker.mockModule(fs, "writeFile", Promise.resolve());
 
     const result = await fileOperations.write(testFile, content);
 
@@ -177,8 +165,8 @@ describe("FileOperations.ts", () => {
   });
 
   it("should delete a file successfully", async () => {
-    mocker.spyOnModuleFunction(fs, "pathExists", Promise.resolve(true));
-    mocker.spyOnModuleFunction(fs, "remove", Promise.resolve());
+    mocker.mockModule(fs, "pathExists", Promise.resolve(true));
+    mocker.mockModule(fs, "remove", Promise.resolve());
 
     const result = await fileOperations.delete(testFile);
 
@@ -187,8 +175,8 @@ describe("FileOperations.ts", () => {
 
   it("should copy a file successfully", async () => {
     const destFile = path.join(testDir, "dest.txt");
-    mocker.spyOnModuleFunction(fs, "pathExists", Promise.resolve(true));
-    mocker.spyOnModuleFunction(fs, "copy", Promise.resolve());
+    mocker.mockModule(fs, "pathExists", Promise.resolve(true));
+    mocker.mockModule(fs, "copy", Promise.resolve());
 
     const result = await fileOperations.copy(testFile, destFile);
 
@@ -197,8 +185,8 @@ describe("FileOperations.ts", () => {
 
   it("should move a file successfully", async () => {
     const destFile = path.join(testDir, "dest.txt");
-    mocker.spyOnModuleFunction(fs, "pathExists", Promise.resolve(true));
-    mocker.spyOnModuleFunction(fs, "move", Promise.resolve());
+    mocker.mockModule(fs, "pathExists", Promise.resolve(true));
+    mocker.mockModule(fs, "move", Promise.resolve());
 
     const result = await fileOperations.move(testFile, destFile);
 
@@ -206,7 +194,7 @@ describe("FileOperations.ts", () => {
   });
 
   it("should check if a file exists", async () => {
-    mocker.spyOnModuleFunction(fs, "pathExists", Promise.resolve(true));
+    mocker.mockModule(fs, "pathExists", Promise.resolve(true));
 
     const result = await fileOperations.exists(testFile);
 
@@ -220,8 +208,8 @@ describe("FileOperations.ts", () => {
       mtime: new Date(),
       isDirectory: () => false,
     };
-    mocker.spyOnModuleFunction(fs, "pathExists", Promise.resolve(true));
-    mocker.spyOnModuleFunction(fs, "stat", Promise.resolve(stats));
+    mocker.mockModule(fs, "pathExists", Promise.resolve(true));
+    mocker.mockModule(fs, "stat", Promise.resolve(stats));
 
     const result = await fileOperations.stats(testFile);
 

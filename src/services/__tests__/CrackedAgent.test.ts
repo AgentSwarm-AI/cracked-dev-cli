@@ -38,35 +38,35 @@ describe("CrackedAgent", () => {
     (LLMProvider.getInstance as jest.Mock).mockReturnValue(mockLLMProvider);
 
     // Mock FileReader methods
-    mocker.spyOnPrototypeWithImplementation(
+    mocker.mockPrototypeWith(
       FileReader,
       "readInstructionsFile",
       async () => "Mock instructions",
     );
 
     // Mock ActionsParser methods
-    mockActionsParser = mocker.spyOnPrototypeWithImplementation(
+    mockActionsParser = mocker.mockPrototypeWith(
       ActionsParser,
       "parseAndExecuteActions",
       (...args) => ({ actions: [], followupResponse: "" }),
     );
 
     // Mock LLMContextCreator methods
-    mocker.spyOnPrototypeWithImplementation(
+    mocker.mockPrototypeWith(
       LLMContextCreator,
       "create",
       async () => "Mock formatted message",
     );
 
     // Mock DebugLogger methods
-    mocker.spyOnPrototypeWithImplementation(DebugLogger, "log", () => {});
-    mocker.spyOnPrototypeWithImplementation(DebugLogger, "setDebug", () => {});
+    mocker.mockPrototypeWith(DebugLogger, "log", () => {});
+    mocker.mockPrototypeWith(DebugLogger, "setDebug", () => {});
 
     // Mock StreamHandler methods
-    mocker.spyOnPrototypeWithImplementation(StreamHandler, "reset", () => {});
+    mocker.mockPrototypeWith(StreamHandler, "reset", () => {});
 
     // Mock HtmlEntityDecoder methods
-    mocker.spyOnPrototypeWithImplementation(
+    mocker.mockPrototypeWith(
       HtmlEntityDecoder,
       "decode",
       () => "Mock decoded message",
