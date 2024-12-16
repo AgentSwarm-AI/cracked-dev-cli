@@ -197,6 +197,49 @@ describe("LLMContextCreator", () => {
       expect(result).toContain(message);
       expect(result).not.toContain("file1\nfile2");
     });
+
+    it("should load config with flexible referenceExamples", async () => {
+      const mockConfig = {
+        includeAllFilesOnEnvToContext: true,
+        referenceExamples: {
+          serviceA: "src/services/ServiceA.ts",
+          utilityB: "src/utils/UtilityB.ts",
+          someOtherKey: "path/to/another/example.ts",
+        },
+      };
+
+      mocker.spyOnPrototypeAndReturn(ConfigService, "getConfig", mockConfig);
+
+      const result = await contextCreator.create(
+        "test message",
+        "/test/root",
+        true,
+      );
+
+      expect(result).toContain("Reference Examples");
+      expect(result).toContain("serviceA: src/services/ServiceA.ts");
+      expect(result).toContain("utilityB: src/utils/UtilityB.ts");
+      expect(result).toContain("someOtherKey: path/to/another/example.ts");
+    });
+
+    it("should use default empty object for referenceExamples when not provided", async () => {
+      const mockConfig = {
+        includeAllFilesOnEnvToContext: true,
+        referenceExamples: {},
+      };
+
+      mocker.spyOnPrototypeAndReturn(ConfigService, "getConfig", mockConfig);
+
+      const result = await contextCreator.create(
+        "test message",
+        "/test/root",
+        true,
+      );
+
+      expect(result).toContain("Reference Examples");
+      expect(result).not.toContain("serviceA:");
+      expect(result).not.toContain("utilityB:");
+    });
   });
 
   afterEach(() => {
