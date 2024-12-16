@@ -15,7 +15,8 @@ import {
 } from "@services/LLM/utils/ModelUtils";
 import { DebugLogger } from "@services/logging/DebugLogger";
 import { HtmlEntityDecoder } from "@services/text/HTMLEntityDecoder";
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
+import { OpenRouterAPICostTracking } from "./OpenRouterAPICostTracking"; // Import the new class
 
 export class LLMError extends Error {
   constructor(
@@ -38,23 +39,6 @@ interface IStreamError {
   details?: Record<string, unknown>;
 }
 
-interface PriceInfo {
-  prompt: string;
-  completion: string;
-  image: string;
-  request: string;
-}
-
-interface UsageEntry {
-  prompt_tokens: number;
-  completion_tokens: number;
-  total_tokens: number;
-}
-
-interface UsageHistory {
-  [modelName: string]: UsageEntry[];
-}
-
 @singleton()
 export class OpenRouterAPI implements ILLMProvider {
   private readonly httpClient: typeof openRouterClient;
@@ -71,6 +55,8 @@ export class OpenRouterAPI implements ILLMProvider {
     private modelInfo: ModelInfo,
     private debugLogger: DebugLogger,
     private modelScaler: ModelScaler,
+    @inject(OpenRouterAPICostTracking)
+    private costTracker: OpenRouterAPICostTracking, // Inject the cost tracking service
   ) {
     this.httpClient = openRouterClient;
     this.initializeModelInfo();
@@ -172,56 +158,6 @@ export class OpenRouterAPI implements ILLMProvider {
     }));
   }
 
-  private calculateCosts(priceAll: PriceInfo, usage: UsageHistory) {
-    const promptRate = parseFloat(priceAll.prompt);
-    const completionRate = parseFloat(priceAll.completion);
-
-    let currentCost = 0;
-    let totalCost = 0;
-
-    for (const modelKey in usage) {
-      const modelUsage = usage[modelKey];
-      if (modelUsage.length > 0) {
-        // Calculate total cost for the model
-        const modelTotalCost = modelUsage.reduce((sum, entry) => {
-          const cost =
-            entry.prompt_tokens * promptRate +
-            entry.completion_tokens * completionRate;
-          return sum + cost;
-        }, 0);
-
-        totalCost += modelTotalCost;
-
-        // Calculate current cost (last usage entry for the model)
-        const lastUsage = modelUsage[modelUsage.length - 1];
-        currentCost =
-          lastUsage.prompt_tokens * promptRate +
-          lastUsage.completion_tokens * completionRate;
-      }
-    }
-
-    return {
-      currentCost,
-      totalCost,
-    };
-  }
-
-  private logChatCosts(
-    priceAll: PriceInfo | undefined,
-    usage: UsageHistory,
-  ): void {
-    if (priceAll && usage) {
-      const { currentCost, totalCost } = this.calculateCosts(priceAll, usage);
-
-      console.log("Current Chat Cost: $", currentCost.toFixed(10));
-      console.log("Total Chat Cost:   $", totalCost.toFixed(10));
-    } else {
-      console.log(
-        "PriceInfo or UsageHistory is undefined, cannot calculate costs.",
-      );
-    }
-  }
-
   async sendMessage(
     model: string,
     message: string,
@@ -251,7 +187,7 @@ export class OpenRouterAPI implements ILLMProvider {
 
       const priceAll = this.modelInfo.getCurrentModelInfo()?.pricing;
       const usage = this.modelInfo.getUsageHistory();
-      this.logChatCosts(priceAll, usage);
+      this.costTracker.logChatCosts(priceAll, usage);
 
       return assistantMessage;
     } catch (error) {
@@ -537,7 +473,7 @@ export class OpenRouterAPI implements ILLMProvider {
 
             const priceAll = this.modelInfo.getCurrentModelInfo()?.pricing;
             const usage = this.modelInfo.getUsageHistory();
-            this.logChatCosts(priceAll, usage);
+            this.costTracker.logChatCosts(priceAll, usage);
           }
         } catch (error) {
           throw error;
@@ -556,7 +492,7 @@ export class OpenRouterAPI implements ILLMProvider {
 
         const priceAll = this.modelInfo.getCurrentModelInfo()?.pricing;
         const usage = this.modelInfo.getUsageHistory();
-        this.logChatCosts(priceAll, usage);
+        this.costTracker.logChatCosts(priceAll, usage);
       }
     } finally {
       this.cleanupStream();
