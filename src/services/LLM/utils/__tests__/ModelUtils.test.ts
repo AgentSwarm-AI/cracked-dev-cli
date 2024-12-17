@@ -1,3 +1,4 @@
+import { UnitTestMocker } from "@/jest/mocks/UnitTestMocker";
 import {
   estimateTokens,
   formatMessageContent,
@@ -8,6 +9,8 @@ import {
 } from "../ModelUtils";
 
 describe("ModelUtils", () => {
+  const mocker = new UnitTestMocker();
+
   describe("isAnthropicModel", () => {
     const validModels = [
       "anthropic/claude-3-opus",
@@ -264,6 +267,63 @@ describe("ModelUtils", () => {
       // Only 1 block available for caching (MAX_CACHE_BLOCKS - messageIndex)
       const cachedChunks = result.filter((chunk) => chunk.cache_control);
       expect(cachedChunks).toHaveLength(1);
+    });
+
+    it("should not duplicate prompt_phase content for consecutive messages", () => {
+      const messages = [
+        { role: "user", content: "Hello" },
+        { role: "assistant", content: "Hi there" },
+        { role: "user", content: "How are you?" },
+      ];
+
+      // Test formatting each message in sequence
+      const formattedMessages = messages.map((msg, index) => ({
+        role: msg.role,
+        content: formatMessageContent(
+          msg.content,
+          "claude-3-opus-20240229",
+          index,
+          messages.length,
+        ),
+      }));
+
+      // Check that each message's content array has unique prompt_phase entries
+      formattedMessages.forEach((msg) => {
+        if (Array.isArray(msg.content)) {
+          const promptPhases = msg.content.filter(
+            (item) => typeof item === "object" && "prompt_phase" in item,
+          );
+          const uniquePhases = new Set(promptPhases.map((p) => p.prompt_phase));
+          expect(promptPhases.length).toBe(uniquePhases.size);
+        }
+      });
+    });
+
+    it("should format content correctly for Anthropic models", () => {
+      const content = "Test message";
+      const formatted = formatMessageContent(
+        content,
+        "anthropic/claude-3-opus",
+        0,
+        1,
+      );
+
+      expect(Array.isArray(formatted)).toBe(true);
+      if (Array.isArray(formatted)) {
+        // For short content, it should return a single text object
+        expect(formatted).toEqual([
+          {
+            type: "text",
+            text: content,
+          },
+        ]);
+      }
+    });
+
+    it("should return plain string for non-Anthropic models", () => {
+      const content = "Test message";
+      const formatted = formatMessageContent(content, "gpt-4", 0, 1);
+      expect(formatted).toBe(content);
     });
   });
 });

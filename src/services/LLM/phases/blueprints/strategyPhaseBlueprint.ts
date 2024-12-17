@@ -32,7 +32,7 @@ export const strategyPhaseBlueprint: IPhaseConfig = {
 
 ### EXAMPLE OF HOW TO BEHAVE:
 
-Ok, strategy:
+Ok, to address the proposed task of <task_here> we'll do the following:
 
 #### Objectives
 - Objective 1: Do this

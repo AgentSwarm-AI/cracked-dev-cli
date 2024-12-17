@@ -1,1 +1,2 @@
 When writing unit tests, try using the helper UnitTestMocker.ts
+Public methods shoudl come first on the class

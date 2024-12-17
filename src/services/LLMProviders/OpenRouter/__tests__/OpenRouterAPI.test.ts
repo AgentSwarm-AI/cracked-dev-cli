@@ -483,4 +483,49 @@ describe("OpenRouterAPI", () => {
       );
     });
   });
+
+  describe("formatMessages", () => {
+    it("should not create duplicate prompt_phase entries", async () => {
+      const messages = [
+        { role: "system", content: "You are a helpful assistant." },
+        { role: "user", content: "Hello" },
+        { role: "assistant", content: "Hi there" },
+        { role: "user", content: "How are you?" },
+      ];
+
+      // Access private method using any type
+      const formattedMessages = (openRouterAPI as any).formatMessages(
+        messages,
+        "claude-3-opus-20240229",
+      );
+
+      formattedMessages.forEach((msg: { content: any[] }) => {
+        if (Array.isArray(msg.content)) {
+          const promptPhases = msg.content.filter(
+            (item: any) => typeof item === "object" && "prompt_phase" in item,
+          );
+          const uniquePhases = new Set(
+            promptPhases.map((p: { prompt_phase: any }) => p.prompt_phase),
+          );
+          expect(promptPhases.length).toBe(uniquePhases.size);
+        }
+      });
+    });
+
+    it("should correctly format messages for non-Anthropic models", async () => {
+      const messages = [
+        { role: "user", content: "Hello" },
+        { role: "assistant", content: "Hi there" },
+      ];
+
+      const formattedMessages = (openRouterAPI as any).formatMessages(
+        messages,
+        "gpt-4",
+      );
+
+      formattedMessages.forEach((msg: { content: any }) => {
+        expect(typeof msg.content).toBe("string");
+      });
+    });
+  });
 });

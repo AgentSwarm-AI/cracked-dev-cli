@@ -8,8 +8,8 @@ import {
   MessageFileOperation,
 } from "./MessageContextStore";
 
-type MessageRole = "user" | "assistant" | "system";
-type MessageOperation = MessageFileOperation | MessageCommandOperation;
+export type MessageRole = "user" | "assistant" | "system";
+export type MessageOperation = MessageFileOperation | MessageCommandOperation;
 
 @singleton()
 @autoInjectable()
@@ -69,24 +69,78 @@ export class MessageContextBuilder {
         throw new MessageContextError("Current phase cannot be empty");
       }
 
-      const message: IConversationHistoryMessage = { role, content };
-      const phasePrompt = this.extractor.extractPhasePrompt(message.content);
-      const operations = this.extractor.extractOperations(message.content);
-      const updatedPhaseInstructions = new Map(contextData.phaseInstructions);
-      const updatedFileOperations = new Map(contextData.fileOperations);
-      const updatedCommandOperations = new Map(contextData.commandOperations);
-      const updatedConversationHistory = [...contextData.conversationHistory];
+      const updatedPhaseInstructions = new Map();
+      const phasePromptMatches =
+        content.match(/<phase_prompt>(.*?)<\/phase_prompt>/gs) || [];
 
-      if (phasePrompt) {
-        updatedPhaseInstructions.clear();
+      const isValidPhasePrompt = (prompt: string): boolean => {
+        const contentMatch = prompt.match(
+          /<phase_prompt>(.*?)<\/phase_prompt>/s,
+        );
+        if (!contentMatch || !contentMatch[1] || !contentMatch[1].trim())
+          return false;
+        return true;
+      };
+
+      const validPrompts = phasePromptMatches
+        .filter(isValidPhasePrompt)
+        .map((prompt) => {
+          const contentMatch = prompt.match(
+            /<phase_prompt>(.*?)<\/phase_prompt>/s,
+          );
+          return contentMatch?.[1].trim() ?? "";
+        })
+        .filter((p) => p.length > 0);
+
+      const operations = this.extractor.extractOperations(content);
+
+      if (validPrompts.length > 0) {
+        const lastValidPrompt = validPrompts[validPrompts.length - 1];
         updatedPhaseInstructions.set(currentPhase, {
-          content: phasePrompt,
+          content: lastValidPrompt,
           timestamp: Date.now(),
           phase: currentPhase,
         });
       }
 
-      updatedConversationHistory.push(message);
+      if (
+        updatedPhaseInstructions.size === 0 &&
+        contextData.phaseInstructions.size > 0
+      ) {
+        const latestInstruction = Array.from(
+          contextData.phaseInstructions.values(),
+        ).sort((a, b) => b.timestamp - a.timestamp)[0];
+        updatedPhaseInstructions.set(
+          latestInstruction.phase,
+          latestInstruction,
+        );
+      }
+
+      const updatedFileOperations = new Map(contextData.fileOperations);
+      const updatedCommandOperations = new Map(contextData.commandOperations);
+
+      const filteredHistory = contextData.conversationHistory.filter((msg) => {
+        const msgContent = msg.content.trim();
+        const withoutPhasePrompt = msgContent
+          .replace(/<phase_prompt>.*?<\/phase_prompt>/s, "")
+          .trim();
+        return (
+          withoutPhasePrompt.length > 0 ||
+          !msgContent.includes("<phase_prompt>")
+        );
+      });
+
+      const updatedConversationHistory = [...filteredHistory];
+      const contentWithoutPhasePrompt = content
+        .replace(/<phase_prompt>.*?<\/phase_prompt>/s, "")
+        .trim();
+
+      if (
+        contentWithoutPhasePrompt.length > 0 ||
+        !content.includes("<phase_prompt>")
+      ) {
+        updatedConversationHistory.push({ role, content });
+      }
 
       operations.forEach(
         (operation: MessageFileOperation | MessageCommandOperation) => {
@@ -123,7 +177,7 @@ export class MessageContextBuilder {
         fileOperations: updatedFileOperations,
         commandOperations: updatedCommandOperations,
       };
-    } catch (error) {
+    } catch (error: any) {
       if (error instanceof MessageContextError) {
         throw error;
       }
@@ -196,7 +250,7 @@ export class MessageContextBuilder {
         phaseInstructions: new Map(contextData.phaseInstructions),
         conversationHistory: [...contextData.conversationHistory],
       };
-    } catch (error) {
+    } catch (error: any) {
       if (error instanceof MessageContextError) {
         throw error;
       }
@@ -209,40 +263,38 @@ export class MessageContextBuilder {
   public getMessageContext(
     contextData: IMessageContextData,
   ): IConversationHistoryMessage[] {
-    // Handle potentially undefined context data
     const phaseInstructions = contextData.phaseInstructions ?? new Map();
     const fileOperations = contextData.fileOperations ?? new Map();
     const commandOperations = contextData.commandOperations ?? new Map();
     const conversationHistory = contextData.conversationHistory ?? [];
 
-    const baseContext = contextData.systemInstructions
-      ? [{ role: "system" as const, content: contextData.systemInstructions }]
-      : [];
+    const result: IConversationHistoryMessage[] = [];
 
-    const operationsContext: IConversationHistoryMessage[] = [];
+    if (contextData.systemInstructions) {
+      result.push({
+        role: "system" as const,
+        content: contextData.systemInstructions,
+      });
+    }
 
-    // Add current phase instructions only
     const currentPhaseInstructions = Array.from(
       phaseInstructions.values(),
     ).sort((a, b) => b.timestamp - a.timestamp)[0];
 
     if (currentPhaseInstructions) {
-      operationsContext.push({
-        role: "system",
+      result.push({
+        role: "system" as const,
         content: `<phase_prompt>${currentPhaseInstructions.content}</phase_prompt>`,
       });
     }
 
-    // Sort operations by timestamp
     const allOperations: MessageOperation[] = [
       ...Array.from(fileOperations.values()),
       ...Array.from(commandOperations.values()),
     ].sort((a, b) => a.timestamp - b.timestamp);
 
-    // Add operations in chronological order
     for (const operation of allOperations) {
       if ("command" in operation) {
-        // Handle command operations
         const status =
           operation.success !== undefined
             ? operation.success
@@ -254,12 +306,11 @@ export class MessageContextBuilder {
           ? `Command: ${operation.command} [${status}${errorInfo}]\nOutput:\n${operation.output}`
           : `Command executed: ${operation.command} [${status}${errorInfo}]`;
 
-        operationsContext.push({
-          role: "system",
+        result.push({
+          role: "system" as const,
           content,
         });
       } else {
-        // Handle file operations
         const status =
           operation.success !== undefined
             ? operation.success
@@ -268,7 +319,6 @@ export class MessageContextBuilder {
             : "PENDING";
         const errorInfo = operation.error ? ` (Error: ${operation.error})` : "";
 
-        // Make successful write operations more prominent with file path
         const content =
           operation.type === "write_file" && operation.success
             ? `FILE CREATED AND EXISTS: ${operation.path} [${status}${errorInfo}]${
@@ -280,14 +330,27 @@ export class MessageContextBuilder {
                 operation.content ? `\nContent:\n${operation.content}` : ""
               }`;
 
-        operationsContext.push({
-          role: "system",
+        result.push({
+          role: "system" as const,
           content,
         });
       }
     }
 
-    return [...baseContext, ...operationsContext, ...conversationHistory];
+    const filteredMessages = conversationHistory.filter((msg) => {
+      const msgContent = msg.content.trim();
+      return !(
+        msg.content.includes("Content of") ||
+        msg.content.includes("Command:") ||
+        msg.content.includes("Command executed:") ||
+        msg.content.includes("FILE CREATED AND EXISTS:") ||
+        msg.content.includes("Written to")
+      );
+    });
+
+    result.push(...filteredMessages);
+
+    return result;
   }
 
   public getLatestPhaseInstructions(

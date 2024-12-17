@@ -54,11 +54,20 @@ export class MessageContextStore {
   }
 
   public setContextData(data: Partial<IMessageContextData>): void {
+    // If new phase instructions are provided, only keep the latest one
+    let newPhaseInstructions = this.contextData.phaseInstructions;
+    if (data.phaseInstructions !== undefined) {
+      const instructions = Array.from(data.phaseInstructions.values()).sort(
+        (a, b) => b.timestamp - a.timestamp,
+      );
+      newPhaseInstructions = new Map();
+      if (instructions.length > 0) {
+        newPhaseInstructions.set(instructions[0].phase, instructions[0]);
+      }
+    }
+
     this.contextData = {
-      phaseInstructions:
-        data.phaseInstructions !== undefined
-          ? new Map([...(data.phaseInstructions || [])])
-          : this.contextData.phaseInstructions,
+      phaseInstructions: newPhaseInstructions,
       fileOperations:
         data.fileOperations !== undefined
           ? new Map([...(data.fileOperations || [])])

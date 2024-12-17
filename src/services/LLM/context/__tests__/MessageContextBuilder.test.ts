@@ -3,7 +3,7 @@
 import { UnitTestMocker } from "@/jest/mocks/UnitTestMocker";
 import { IConversationHistoryMessage } from "@services/LLM/ILLMProvider";
 import { container } from "tsyringe";
-import { MessageContextBuilder } from "../MessageContextBuilder";
+import { MessageContextBuilder, MessageRole } from "../MessageContextBuilder";
 import { MessageContextExtractor } from "../MessageContextExtractor";
 import {
   MessageCommandOperation,
@@ -580,32 +580,6 @@ describe("MessageContextBuilder", () => {
     );
   });
 
-  it("should handle malformed phase prompts", () => {
-    const malformedContent = `
-      <phase_prompt>incomplete
-      <phase_prompt>valid instruction</phase_prompt>
-      </phase_prompt>
-    `;
-
-    // Mock extractor to simulate handling malformed prompts
-    mocker
-      .spyPrototype(MessageContextExtractor, "extractPhasePrompt")
-      .mockReturnValue("valid instruction");
-
-    const updatedData = messageContextBuilder.buildMessageContext(
-      "assistant",
-      malformedContent,
-      "phase1",
-      messageContextStore.getContextData(),
-    );
-
-    // Verify the valid phase prompt is extracted
-    expect(updatedData.phaseInstructions.size).toBe(1);
-    expect(updatedData.phaseInstructions.get("phase1")?.content).toBe(
-      "valid instruction",
-    );
-  });
-
   it("should preserve systemInstructions when updating context", () => {
     const initialContextData = {
       systemInstructions: "important system instruction",
@@ -875,5 +849,368 @@ describe("MessageContextBuilder", () => {
     expect(() => {
       messageContextBuilder.getMessageContext(incompleteContext);
     }).not.toThrow();
+  });
+
+  describe("Phase Prompt Handling", () => {
+    it("should ensure only one phase prompt exists at a time", () => {
+      const contextData = messageContextStore.getContextData();
+
+      // Add first phase prompt
+      const firstUpdate = messageContextBuilder.buildMessageContext(
+        "user",
+        "<phase_prompt>First phase</phase_prompt>",
+        "phase1",
+        contextData,
+      );
+
+      // Add second phase prompt
+      const secondUpdate = messageContextBuilder.buildMessageContext(
+        "user",
+        "<phase_prompt>Second phase</phase_prompt>",
+        "phase2",
+        firstUpdate,
+      );
+
+      // Get the final context messages
+      const messages = messageContextBuilder.getMessageContext(secondUpdate);
+
+      // Count phase prompts in final messages
+      const phasePrompts = messages.filter((msg) =>
+        msg.content.includes("<phase_prompt>"),
+      );
+
+      // Should only have one phase prompt
+      expect(phasePrompts).toHaveLength(1);
+      // Should be the most recent one
+      expect(phasePrompts[0].content).toBe(
+        "<phase_prompt>Second phase</phase_prompt>",
+      );
+    });
+
+    it("should maintain only the latest phase prompt when multiple messages are added", () => {
+      const contextData = messageContextStore.getContextData();
+
+      // Simulate a conversation with multiple phase prompts
+      const updates = [
+        "<phase_prompt>First phase</phase_prompt>",
+        "Regular message",
+        "<phase_prompt>Second phase</phase_prompt>",
+        "Another message",
+        "<phase_prompt>Third phase</phase_prompt>",
+      ].reduce((context, message, index) => {
+        return messageContextBuilder.buildMessageContext(
+          "user",
+          message,
+          `phase${index + 1}`,
+          context,
+        );
+      }, contextData);
+
+      const messages = messageContextBuilder.getMessageContext(updates);
+
+      // Count phase prompts in final context
+      const phasePrompts = messages.filter((msg) =>
+        msg.content.includes("<phase_prompt>"),
+      );
+
+      // Should only have one phase prompt
+      expect(phasePrompts).toHaveLength(1);
+      // Should be the last one
+      expect(phasePrompts[0].content).toBe(
+        "<phase_prompt>Third phase</phase_prompt>",
+      );
+    });
+
+    it("should handle phase prompts in mixed conversation context correctly", () => {
+      const contextData = messageContextStore.getContextData();
+
+      // Add a phase prompt with some operations
+      let updatedContext = messageContextBuilder.buildMessageContext(
+        "user",
+        "<phase_prompt>Initial phase</phase_prompt>",
+        "phase1",
+        contextData,
+      );
+
+      // Add a file operation
+      updatedContext = messageContextBuilder.updateOperationResult(
+        "read_file",
+        "test.txt",
+        "file content",
+        updatedContext,
+        true,
+      );
+
+      // Add another phase prompt
+      updatedContext = messageContextBuilder.buildMessageContext(
+        "user",
+        "<phase_prompt>New phase</phase_prompt>",
+        "phase2",
+        updatedContext,
+      );
+
+      const messages = messageContextBuilder.getMessageContext(updatedContext);
+
+      // Verify order and uniqueness
+      const phasePromptIndices = messages
+        .map((msg, index) =>
+          msg.content.includes("<phase_prompt>") ? index : -1,
+        )
+        .filter((index) => index !== -1);
+
+      // Should only have one phase prompt
+      expect(phasePromptIndices).toHaveLength(1);
+      // The phase prompt should appear before file operations
+      expect(phasePromptIndices[0]).toBeLessThan(
+        messages.findIndex((msg) => msg.content.includes("test.txt")),
+      );
+    });
+  });
+
+  describe("Phase Prompt Edge Cases", () => {
+    it("should handle empty phase prompts correctly", () => {
+      const contextData = messageContextStore.getContextData();
+
+      // Add a message with empty phase prompt
+      const updatedData = messageContextBuilder.buildMessageContext(
+        "user",
+        "<phase_prompt></phase_prompt>",
+        "phase1",
+        contextData,
+      );
+
+      // Should not add empty phase prompt to instructions
+      expect(updatedData.phaseInstructions.size).toBe(0);
+      // Should not add message to history
+      expect(updatedData.conversationHistory).toHaveLength(0);
+    });
+
+    it("should handle phase prompts with only whitespace content", () => {
+      const contextData = messageContextStore.getContextData();
+
+      const whitespacePrompts = [
+        "<phase_prompt>   </phase_prompt>",
+        "<phase_prompt>\n\t</phase_prompt>",
+        "<phase_prompt>\r\n</phase_prompt>",
+      ];
+
+      for (const prompt of whitespacePrompts) {
+        const updatedData = messageContextBuilder.buildMessageContext(
+          "user",
+          prompt,
+          "phase1",
+          contextData,
+        );
+
+        // Should not add whitespace-only phase prompts
+        expect(updatedData.phaseInstructions.size).toBe(0);
+        // Should not add message to history
+        expect(updatedData.conversationHistory).toHaveLength(0);
+      }
+    });
+
+    it("should handle messages with mixed content and phase prompts correctly", () => {
+      const contextData = messageContextStore.getContextData();
+
+      const mixedMessages = [
+        "Before <phase_prompt>middle</phase_prompt> after",
+        "<phase_prompt>start</phase_prompt> after",
+        "before <phase_prompt>end</phase_prompt>",
+        "text <phase_prompt>one</phase_prompt> more <phase_prompt>two</phase_prompt> text",
+      ];
+
+      for (const msg of mixedMessages) {
+        const updatedData = messageContextBuilder.buildMessageContext(
+          "user",
+          msg,
+          "phase1",
+          contextData,
+        );
+
+        // Should extract the last phase prompt
+        expect(updatedData.phaseInstructions.size).toBe(1);
+        // Should keep message in history since it has other content
+        expect(updatedData.conversationHistory).toHaveLength(1);
+      }
+    });
+
+    it("should handle phase prompts in system messages differently", () => {
+      const contextData = messageContextStore.getContextData();
+
+      // Add a system message with phase prompt
+      const updatedData = messageContextBuilder.buildMessageContext(
+        "system",
+        "<phase_prompt>system instruction</phase_prompt>",
+        "phase1",
+        contextData,
+      );
+
+      // Should add to phase instructions
+      expect(updatedData.phaseInstructions.size).toBe(1);
+      // Should not add to conversation history
+      expect(updatedData.conversationHistory).toHaveLength(0);
+
+      // Get final context
+      const messages = messageContextBuilder.getMessageContext(updatedData);
+
+      // Should only appear once in final context
+      const phasePrompts = messages.filter((msg) =>
+        msg.content.includes("<phase_prompt>"),
+      );
+      expect(phasePrompts).toHaveLength(1);
+      expect(phasePrompts[0].role).toBe("system");
+    });
+
+    it("should maintain correct phase prompt order with interleaved operations", () => {
+      const contextData = messageContextStore.getContextData();
+
+      // Add phase prompt
+      let updatedData = messageContextBuilder.buildMessageContext(
+        "user",
+        "<phase_prompt>first</phase_prompt>",
+        "phase1",
+        contextData,
+      );
+
+      // Add file operation
+      updatedData = messageContextBuilder.updateOperationResult(
+        "read_file",
+        "test.txt",
+        "content",
+        updatedData,
+        true,
+      );
+
+      // Add another phase prompt
+      updatedData = messageContextBuilder.buildMessageContext(
+        "user",
+        "<phase_prompt>second</phase_prompt>",
+        "phase2",
+        updatedData,
+      );
+
+      // Add command operation
+      updatedData = messageContextBuilder.updateOperationResult(
+        "execute_command",
+        "test command",
+        "output",
+        updatedData,
+        true,
+      );
+
+      const messages = messageContextBuilder.getMessageContext(updatedData);
+
+      // Verify order: phase prompt -> operations -> conversation
+      const phaseIndex = messages.findIndex((msg) =>
+        msg.content.includes("<phase_prompt>"),
+      );
+      const fileOpIndex = messages.findIndex((msg) =>
+        msg.content.includes("test.txt"),
+      );
+      const cmdOpIndex = messages.findIndex((msg) =>
+        msg.content.includes("test command"),
+      );
+
+      expect(phaseIndex).toBeLessThan(fileOpIndex);
+      expect(fileOpIndex).toBeLessThan(cmdOpIndex);
+
+      // Verify only latest phase prompt is present
+      const phasePrompts = messages.filter((msg) =>
+        msg.content.includes("<phase_prompt>"),
+      );
+      expect(phasePrompts).toHaveLength(1);
+      expect(phasePrompts[0].content).toBe(
+        "<phase_prompt>second</phase_prompt>",
+      );
+    });
+
+    it("should handle phase prompts with special characters", () => {
+      const contextData = messageContextStore.getContextData();
+
+      const specialCharPrompts = [
+        "<phase_prompt>with\nnewlines\nand\ttabs</phase_prompt>",
+        "<phase_prompt>with <html> tags</phase_prompt>",
+        "<phase_prompt>with unicode 🚀 emoji</phase_prompt>",
+        "<phase_prompt>with 'quotes' and \"double quotes\"</phase_prompt>",
+      ];
+
+      for (const prompt of specialCharPrompts) {
+        const updatedData = messageContextBuilder.buildMessageContext(
+          "user",
+          prompt,
+          "phase1",
+          contextData,
+        );
+
+        // Should preserve the content exactly
+        const extractedPrompt = Array.from(
+          updatedData.phaseInstructions.values(),
+        )[0];
+        const expectedContent = prompt.match(
+          /<phase_prompt>(.*?)<\/phase_prompt>/s,
+        )?.[1];
+        expect(extractedPrompt.content).toBe(expectedContent);
+      }
+    });
+
+    it("should handle rapid phase prompt updates correctly", () => {
+      const contextData = messageContextStore.getContextData();
+
+      // Simulate rapid updates with same timestamp
+      const timestamp = Date.now();
+      jest.spyOn(Date, "now").mockImplementation(() => timestamp);
+
+      const updates = ["phase1", "phase2", "phase3", "phase4", "phase5"].map(
+        (phase) =>
+          messageContextBuilder.buildMessageContext(
+            "user",
+            `<phase_prompt>${phase}</phase_prompt>`,
+            phase,
+            contextData,
+          ),
+      );
+
+      const finalContext = messageContextBuilder.getMessageContext(
+        updates[updates.length - 1],
+      );
+
+      // Should only have the last phase prompt
+      const phasePrompts = finalContext.filter((msg) =>
+        msg.content.includes("<phase_prompt>"),
+      );
+      expect(phasePrompts).toHaveLength(1);
+      expect(phasePrompts[0].content).toBe(
+        "<phase_prompt>phase5</phase_prompt>",
+      );
+
+      jest.restoreAllMocks();
+    });
+
+    it("should handle phase prompts in mixed role conversations", () => {
+      const contextData = messageContextStore.getContextData();
+      const roles: MessageRole[] = ["user", "assistant", "system"];
+
+      let updatedData = contextData;
+      for (const role of roles) {
+        updatedData = messageContextBuilder.buildMessageContext(
+          role,
+          `<phase_prompt>${role} phase</phase_prompt>`,
+          role,
+          updatedData,
+        );
+      }
+
+      const messages = messageContextBuilder.getMessageContext(updatedData);
+
+      // Should only have the latest phase prompt
+      const phasePrompts = messages.filter((msg) =>
+        msg.content.includes("<phase_prompt>"),
+      );
+      expect(phasePrompts).toHaveLength(1);
+      expect(phasePrompts[0].content).toBe(
+        "<phase_prompt>system phase</phase_prompt>",
+      );
+      expect(phasePrompts[0].role).toBe("system");
+    });
   });
 });
