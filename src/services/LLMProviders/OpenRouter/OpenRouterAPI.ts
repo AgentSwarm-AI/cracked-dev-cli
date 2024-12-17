@@ -2,7 +2,7 @@
 /* eslint-disable no-useless-catch */
 import { MessageContextHistory } from "@/services/LLM/context/MessageContextHistory";
 import { MessageContextLimiter } from "@/services/LLM/context/MessageContextLimiter";
-import { MessageContextManager } from "@/services/LLM/MessageContextManager";
+import { MesssageContextTokenCount } from "@/services/LLM/context/MessageContextTokenCount";
 import { openRouterClient } from "@constants/openRouterClient";
 import {
   IConversationHistoryMessage,
@@ -59,9 +59,9 @@ export class OpenRouterAPI implements ILLMProvider {
     private modelScaler: ModelScaler,
     @inject(OpenRouterAPICostTracking)
     private costTracker: OpenRouterAPICostTracking,
-    private messageContextManager: MessageContextManager,
     private messageContextHistory: MessageContextHistory,
     private messageContextLimiter: MessageContextLimiter,
+    private messageContextTokenCount: MesssageContextTokenCount,
   ) {
     this.httpClient = openRouterClient;
     this.initializeModelInfo();
@@ -219,7 +219,7 @@ export class OpenRouterAPI implements ILLMProvider {
   }
 
   getConversationContext(): IConversationHistoryMessage[] {
-    return this.messageContextManager.getMessages();
+    return this.messageContextHistory.getMessages();
   }
 
   addSystemInstructions(instructions: string): void {
@@ -474,8 +474,8 @@ export class OpenRouterAPI implements ILLMProvider {
           });
 
           if (assistantMessage && !this.aborted) {
-            this.messageContextManager.addMessage("user", message);
-            this.messageContextManager.addMessage(
+            this.messageContextHistory.addMessage("user", message);
+            this.messageContextHistory.addMessage(
               "assistant",
               assistantMessage,
             );
@@ -496,8 +496,8 @@ export class OpenRouterAPI implements ILLMProvider {
       await this.handleStreamError(llmError, message, callback);
 
       if (assistantMessage && !this.aborted) {
-        this.messageContextManager.addMessage("user", message);
-        this.messageContextManager.addMessage("assistant", assistantMessage);
+        this.messageContextHistory.addMessage("user", message);
+        this.messageContextHistory.addMessage("assistant", assistantMessage);
 
         const priceAll = this.modelInfo.getCurrentModelInfo()?.pricing;
         const usage = this.modelInfo.getUsageHistory();

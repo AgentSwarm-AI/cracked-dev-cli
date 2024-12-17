@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
+import { MessageContextHistory } from "@/services/LLM/context/MessageContextHistory";
 import { ModelManager } from "@/services/LLM/ModelManager";
-import { MessageContextManager } from "@services/LLM/MessageContextManager";
 import {
   LLMError,
   OpenRouterAPI,
@@ -21,12 +21,12 @@ describe("OpenRouterAPI", () => {
 
   const setupMocks = () => {
     // Message Context Manager mocks
-    mocker.mockPrototypeWith(MessageContextManager, "getMessages", () => []);
-    mocker.mockPrototypeWith(MessageContextManager, "addMessage", () => {});
+    mocker.mockPrototypeWith(MessageContextHistory, "getMessages", () => []);
+    mocker.mockPrototypeWith(MessageContextHistory, "addMessage", () => {});
 
-    mocker.mockPrototypeWith(MessageContextManager, "clear", () => {});
+    mocker.mockPrototypeWith(MessageContextHistory, "clear", () => {});
     mocker.mockPrototypeWith(
-      MessageContextManager,
+      MessageContextHistory,
       "setSystemInstructions",
       () => {},
     );
@@ -35,7 +35,7 @@ describe("OpenRouterAPI", () => {
     mocker.mockPrototypeWith(HtmlEntityDecoder, "decode", (str) => str);
     mocker.mockPrototypeWith(DebugLogger, "log", () => {});
 
-    addMessageSpy = mocker.spyPrototype(MessageContextManager, "addMessage");
+    addMessageSpy = mocker.spyPrototype(MessageContextHistory, "addMessage");
   };
 
   beforeEach(() => {
@@ -72,11 +72,11 @@ describe("OpenRouterAPI", () => {
         const response = await openRouterAPI.sendMessage("gpt-4", "Hi");
 
         expect(response).toBe("Hello!");
-        expect(MessageContextManager.prototype.addMessage).toHaveBeenCalledWith(
+        expect(MessageContextHistory.prototype.addMessage).toHaveBeenCalledWith(
           "user",
           "Hi",
         );
-        expect(MessageContextManager.prototype.addMessage).toHaveBeenCalledWith(
+        expect(MessageContextHistory.prototype.addMessage).toHaveBeenCalledWith(
           "assistant",
           "Hello!",
         );
@@ -199,7 +199,7 @@ describe("OpenRouterAPI", () => {
 
         expect(response).toBe("Hello!");
         expect(
-          MessageContextManager.prototype.setSystemInstructions,
+          MessageContextHistory.prototype.setSystemInstructions,
         ).toHaveBeenCalledWith("Be helpful");
       });
     });
@@ -208,13 +208,13 @@ describe("OpenRouterAPI", () => {
   describe("Conversation Context Management", () => {
     it("should clear conversation context", () => {
       openRouterAPI.clearConversationContext();
-      expect(MessageContextManager.prototype.clear).toHaveBeenCalled();
+      expect(MessageContextHistory.prototype.clear).toHaveBeenCalled();
     });
 
     it("should get conversation context", () => {
       const messages = [{ role: "user", content: "Hi" }];
       mocker.mockPrototypeWith(
-        MessageContextManager,
+        MessageContextHistory,
         "getMessages",
         () => messages,
       );
@@ -226,7 +226,7 @@ describe("OpenRouterAPI", () => {
     it("should add system instructions", () => {
       openRouterAPI.addSystemInstructions("Be helpful");
       expect(
-        MessageContextManager.prototype.setSystemInstructions,
+        MessageContextHistory.prototype.setSystemInstructions,
       ).toHaveBeenCalledWith("Be helpful");
     });
   });
@@ -408,7 +408,7 @@ describe("OpenRouterAPI", () => {
     it("should maintain conversation history across multiple messages", async () => {
       const messages: IOpenRouterMessage[] = [];
       mocker.mockPrototypeWith(
-        MessageContextManager,
+        MessageContextHistory,
         "getMessages",
         () => messages,
       );
@@ -454,7 +454,7 @@ describe("OpenRouterAPI", () => {
       ];
 
       mocker.mockPrototypeWith(
-        MessageContextManager,
+        MessageContextHistory,
         "getMessages",
         () => mockMessages,
       );
@@ -469,7 +469,7 @@ describe("OpenRouterAPI", () => {
       );
 
       expect(
-        MessageContextManager.prototype.setSystemInstructions,
+        MessageContextHistory.prototype.setSystemInstructions,
       ).toHaveBeenCalledWith(systemInstructions);
       expect(postSpy).toHaveBeenCalledWith(
         "/chat/completions",

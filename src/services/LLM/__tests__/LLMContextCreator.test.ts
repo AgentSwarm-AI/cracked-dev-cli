@@ -7,7 +7,7 @@ import { ProjectInfo } from "@services/LLM/utils/ProjectInfo";
 import * as fs from "fs";
 import { container } from "tsyringe";
 import { UnitTestMocker } from "../../../jest/mocks/UnitTestMocker";
-import { MessageContextManager } from "../context/MessageContextManager";
+import { MessageContextHistory } from "../context/MessageContextHistory";
 import { PhaseManager } from "../PhaseManager";
 import { IPhasePromptArgs } from "../types/PhaseTypes";
 
@@ -53,7 +53,7 @@ describe("LLMContextCreator", () => {
       mockPhaseConfig,
     );
     mocker.spyPrototype(PhaseManager, "resetPhase");
-    mocker.spyPrototype(MessageContextManager, "clear");
+    mocker.spyPrototype(MessageContextHistory, "clear");
 
     contextCreator = container.resolve(LLMContextCreator);
   });

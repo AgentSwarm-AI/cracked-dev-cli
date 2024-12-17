@@ -1,7 +1,8 @@
 import { ConfigService } from "@services/ConfigService";
 import { container } from "tsyringe";
 import { UnitTestMocker } from "../../../jest/mocks/UnitTestMocker";
-import { MessageContextManager } from "../context/MessageContextManager";
+import { MessageContextPhase } from "../context/MessageContextPhase";
+import { MesssageContextTokenCount } from "../context/MessageContextTokenCount";
 import { ModelManager } from "../ModelManager";
 import { ModelScaler } from "../ModelScaler";
 import { PhaseManager } from "../PhaseManager";
@@ -32,8 +33,8 @@ describe("ModelScaler", () => {
     });
 
     // Mock MessageContextManager methods
-    mocker.mockPrototype(MessageContextManager, "getTotalTokenCount", 0);
-    mocker.mockPrototype(MessageContextManager, "cleanupContext", false);
+    mocker.mockPrototype(MesssageContextTokenCount, "getTotalTokenCount", 0);
+    mocker.mockPrototype(MessageContextPhase, "cleanupPhaseContent", false);
 
     // Spy on ModelManager.setCurrentModel
     modelManagerSetCurrentModelSpy = mocker.spyPrototype(

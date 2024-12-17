@@ -1,16 +1,16 @@
-import { MessageContextManager } from "@services/LLM/context/MessageContextManager";
 import { ModelManager } from "@services/LLM/ModelManager";
 import { PhaseManager } from "@services/LLM/PhaseManager";
 import { PhaseTransitionService } from "@services/LLM/PhaseTransitionService";
 import { UnitTestMocker } from "@tests/mocks/UnitTestMocker";
 import { container } from "tsyringe";
+import { MessageContextPhase } from "../context/MessageContextPhase";
 
 describe("PhaseTransitionService", () => {
   let phaseTransitionService: PhaseTransitionService;
   let mocker: UnitTestMocker;
   let phaseManagerMock: jest.SpyInstance;
   let modelManagerMock: jest.SpyInstance;
-  let messageContextManagerMock: jest.SpyInstance;
+  let messageContextPhaseMock: jest.SpyInstance;
 
   beforeAll(() => {
     phaseTransitionService = container.resolve(PhaseTransitionService);
@@ -36,8 +36,8 @@ describe("PhaseTransitionService", () => {
       undefined,
     );
 
-    messageContextManagerMock = mocker.mockPrototype(
-      MessageContextManager,
+    messageContextPhaseMock = mocker.mockPrototype(
+      MessageContextPhase,
       "cleanupPhaseContent",
       undefined,
     );
@@ -52,7 +52,7 @@ describe("PhaseTransitionService", () => {
     it("should clean up previous phase content", async () => {
       await phaseTransitionService.transitionToNextPhase();
 
-      expect(messageContextManagerMock).toHaveBeenCalled();
+      expect(messageContextPhaseMock).toHaveBeenCalled();
     });
 
     it("should move to the next phase", async () => {
