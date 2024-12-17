@@ -248,6 +248,35 @@ describe("WriteFileAction", () => {
       expect(result.success).toBe(false);
       expect(result.error?.message).toBe("Write failed");
     });
+
+    it("should write a new file if path does not exist", async () => {
+      const filePath = "/test/newfile.ts";
+      const content = "new file content";
+      const actionContent = `
+        <write_file>
+          <path>${filePath}</path>
+          <content>${content}</content>
+        </write_file>`;
+
+      mockActionTagsExtractor.extractTag.mockImplementation((_, tag) => {
+        if (tag === "path") return filePath;
+        if (tag === "content") return content;
+        return null;
+      });
+
+      mockModelScaler.isAutoScalerEnabled.mockReturnValue(false);
+      mockFileOperations.exists.mockResolvedValue(false);
+      mockFileOperations.write.mockResolvedValue({ success: true });
+      mockHtmlEntityDecoder.decode.mockReturnValue(content);
+
+      const result = await writeFileAction.execute(actionContent);
+
+      expect(result.success).toBe(true);
+      expect(mockFileOperations.exists).toHaveBeenCalledWith(filePath);
+      expect(mockFileOperations.write).toHaveBeenCalledWith(filePath, content);
+      expect(mockModelScaler.incrementTryCount).not.toHaveBeenCalled();
+      expect(mockFileOperations.read).not.toHaveBeenCalled();
+    });
   });
 
   describe("content removal protection", () => {
@@ -446,6 +475,106 @@ describe("WriteFileAction", () => {
 
       expect(result.success).toBe(false);
       expect(result.error?.message).toBe("No file content provided");
+      expect(mockFileOperations.write).not.toHaveBeenCalled();
+    });
+
+    it("should fail when path contains traversal", async () => {
+      const actionContent = `
+        <write_file>
+          <path>../test/file.ts</path>
+          <content>test content</content>
+        </write_file>`;
+
+      mockActionTagsExtractor.extractTag.mockImplementation((_, tag) => {
+        if (tag === "path") return "../test/file.ts";
+        if (tag === "content") return "test content";
+        return null;
+      });
+
+      const result = await writeFileAction.execute(actionContent);
+
+      expect(result.success).toBe(false);
+      expect(result.error?.message).toBe("Path traversal is not allowed");
+      expect(mockFileOperations.write).not.toHaveBeenCalled();
+    });
+
+    it("should fail when content size exceeds limit", async () => {
+      const largeContent = "x".repeat(11 * 1024 * 1024); // 11MB
+      const actionContent = `
+        <write_file>
+          <path>/test/file.ts</path>
+          <content>${largeContent}</content>
+        </write_file>`;
+
+      mockActionTagsExtractor.extractTag.mockImplementation((_, tag) => {
+        if (tag === "path") return "/test/file.ts";
+        if (tag === "content") return largeContent;
+        return null;
+      });
+
+      const result = await writeFileAction.execute(actionContent);
+
+      expect(result.success).toBe(false);
+      expect(result.error?.message).toContain("Content size");
+      expect(result.error?.message).toContain("exceeds maximum allowed size");
+      expect(mockFileOperations.write).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("content validation", () => {
+    it("should fail when content contains null bytes", async () => {
+      const filePath = "/test/file.ts";
+      const content = "test\0content";
+      const actionContent = `
+        <write_file>
+          <path>${filePath}</path>
+          <content>${content}</content>
+        </write_file>`;
+
+      mockActionTagsExtractor.extractTag.mockImplementation((_, tag) => {
+        if (tag === "path") return filePath;
+        if (tag === "content") return content;
+        return null;
+      });
+
+      mockModelScaler.isAutoScalerEnabled.mockReturnValue(false);
+      mockFileOperations.exists.mockResolvedValue(false);
+      mockHtmlEntityDecoder.decode.mockReturnValue(content);
+
+      const result = await writeFileAction.execute(actionContent);
+
+      expect(result.success).toBe(false);
+      expect(result.error?.message).toBe(
+        "Invalid content detected after decoding",
+      );
+      expect(mockFileOperations.write).not.toHaveBeenCalled();
+    });
+
+    it("should fail when content contains excessively long lines", async () => {
+      const filePath = "/test/file.ts";
+      const content = "x".repeat(11000); // Line longer than 10000 chars
+      const actionContent = `
+        <write_file>
+          <path>${filePath}</path>
+          <content>${content}</content>
+        </write_file>`;
+
+      mockActionTagsExtractor.extractTag.mockImplementation((_, tag) => {
+        if (tag === "path") return filePath;
+        if (tag === "content") return content;
+        return null;
+      });
+
+      mockModelScaler.isAutoScalerEnabled.mockReturnValue(false);
+      mockFileOperations.exists.mockResolvedValue(false);
+      mockHtmlEntityDecoder.decode.mockReturnValue(content);
+
+      const result = await writeFileAction.execute(actionContent);
+
+      expect(result.success).toBe(false);
+      expect(result.error?.message).toBe(
+        "Invalid content detected after decoding",
+      );
       expect(mockFileOperations.write).not.toHaveBeenCalled();
     });
   });
