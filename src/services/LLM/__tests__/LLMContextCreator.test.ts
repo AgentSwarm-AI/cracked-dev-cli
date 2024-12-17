@@ -197,6 +197,93 @@ describe("LLMContextCreator", () => {
       expect(result).toContain(message);
       expect(result).not.toContain("file1\nfile2");
     });
+
+    it("should correctly split initial instructions and phase instructions", async () => {
+      const message = "test message";
+      const root = "/test/root";
+
+      const result = await contextCreator.create(message, root, true);
+
+      // Check that both parts exist and are properly separated
+      expect(result).toContain("# Task");
+      expect(result).toContain('<instructions details="NEVER_OUTPUT">');
+      expect(result).toContain("## Phase Instructions");
+
+      // Verify order of sections
+      const taskIndex = result.indexOf("# Task");
+      const phaseIndex = result.indexOf("## Phase Instructions");
+      expect(taskIndex).toBeLessThan(phaseIndex);
+    });
+  });
+
+  describe("formatInitialInstructions", () => {
+    it("should format initial instructions with all fields present", async () => {
+      const context = {
+        message: "test message",
+        projectInfo: "project info",
+      };
+      const customInstructions = "custom instructions";
+      const envDetails = "env details";
+
+      // @ts-ignore - accessing private method for testing
+      const result = await contextCreator["formatInitialInstructions"](
+        context,
+        customInstructions,
+        envDetails,
+      );
+
+      expect(result).toContain("# Task");
+      expect(result).toContain("test message");
+      expect(result).toContain("# Custom Instructions");
+      expect(result).toContain("custom instructions");
+      expect(result).toContain("env details");
+      expect(result).toContain("project info");
+    });
+
+    it("should format initial instructions without envDetails", async () => {
+      const context = {
+        message: "test message",
+        projectInfo: "project info",
+      };
+      const customInstructions = "custom instructions";
+
+      // @ts-ignore - accessing private method for testing
+      const result = await contextCreator["formatInitialInstructions"](
+        context,
+        customInstructions,
+      );
+
+      expect(result).toContain("# Task");
+      expect(result).toContain("test message");
+      expect(result).toContain("# Custom Instructions");
+      expect(result).toContain("custom instructions");
+      expect(result).toContain("project info");
+      // Should not have empty lines for envDetails
+      expect(result).not.toMatch(/\n\s*\n\s*\n/);
+    });
+
+    it("should format initial instructions without projectInfo", async () => {
+      const context = {
+        message: "test message",
+      };
+      const customInstructions = "custom instructions";
+      const envDetails = "env details";
+
+      // @ts-ignore - accessing private method for testing
+      const result = await contextCreator["formatInitialInstructions"](
+        context,
+        customInstructions,
+        envDetails,
+      );
+
+      expect(result).toContain("# Task");
+      expect(result).toContain("test message");
+      expect(result).toContain("# Custom Instructions");
+      expect(result).toContain("custom instructions");
+      expect(result).toContain("env details");
+      // Should not have empty lines for projectInfo
+      expect(result).not.toMatch(/\n\s*\n\s*\n/);
+    });
   });
 
   afterEach(() => {

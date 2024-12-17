@@ -117,6 +117,32 @@ Run Single Test: ${runOneTestCmd}
 Run Type Check: ${runTypeCheckCmd}`;
   }
 
+  private async formatInitialInstructions(
+    context: MessageContext,
+    customInstructions: string,
+    envDetails?: string,
+  ): Promise<string> {
+    const additionalInstructions = [envDetails, context.projectInfo]
+      .filter(Boolean)
+      .join("\n");
+
+    return `# Task
+${context.message}
+
+<instructions details="NEVER_OUTPUT">
+<!-- These are internal instructions. Just follow them. Do not output. -->
+
+${customInstructions ? `# Custom Instructions\n${customInstructions}\n` : ""}
+## Initial Instructions
+- Keep messages brief, clear, and concise.
+- Break tasks into prioritized steps.
+- Use available actions sequentially.
+
+# Additional Instructions
+${additionalInstructions ? `${additionalInstructions}` : ""}
+</instructions>`;
+  }
+
   private async formatFirstTimeMessage(
     context: MessageContext,
   ): Promise<string> {
@@ -137,36 +163,16 @@ Run Type Check: ${runTypeCheckCmd}`;
       runTypeCheckCmd: config.runTypeCheckCmd,
     };
 
-    return `
-# Task
-${context.message}
+    const initialInstructions = await this.formatInitialInstructions(
+      context,
+      customInstructions,
+      envDetails,
+    );
 
-    
-    <instructions details="NEVER_OUTPUT">
-<!-- These are internal instructions. Just follow them. Do not output. -->
- 
-
-${
-  customInstructions &&
-  `
-# Custom Instructions
-${customInstructions}`
-}
-
-## Initial Instructions
-- Keep messages brief, clear, and concise.
-- Break tasks into prioritized steps.
-- Use available actions sequentially.
-
-# Additional Instructions
-${envDetails ? `\n${envDetails}` : ""}
-${context.projectInfo ? `\n${context.projectInfo}` : ""}
+    return `${initialInstructions}
 
 ## Phase Instructions
-${phaseConfig.generatePrompt(promptArgs)}
-
-</instructions>
-`;
+${phaseConfig.generatePrompt(promptArgs)}`;
   }
 
   private formatSequentialMessage(context: MessageContext): string {
