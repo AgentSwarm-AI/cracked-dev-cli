@@ -502,4 +502,378 @@ describe("MessageContextBuilder", () => {
     expect(commandOperation2?.success).toBe(false);
     expect(commandOperation2?.error).toBe("error");
   });
+
+  it("should preserve operation timestamps when merging", () => {
+    const oldTimestamp = Date.now() - 1000;
+    const initialContextData = {
+      fileOperations: new Map([
+        [
+          "file1",
+          {
+            type: "read_file" as const,
+            path: "file1",
+            timestamp: oldTimestamp,
+          },
+        ],
+      ]),
+      commandOperations: new Map([
+        [
+          "cmd1",
+          {
+            type: "execute_command" as const,
+            command: "cmd1",
+            timestamp: oldTimestamp,
+          },
+        ],
+      ]),
+      phaseInstructions: new Map(),
+      conversationHistory: [],
+      systemInstructions: null,
+    };
+
+    mocker
+      .spyPrototype(MessageContextExtractor, "extractOperations")
+      .mockReturnValue([
+        { type: "read_file", path: "file1", timestamp: Date.now() },
+        { type: "execute_command", command: "cmd1", timestamp: Date.now() },
+      ] as any);
+
+    const updatedData = messageContextBuilder.buildMessageContext(
+      "assistant",
+      "test message",
+      "phase1",
+      initialContextData,
+    );
+
+    // Verify timestamps were preserved
+    expect(updatedData.fileOperations.get("file1")?.timestamp).toBe(
+      oldTimestamp,
+    );
+    expect(updatedData.commandOperations.get("cmd1")?.timestamp).toBe(
+      oldTimestamp,
+    );
+  });
+
+  it("should handle multiple phase prompts in the same message", () => {
+    const content = `
+      <phase_prompt>first instruction</phase_prompt>
+      some content
+      <phase_prompt>second instruction</phase_prompt>
+    `;
+
+    // Mock extractor to return the last phase prompt
+    mocker
+      .spyPrototype(MessageContextExtractor, "extractPhasePrompt")
+      .mockReturnValue("second instruction");
+
+    const updatedData = messageContextBuilder.buildMessageContext(
+      "assistant",
+      content,
+      "phase1",
+      messageContextStore.getContextData(),
+    );
+
+    // Verify only the last phase prompt is kept
+    expect(updatedData.phaseInstructions.size).toBe(1);
+    expect(updatedData.phaseInstructions.get("phase1")?.content).toBe(
+      "second instruction",
+    );
+  });
+
+  it("should handle malformed phase prompts", () => {
+    const malformedContent = `
+      <phase_prompt>incomplete
+      <phase_prompt>valid instruction</phase_prompt>
+      </phase_prompt>
+    `;
+
+    // Mock extractor to simulate handling malformed prompts
+    mocker
+      .spyPrototype(MessageContextExtractor, "extractPhasePrompt")
+      .mockReturnValue("valid instruction");
+
+    const updatedData = messageContextBuilder.buildMessageContext(
+      "assistant",
+      malformedContent,
+      "phase1",
+      messageContextStore.getContextData(),
+    );
+
+    // Verify the valid phase prompt is extracted
+    expect(updatedData.phaseInstructions.size).toBe(1);
+    expect(updatedData.phaseInstructions.get("phase1")?.content).toBe(
+      "valid instruction",
+    );
+  });
+
+  it("should preserve systemInstructions when updating context", () => {
+    const initialContextData = {
+      systemInstructions: "important system instruction",
+      phaseInstructions: new Map(),
+      conversationHistory: [],
+      fileOperations: new Map(),
+      commandOperations: new Map(),
+    };
+
+    const updatedData = messageContextBuilder.buildMessageContext(
+      "assistant",
+      "test message",
+      "phase1",
+      initialContextData,
+    );
+
+    // Verify systemInstructions are preserved
+    expect(updatedData.systemInstructions).toBe("important system instruction");
+  });
+
+  it("should correctly merge operation properties", () => {
+    const initialContextData = {
+      fileOperations: new Map([
+        [
+          "file1",
+          {
+            type: "read_file" as const,
+            path: "file1",
+            timestamp: Date.now() - 1000,
+            content: "old content",
+            success: true,
+          },
+        ],
+      ]),
+      commandOperations: new Map([
+        [
+          "cmd1",
+          {
+            type: "execute_command" as const,
+            command: "cmd1",
+            timestamp: Date.now() - 1000,
+            output: "old output",
+            success: true,
+          },
+        ],
+      ]),
+      phaseInstructions: new Map(),
+      conversationHistory: [],
+      systemInstructions: null,
+    };
+
+    // Mock new operations with different properties
+    mocker
+      .spyPrototype(MessageContextExtractor, "extractOperations")
+      .mockReturnValue([
+        {
+          type: "read_file",
+          path: "file1",
+          timestamp: Date.now(),
+          content: "new content",
+          success: false,
+        },
+        {
+          type: "execute_command",
+          command: "cmd1",
+          timestamp: Date.now(),
+          output: "new output",
+          success: false,
+        },
+      ] as any);
+
+    const updatedData = messageContextBuilder.buildMessageContext(
+      "assistant",
+      "test message",
+      "phase1",
+      initialContextData,
+    );
+
+    // Verify successful operations are not overwritten
+    expect(updatedData.fileOperations.get("file1")?.success).toBe(true);
+    expect(updatedData.fileOperations.get("file1")?.content).toBe(
+      "old content",
+    );
+    expect(updatedData.commandOperations.get("cmd1")?.success).toBe(true);
+    expect(updatedData.commandOperations.get("cmd1")?.output).toBe(
+      "old output",
+    );
+  });
+
+  it("should maintain correct order of context elements", () => {
+    const timestamp = Date.now();
+    const contextData = {
+      systemInstructions: "system instruction",
+      phaseInstructions: new Map([
+        [
+          "phase1",
+          { phase: "phase1", content: "phase instruction", timestamp },
+        ],
+      ]),
+      conversationHistory: [
+        { role: "user", content: "hello" },
+      ] as IConversationHistoryMessage[],
+      fileOperations: new Map([
+        [
+          "file1",
+          {
+            type: "read_file" as const,
+            path: "file1",
+            timestamp: timestamp + 1000,
+            content: "content1",
+            success: true,
+          },
+        ],
+      ]),
+      commandOperations: new Map([
+        [
+          "cmd1",
+          {
+            type: "execute_command" as const,
+            command: "cmd1",
+            timestamp: timestamp + 2000,
+            output: "output1",
+            success: true,
+          },
+        ],
+      ]),
+    };
+
+    const messages = messageContextBuilder.getMessageContext(contextData);
+
+    // Verify order: system -> phase -> operations -> conversation
+    expect(messages[0].content).toBe("system instruction");
+    expect(messages[1].content).toBe(
+      "<phase_prompt>phase instruction</phase_prompt>",
+    );
+    expect(messages[2].content).toContain("Content of file1");
+    expect(messages[3].content).toContain("Command: cmd1");
+    expect(messages[4].content).toBe("hello");
+  });
+
+  it("should prevent duplicate operations in context", () => {
+    const timestamp = Date.now();
+    const contextData = messageContextStore.getContextData();
+
+    // Add initial operation
+    mocker
+      .spyPrototype(MessageContextExtractor, "extractOperations")
+      .mockReturnValue([
+        {
+          type: "read_file",
+          path: "file1",
+          timestamp,
+          content: "content1",
+          success: true,
+        },
+      ] as any);
+
+    const firstUpdate = messageContextBuilder.buildMessageContext(
+      "assistant",
+      "first message",
+      "phase1",
+      contextData,
+    );
+
+    // Try to add same operation again
+    const secondUpdate = messageContextBuilder.buildMessageContext(
+      "assistant",
+      "second message",
+      "phase1",
+      firstUpdate,
+    );
+
+    // Get final context
+    const messages = messageContextBuilder.getMessageContext(secondUpdate);
+
+    // Count occurrences of file1 operation in messages
+    const fileOps = messages.filter((m) => m.content.includes("file1"));
+    expect(fileOps).toHaveLength(1);
+  });
+
+  it("should display operations in chronological order by timestamp", () => {
+    const baseTime = Date.now();
+    const contextData = {
+      systemInstructions: null,
+      phaseInstructions: new Map(),
+      conversationHistory: [],
+      fileOperations: new Map([
+        [
+          "file2",
+          {
+            type: "read_file" as const,
+            path: "file2",
+            timestamp: baseTime + 2000,
+            content: "content2",
+            success: true,
+          },
+        ],
+        [
+          "file1",
+          {
+            type: "read_file" as const,
+            path: "file1",
+            timestamp: baseTime + 1000,
+            content: "content1",
+            success: true,
+          },
+        ],
+      ]),
+      commandOperations: new Map([
+        [
+          "cmd2",
+          {
+            type: "execute_command" as const,
+            command: "cmd2",
+            timestamp: baseTime + 4000,
+            output: "output2",
+            success: true,
+          },
+        ],
+        [
+          "cmd1",
+          {
+            type: "execute_command" as const,
+            command: "cmd1",
+            timestamp: baseTime + 3000,
+            output: "output1",
+            success: true,
+          },
+        ],
+      ]),
+    };
+
+    const messages = messageContextBuilder.getMessageContext(contextData);
+
+    // Verify operations are in chronological order
+    const operationMessages = messages.filter(
+      (m) => m.content.includes("Content of") || m.content.includes("Command:"),
+    );
+
+    expect(operationMessages[0].content).toContain("file1");
+    expect(operationMessages[1].content).toContain("file2");
+    expect(operationMessages[2].content).toContain("cmd1");
+    expect(operationMessages[3].content).toContain("cmd2");
+  });
+
+  it("should handle empty or null context data gracefully", () => {
+    const emptyContext = {
+      systemInstructions: null,
+      phaseInstructions: new Map(),
+      conversationHistory: [],
+      fileOperations: new Map(),
+      commandOperations: new Map(),
+    };
+
+    const messages = messageContextBuilder.getMessageContext(emptyContext);
+    expect(messages).toHaveLength(0);
+
+    // Test with undefined maps
+    const incompleteContext = {
+      systemInstructions: null,
+      phaseInstructions: undefined,
+      conversationHistory: undefined,
+      fileOperations: undefined,
+      commandOperations: undefined,
+    } as any;
+
+    expect(() => {
+      messageContextBuilder.getMessageContext(incompleteContext);
+    }).not.toThrow();
+  });
 });

@@ -8,6 +8,8 @@ const config = configService.getConfig();
 export const strategyPhaseBlueprint: IPhaseConfig = {
   model: config.strategyModel,
   generatePrompt: (args: IPhasePromptArgs) => `
+  <!-- These are internal instructions. Just follow them. Do not output. -->
+
 <phase_prompt>
 ## Strategy Phase
 
@@ -20,6 +22,7 @@ export const strategyPhaseBlueprint: IPhaseConfig = {
 - FOLLOW EXAMPLE BEHAVIOR.
 - RUN end_phase ONCE FINISHED
 - Max 1 write_file with strategy, then end_phase.
+- Make sure you know the proper path to write the file. If not, use <execute_command> to find the correct path (e.g. 'ls -lha').
 
 ### Key objectives:
 - Clear approach.
@@ -79,6 +82,10 @@ REMEMBER: ONLY ONE ACTION PER REPLY!!!
   <!-- Output this when the phase is complete and you have a clear strategy.-->
   <!-- MAKE SURE YOU REMEMBER TO DO THIS ONLY WHEN YOU FEEL YOU HAVE A SOLID PLAN! -->
 </end_phase>
+
+<execute_command>
+<!-- Use to run any command. For example to explore directories, try 'ls -lha' -->
+</execute_command>
 
 </phase_prompt>
 `,

@@ -8,6 +8,8 @@ const config = configService.getConfig();
 export const executePhaseBlueprint: IPhaseConfig = {
   model: config.executeModel,
   generatePrompt: (args: IPhasePromptArgs) => `
+<!-- These are internal instructions. Just follow them. Do not output. -->
+
 <phase_prompt>
 ## Execute Phase
 
@@ -47,8 +49,6 @@ Let's start. Steps from strategy phase:
 </read_file>
 
 
-
-
 ## Important Notes
 
 ### Critical Instructions
@@ -61,7 +61,7 @@ Let's start. Steps from strategy phase:
 - Use raw text only; avoid encoded characters.
 - Stick precisely to the task.
 - Double-check file paths.
-- Reuse dependencies; do not install extras unless asked.
+- Reuse dependencies; do not install extras unless asked. REMEMBER THIS, DO NOT ADD EXTRA DEPENDENCIES UNLESS ASKED!
 - Properly format action tags.
 - Place code or markdown inside <write_file> tags.
 - Be concise; avoid verbosity.
@@ -80,6 +80,7 @@ Let's start. Steps from strategy phase:
 - If import errors occur, use <relative_path_lookup> to find the correct path. THEN MAKE SURE TO USE IT ON THE IMPORT!
 - Unless writing .md markdown files, don't use \`\`\`xml or whatever language code blocks. All code should be within <write_file> tags!!
 - Do not read_file if you already have it on the conversation history.
+- Make sure you know the proper path to write the file. If not, use <execute_command> to find the correct path (e.g. 'ls -lha').
 
 ### Code Writing Instructions
 

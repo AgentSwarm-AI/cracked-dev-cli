@@ -8,10 +8,13 @@ const config = configService.getConfig();
 export const discoveryPhaseBlueprint: IPhaseConfig = {
   model: config.discoveryModel,
   generatePrompt: (args: IPhasePromptArgs) => `
+<!-- These are internal instructions. Just follow them. Do not output. -->
+
 <phase_prompt>
 ## Discovery Phase
 
 ### Critical 
+- You ABSOLUTELY shouldn't write code in this phase. This is an EXPLORATORY PHASE, with the goal of gathering information to solve the task.
 - Gather info to solve the problem; no code here. If none, <end_phase>.
 - If no discovery, immediately <end_phase>. 
 - Start by stating intent.

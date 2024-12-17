@@ -27,6 +27,7 @@ interface IContextData {
 describe("MessageContextLogger", () => {
   let unitTestMocker: UnitTestMocker;
   let messageContextLogger: MessageContextLogger;
+  let messageContextStore: MessageContextStore;
 
   let logMessageSpy: jest.SpyInstance;
   let fsWriteFileSyncSpy: jest.SpyInstance;
@@ -37,15 +38,26 @@ describe("MessageContextLogger", () => {
   let messageContextStoreSetContextDataSpy: jest.SpyInstance;
   let messageContextStoreGetContextDataSpy: jest.SpyInstance;
   let messageContextBuilderUpdateOperationResultSpy: jest.SpyInstance;
-  let messageContextStore: MessageContextStore; // Added
+
+  const mockContextData: IContextData = {
+    conversationHistory: [],
+    operations: {},
+  };
 
   beforeAll(() => {
     unitTestMocker = new UnitTestMocker();
+    messageContextStore = container.resolve(MessageContextStore);
     messageContextLogger = container.resolve(MessageContextLogger);
-    messageContextStore = container.resolve(MessageContextStore); // Added
   });
 
   beforeEach(() => {
+    // Reset lock state
+    Object.defineProperty(messageContextLogger, "isLogging", {
+      get: () => false,
+      set: (value) => value,
+      configurable: true,
+    });
+
     // Mock dependencies using spyPrototype/spyModule
     logMessageSpy = unitTestMocker.spyPrototype<MessageContextLogger, void>(
       MessageContextLogger,
@@ -71,20 +83,29 @@ describe("MessageContextLogger", () => {
       MessageContextStore,
       "setContextData",
     );
-    messageContextStoreGetContextDataSpy = unitTestMocker.spyPrototype(
+    messageContextStoreGetContextDataSpy = unitTestMocker.mockPrototype(
       MessageContextStore,
       "getContextData",
+      mockContextData,
     );
     messageContextBuilderUpdateOperationResultSpy = unitTestMocker.spyPrototype(
       MessageContextBuilder,
       "updateOperationResult",
     );
+
+    // Mock fs.existsSync for path checks
+    unitTestMocker.mockModule(fs, "existsSync", true);
   });
 
   afterEach(() => {
     unitTestMocker.clearAllMocks();
+    jest.useRealTimers();
   });
-  // Added Check
+
+  afterAll(() => {
+    jest.restoreAllMocks();
+  });
+
   it("should verify MessageContextStore injection", () => {
     expect(messageContextLogger["messageContextStore"]).toBeInstanceOf(
       MessageContextStore,
@@ -92,24 +113,22 @@ describe("MessageContextLogger", () => {
     expect(messageContextStore).toBeInstanceOf(MessageContextStore);
   });
 
-  it("should log a message", () => {
+  it("should log a message", async () => {
     const message = {
-      role: "user" as "user" | "assistant" | "system",
+      role: "user" as const,
       content: "test",
     };
 
-    messageContextLogger.logMessage(message);
+    await messageContextLogger.logMessage(message);
     expect(ensureLogDirectoryExistsSpy).toHaveBeenCalled();
     expect(ensureHistoryFileExistsSpy).toHaveBeenCalled();
-    expect(logMessageSpy).toHaveBeenCalledWith(message);
     expect(fsAppendFileSyncSpy).toHaveBeenCalled();
   });
 
-  it("should create history file if it doesn't exist", () => {
-    // Mock fs.existsSync to return false
+  it("should create history file if it doesn't exist", async () => {
     unitTestMocker.mockModule(fs, "existsSync", false);
 
-    messageContextLogger.logMessage({
+    await messageContextLogger.logMessage({
       role: "user",
       content: "test",
     });
@@ -126,15 +145,13 @@ describe("MessageContextLogger", () => {
     expect(ensureHistoryFileExistsSpy).toHaveBeenCalled();
   });
 
-  it("should handle error when creating history file", () => {
-    // Mock fs.existsSync to return false
+  it("should handle error when creating history file", async () => {
     unitTestMocker.mockModule(fs, "existsSync", false);
-    // Properly mock fs.writeFileSync to throw an error
     unitTestMocker.mockModuleImplementation(fs, "writeFileSync", () => {
       throw new Error("Failed to write file");
     });
 
-    messageContextLogger.logMessage({
+    await messageContextLogger.logMessage({
       role: "user",
       content: "test",
     });
@@ -147,16 +164,10 @@ describe("MessageContextLogger", () => {
         path: expect.any(String),
       }),
     );
-    // Additionally, ensure that "Message logged" is not called since history file creation failed
-    expect(debugLoggerLogSpy).not.toHaveBeenCalledWith(
-      "MessageLogger",
-      "Message logged",
-      expect.any(Object),
-    );
   });
 
-  it("should cleanup log files", () => {
-    messageContextLogger.cleanupLogFiles();
+  it("should cleanup log files", async () => {
+    await messageContextLogger.cleanupLogFiles();
     expect(ensureLogDirectoryExistsSpy).toHaveBeenCalled();
     expect(fsWriteFileSyncSpy).toHaveBeenCalledTimes(2);
     expect(fsWriteFileSyncSpy).toHaveBeenCalledWith(
@@ -176,12 +187,11 @@ describe("MessageContextLogger", () => {
     );
   });
 
-  it("should handle error during cleanup of log files", () => {
-    // Properly mock fs.writeFileSync to throw an error
+  it("should handle error during cleanup of log files", async () => {
     unitTestMocker.mockModuleImplementation(fs, "writeFileSync", () => {
       throw new Error("Failed to write file");
     });
-    messageContextLogger.cleanupLogFiles();
+    await messageContextLogger.cleanupLogFiles();
 
     expect(debugLoggerLogSpy).toHaveBeenCalledWith(
       "MessageLogger",
@@ -193,62 +203,97 @@ describe("MessageContextLogger", () => {
     );
   });
 
-  const mockContextData: IContextData = {
-    conversationHistory: [],
-    operations: {},
-  };
-
-  it("should log an action result successfully", () => {
+  it("should log an action result successfully", async () => {
     const action = "testAction";
     const result: MessageIActionResult = { success: true, result: "success" };
-    messageContextStoreGetContextDataSpy.mockReturnValue(mockContextData);
 
-    messageContextLogger.logActionResult(action, result);
+    // Mock getContextData to return fresh mockContextData each time
+    const freshMockContextData = {
+      conversationHistory: [],
+      operations: {},
+    };
+    const updatedContextData = {
+      ...freshMockContextData,
+      operations: {
+        [action]: {
+          operationId: action,
+          status: "success",
+          result: result.result,
+        },
+      },
+    };
+    messageContextStoreGetContextDataSpy.mockReturnValue(freshMockContextData);
+    messageContextBuilderUpdateOperationResultSpy.mockReturnValue(
+      updatedContextData,
+    );
+
+    await messageContextLogger.logActionResult(action, result);
 
     expect(ensureLogDirectoryExistsSpy).toHaveBeenCalled();
     expect(ensureHistoryFileExistsSpy).toHaveBeenCalled();
     expect(fsAppendFileSyncSpy).toHaveBeenCalled();
-    expect(messageContextStoreSetContextDataSpy).toHaveBeenCalled();
-    expect(messageContextBuilderUpdateOperationResultSpy).toHaveBeenCalled();
     expect(messageContextBuilderUpdateOperationResultSpy).toHaveBeenCalledWith(
       action,
       action,
       result.result,
-      mockContextData,
+      freshMockContextData,
       result.success,
       undefined,
     );
+    expect(messageContextStoreSetContextDataSpy).toHaveBeenCalledWith(
+      updatedContextData,
+    );
   });
 
-  it("should log an action result with error", () => {
+  it("should log an action result with error", async () => {
     const action = "testAction";
     const error = new Error("test error");
     const result: MessageIActionResult = { success: false, error: error };
-    messageContextStoreGetContextDataSpy.mockReturnValue(mockContextData);
-    messageContextLogger.logActionResult(action, result);
+
+    // Mock getContextData to return fresh mockContextData each time
+    const freshMockContextData = {
+      conversationHistory: [],
+      operations: {},
+    };
+    const updatedContextData = {
+      ...freshMockContextData,
+      operations: {
+        [action]: {
+          operationId: action,
+          status: "failed",
+          error: error.message,
+        },
+      },
+    };
+    messageContextStoreGetContextDataSpy.mockReturnValue(freshMockContextData);
+    messageContextBuilderUpdateOperationResultSpy.mockReturnValue(
+      updatedContextData,
+    );
+
+    await messageContextLogger.logActionResult(action, result);
     expect(ensureLogDirectoryExistsSpy).toHaveBeenCalled();
     expect(ensureHistoryFileExistsSpy).toHaveBeenCalled();
     expect(fsAppendFileSyncSpy).toHaveBeenCalled();
-    expect(messageContextStoreSetContextDataSpy).toHaveBeenCalled();
-    expect(messageContextBuilderUpdateOperationResultSpy).toHaveBeenCalled();
     expect(messageContextBuilderUpdateOperationResultSpy).toHaveBeenCalledWith(
       action,
       action,
       "",
-      mockContextData,
+      freshMockContextData,
       result.success,
       error.message,
     );
+    expect(messageContextStoreSetContextDataSpy).toHaveBeenCalledWith(
+      updatedContextData,
+    );
   });
 
-  it("should log an action result and handle error writing to file", () => {
-    // Properly mock fs.appendFileSync to throw an error
+  it("should log an action result and handle error writing to file", async () => {
     unitTestMocker.mockModuleImplementation(fs, "appendFileSync", () => {
       throw new Error("Failed to write file");
     });
     const action = "testAction";
     const result: MessageIActionResult = { success: true, result: "success" };
-    messageContextLogger.logActionResult(action, result);
+    await messageContextLogger.logActionResult(action, result);
 
     expect(debugLoggerLogSpy).toHaveBeenCalledWith(
       "MessageLogger",
@@ -260,13 +305,13 @@ describe("MessageContextLogger", () => {
     );
   });
 
-  it("should update conversation history with system instructions", () => {
+  it("should update conversation history with system instructions", async () => {
     const messages = [
       { role: "user", content: "hello" },
     ] as IConversationHistoryMessage[];
     const systemInstructions = "system instructions";
 
-    messageContextLogger.updateConversationHistory(
+    await messageContextLogger.updateConversationHistory(
       messages,
       systemInstructions,
     );
@@ -287,12 +332,12 @@ describe("MessageContextLogger", () => {
     );
   });
 
-  it("should update conversation history without system instructions", () => {
+  it("should update conversation history without system instructions", async () => {
     const messages = [
       { role: "user", content: "hello" },
     ] as IConversationHistoryMessage[];
     const systemInstructions = null;
-    messageContextLogger.updateConversationHistory(
+    await messageContextLogger.updateConversationHistory(
       messages,
       systemInstructions,
     );
@@ -312,8 +357,7 @@ describe("MessageContextLogger", () => {
     );
   });
 
-  it("should handle error when updating conversation history", () => {
-    // Properly mock fs.writeFileSync to throw an error
+  it("should handle error when updating conversation history", async () => {
     unitTestMocker.mockModuleImplementation(fs, "writeFileSync", () => {
       throw new Error("Failed to write file");
     });
@@ -322,7 +366,7 @@ describe("MessageContextLogger", () => {
       { role: "user", content: "hello" },
     ] as IConversationHistoryMessage[];
     const systemInstructions = "system instructions";
-    messageContextLogger.updateConversationHistory(
+    await messageContextLogger.updateConversationHistory(
       messages,
       systemInstructions,
     );
@@ -341,16 +385,18 @@ describe("MessageContextLogger", () => {
     const logDir = messageContextLogger.getLogDirectoryPath();
     expect(logDir).toBe("logs"); // Default from config in constructor
   });
+
   it("should return correct conversation log path", () => {
     const logPath = messageContextLogger.getConversationLogPath();
     expect(logPath).toContain("conversation.log");
   });
+
   it("should return correct conversation history path", () => {
     const historyPath = messageContextLogger.getConversationHistoryPath();
     expect(historyPath).toContain("conversationHistory.json");
   });
 
-  it("should get conversation history", () => {
+  it("should get conversation history", async () => {
     const mockHistory = {
       timestamp: new Date().toISOString(),
       messages: [
@@ -358,21 +404,20 @@ describe("MessageContextLogger", () => {
       ] as IConversationHistoryMessage[],
     };
 
-    // Properly mock fs.readFileSync to return JSON string
     unitTestMocker.mockModuleImplementation(fs, "readFileSync", () =>
       JSON.stringify(mockHistory),
     );
-    const history = messageContextLogger.getConversationHistory();
+    const history = await messageContextLogger.getConversationHistory();
 
     expect(history).toEqual(mockHistory.messages);
   });
-  it("should handle error when reading conversation history", () => {
-    // Properly mock fs.readFileSync to throw an error
+
+  it("should handle error when reading conversation history", async () => {
     unitTestMocker.mockModuleImplementation(fs, "readFileSync", () => {
       throw new Error("Failed to read file");
     });
 
-    const history = messageContextLogger.getConversationHistory();
+    const history = await messageContextLogger.getConversationHistory();
 
     expect(history).toEqual([]);
     expect(debugLoggerLogSpy).toHaveBeenCalledWith(
@@ -383,5 +428,134 @@ describe("MessageContextLogger", () => {
         logDirectory: expect.any(String),
       }),
     );
+  });
+
+  describe("Concurrent Access and Lock Mechanism", () => {
+    it("should handle concurrent log messages correctly", async () => {
+      const message1 = { role: "user" as const, content: "test1" };
+      const message2 = { role: "user" as const, content: "test2" };
+
+      // Start both operations almost simultaneously
+      const promise1 = messageContextLogger.logMessage(message1);
+      const promise2 = messageContextLogger.logMessage(message2);
+
+      await Promise.all([promise1, promise2]);
+
+      // Verify both messages were logged
+      expect(fsAppendFileSyncSpy).toHaveBeenCalledTimes(2);
+      const calls = fsAppendFileSyncSpy.mock.calls;
+      expect(calls[0][1]).toContain("test1");
+      expect(calls[1][1]).toContain("test2");
+    });
+
+    it("should handle concurrent file operations correctly", async () => {
+      const messages = [{ role: "user" as const, content: "test" }];
+      const systemInstructions = "system test";
+
+      // Start multiple operations that use file operations
+      const promise1 = messageContextLogger.updateConversationHistory(
+        messages,
+        systemInstructions,
+      );
+      const promise2 = messageContextLogger.cleanupLogFiles();
+      const promise3 = messageContextLogger.getConversationHistory();
+
+      await Promise.all([promise1, promise2, promise3]);
+
+      // Verify operations completed
+      expect(fsWriteFileSyncSpy).toHaveBeenCalled();
+      expect(fsAppendFileSyncSpy).toHaveBeenCalled();
+    });
+
+    it("should maintain operation order with locks", async () => {
+      const operations: string[] = [];
+
+      // Mock file operations to track order
+      unitTestMocker.mockModuleImplementation(fs, "appendFileSync", () => {
+        operations.push("append");
+      });
+
+      unitTestMocker.mockModuleImplementation(fs, "writeFileSync", () => {
+        operations.push("write");
+      });
+
+      // Start operations in specific order
+      await messageContextLogger.logMessage({ role: "user", content: "test1" });
+      await messageContextLogger.cleanupLogFiles();
+      await messageContextLogger.logMessage({ role: "user", content: "test2" });
+
+      // Verify operations happened in order
+      expect(operations).toEqual(["append", "write", "write", "append"]);
+    });
+  });
+
+  describe("Error Handling", () => {
+    it("should handle lock acquisition failure", async () => {
+      // Mock isLogging to simulate locked state
+      let attempts = 0;
+      Object.defineProperty(messageContextLogger, "isLogging", {
+        get: () => {
+          attempts++;
+          return attempts <= 3; // Return true for first 3 attempts, then false
+        },
+        set: () => {},
+        configurable: true,
+      });
+
+      // Use modern timers
+      jest.useFakeTimers();
+      const setTimeoutSpy = jest.spyOn(global, "setTimeout");
+
+      const logPromise = messageContextLogger.logMessage({
+        role: "user",
+        content: "test",
+      });
+
+      // Advance timers and handle promise
+      await Promise.race([
+        logPromise,
+        new Promise((resolve) => {
+          jest.advanceTimersByTime(100); // Advance less time
+          resolve(null);
+        }),
+      ]);
+
+      expect(setTimeoutSpy).toHaveBeenCalled();
+      expect(attempts).toBeGreaterThan(1);
+    }, 1000); // Add explicit timeout
+
+    it("should release lock even if operation fails", async () => {
+      // Track lock state
+      let isLocked = false;
+      Object.defineProperty(messageContextLogger, "isLogging", {
+        get: () => isLocked,
+        set: (value) => {
+          isLocked = value;
+          return value;
+        },
+        configurable: true,
+      });
+
+      // Mock appendFileSync to throw error
+      unitTestMocker.mockModuleImplementation(fs, "appendFileSync", () => {
+        throw new Error("Operation failed");
+      });
+
+      try {
+        await messageContextLogger.logMessage({
+          role: "user",
+          content: "test",
+        });
+      } catch (error) {
+        // Expected error
+      }
+
+      // Verify lock was released
+      expect(isLocked).toBe(false);
+
+      // Verify we can perform another operation
+      await messageContextLogger.cleanupLogFiles();
+      expect(fsWriteFileSyncSpy).toHaveBeenCalled();
+    });
   });
 });

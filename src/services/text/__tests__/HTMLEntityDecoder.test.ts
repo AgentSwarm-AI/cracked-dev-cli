@@ -52,9 +52,9 @@ describe("HtmlEntityDecoder", () => {
 
     it("should unescape quotes when specified in unescapeChars without unescape option", () => {
       const input =
-        'import { MessageConversationLogger } from \\"../MessageConversationLogger\\";';
+        'import { ConfigService } from \\"@services/ConfigService\\";';
       const expectedOutput =
-        'import { MessageConversationLogger } from "../MessageConversationLogger";';
+        'import { ConfigService } from "@services/ConfigService";';
       expect(decoder.decode(input, { unescapeChars: ['"'] })).toBe(
         expectedOutput,
       );
@@ -62,9 +62,9 @@ describe("HtmlEntityDecoder", () => {
 
     it("should handle escaped quotes in complex import statements", () => {
       const input =
-        'import { MessageConversationLogger } from \\"../MessageConversationLogger\\";\nimport { ConfigService } from \\"@services/ConfigService\\";';
+        'import { ConfigService } from \\"@services/ConfigService\\";\nimport { DebugLogger } from \\"@services/logging/DebugLogger\\";';
       const expectedOutput =
-        'import { MessageConversationLogger } from "../MessageConversationLogger";\nimport { ConfigService } from "@services/ConfigService";';
+        'import { ConfigService } from "@services/ConfigService";\nimport { DebugLogger } from "@services/logging/DebugLogger";';
       expect(decoder.decode(input, { unescapeChars: ['"'] })).toBe(
         expectedOutput,
       );
