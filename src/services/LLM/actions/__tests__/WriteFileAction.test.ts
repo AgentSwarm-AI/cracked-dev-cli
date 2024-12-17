@@ -1,10 +1,12 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
 
+import { UnitTestMocker } from "@/jest/mocks/UnitTestMocker";
 import { FileOperations } from "@services/FileManagement/FileOperations";
 import { ActionTagsExtractor } from "@services/LLM/actions/ActionTagsExtractor";
 import { WriteFileAction } from "@services/LLM/actions/WriteFileAction";
 import { ModelScaler } from "@services/LLM/ModelScaler";
 import { HtmlEntityDecoder } from "@services/text/HTMLEntityDecoder";
+import * as path from "path";
 
 jest.mock("@services/FileManagement/FileOperations");
 jest.mock("@services/LLM/actions/ActionTagsExtractor");
@@ -14,12 +16,19 @@ jest.mock("@constants/writeConstants", () => ({
   BLOCK_WRITE_IF_CONTENT_REMOVAL_THRESHOLD: 50,
 }));
 
+const testDir = path.join(__dirname, "test-files");
+
 describe("WriteFileAction", () => {
   let writeFileAction: WriteFileAction;
   let mockFileOperations: jest.Mocked<FileOperations>;
   let mockActionTagsExtractor: jest.Mocked<ActionTagsExtractor>;
   let mockHtmlEntityDecoder: jest.Mocked<HtmlEntityDecoder>;
   let mockModelScaler: jest.Mocked<ModelScaler>;
+  let mocker: UnitTestMocker;
+
+  beforeAll(() => {
+    mocker = new UnitTestMocker();
+  });
 
   beforeEach(() => {
     mockFileOperations = {
@@ -276,6 +285,31 @@ describe("WriteFileAction", () => {
       expect(mockFileOperations.write).toHaveBeenCalledWith(filePath, content);
       expect(mockModelScaler.incrementTryCount).not.toHaveBeenCalled();
       expect(mockFileOperations.read).not.toHaveBeenCalled();
+    });
+
+    it("should create directory and write file when parent directory doesn't exist", async () => {
+      const filePath = path.join(testDir, "new-folder", "test.txt");
+      const content = "New content";
+      const actionContent = `
+        <write_file>
+          <path>${filePath}</path>
+          <content>${content}</content>
+        </write_file>`;
+
+      mockActionTagsExtractor.extractTag.mockImplementation((_, tag) => {
+        if (tag === "path") return filePath;
+        return null;
+      });
+
+      mockModelScaler.isAutoScalerEnabled.mockReturnValue(false);
+      mockFileOperations.exists.mockResolvedValue(false);
+      mockFileOperations.write.mockResolvedValue({ success: true });
+      mockHtmlEntityDecoder.decode.mockReturnValue(content);
+
+      const result = await writeFileAction.execute(actionContent);
+
+      expect(result.success).toBe(true);
+      expect(mockFileOperations.write).toHaveBeenCalledWith(filePath, content);
     });
   });
 
