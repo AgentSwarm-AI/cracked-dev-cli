@@ -311,10 +311,12 @@ export class MessageContextBuilder {
           content: `Command: ${operation.command}`,
         });
       } else {
-        result.push({
-          role: "assistant",
-          content: `Content of ${operation.path}:\n${operation.content}`,
-        });
+        if (operation.content && operation.content.length > 0) {
+          result.push({
+            role: "assistant",
+            content: `Content of ${operation.path}:\n${operation.content}`,
+          });
+        }
       }
     }
 
