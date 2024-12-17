@@ -19,7 +19,7 @@ import {
 import { DebugLogger } from "@services/logging/DebugLogger";
 import { HtmlEntityDecoder } from "@services/text/HTMLEntityDecoder";
 import { inject, singleton } from "tsyringe";
-import { OpenRouterAPICostTracking } from "./OpenRouterAPICostTracking"; // Import the new class
+import { OpenRouterAPICostTracking } from "./OpenRouterAPICostTracking";
 
 export class LLMError extends Error {
   constructor(
@@ -178,8 +178,6 @@ export class OpenRouterAPI implements ILLMProvider {
         [...messages, { role: "user", content: message }],
         currentModel,
       );
-
-      console.log("SENDING", formattedMessages);
 
       const response = await this.makeRequest("/chat/completions", {
         model: currentModel,

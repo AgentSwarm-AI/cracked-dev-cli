@@ -73,48 +73,29 @@ export class MessageContextBuilder {
       const phasePromptMatches =
         content.match(/<phase_prompt>(.*?)<\/phase_prompt>/gs) || [];
 
-      const isValidPhasePrompt = (prompt: string): boolean => {
-        const contentMatch = prompt.match(
-          /<phase_prompt>(.*?)<\/phase_prompt>/s,
-        );
-        if (!contentMatch || !contentMatch[1] || !contentMatch[1].trim())
-          return false;
-        return true;
-      };
+      const existingPhaseInstruction = Array.from(
+        contextData.phaseInstructions.values(),
+      ).find((instruction) => instruction.phase === currentPhase);
 
-      const validPrompts = phasePromptMatches
-        .filter(isValidPhasePrompt)
-        .map((prompt) => {
-          const contentMatch = prompt.match(
-            /<phase_prompt>(.*?)<\/phase_prompt>/s,
-          );
-          return contentMatch?.[1].trim() ?? "";
-        })
-        .filter((p) => p.length > 0);
+      if (!existingPhaseInstruction) {
+        const validPrompts = phasePromptMatches
+          .filter(this.isValidPhasePrompt)
+          .map(this.extractPhasePromptContent)
+          .filter(Boolean);
+
+        if (validPrompts.length > 0) {
+          const lastValidPrompt = validPrompts[validPrompts.length - 1];
+          updatedPhaseInstructions.set(currentPhase, {
+            content: lastValidPrompt,
+            timestamp: Date.now(),
+            phase: currentPhase,
+          });
+        }
+      } else {
+        updatedPhaseInstructions.set(currentPhase, existingPhaseInstruction);
+      }
 
       const operations = this.extractor.extractOperations(content);
-
-      if (validPrompts.length > 0) {
-        const lastValidPrompt = validPrompts[validPrompts.length - 1];
-        updatedPhaseInstructions.set(currentPhase, {
-          content: lastValidPrompt,
-          timestamp: Date.now(),
-          phase: currentPhase,
-        });
-      }
-
-      if (
-        updatedPhaseInstructions.size === 0 &&
-        contextData.phaseInstructions.size > 0
-      ) {
-        const latestInstruction = Array.from(
-          contextData.phaseInstructions.values(),
-        ).sort((a, b) => b.timestamp - a.timestamp)[0];
-        updatedPhaseInstructions.set(
-          latestInstruction.phase,
-          latestInstruction,
-        );
-      }
 
       const updatedFileOperations = new Map(contextData.fileOperations);
       const updatedCommandOperations = new Map(contextData.commandOperations);
@@ -185,6 +166,16 @@ export class MessageContextBuilder {
         `Failed to build message context: ${error.message}`,
       );
     }
+  }
+
+  private isValidPhasePrompt(prompt: string): boolean {
+    const contentMatch = prompt.match(/<phase_prompt>(.*?)<\/phase_prompt>/s);
+    return !!contentMatch?.[1]?.trim();
+  }
+
+  private extractPhasePromptContent(prompt: string): string {
+    const contentMatch = prompt.match(/<phase_prompt>(.*?)<\/phase_prompt>/s);
+    return contentMatch?.[1]?.trim() ?? "";
   }
 
   public updateOperationResult(
@@ -337,18 +328,18 @@ export class MessageContextBuilder {
       }
     }
 
-    const filteredMessages = conversationHistory.filter((msg) => {
-      const msgContent = msg.content.trim();
-      return !(
-        msg.content.includes("Content of") ||
-        msg.content.includes("Command:") ||
-        msg.content.includes("Command executed:") ||
-        msg.content.includes("FILE CREATED AND EXISTS:") ||
-        msg.content.includes("Written to")
-      );
-    });
+    const remainingMessages = conversationHistory.filter(
+      (msg) =>
+        !(
+          msg.content.includes("Content of") ||
+          msg.content.includes("Command:") ||
+          msg.content.includes("Command executed:") ||
+          msg.content.includes("FILE CREATED AND EXISTS:") ||
+          msg.content.includes("Written to")
+        ),
+    );
 
-    result.push(...filteredMessages);
+    result.push(...remainingMessages);
 
     return result;
   }

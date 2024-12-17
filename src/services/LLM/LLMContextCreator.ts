@@ -5,7 +5,9 @@ import { IActionResult } from "@services/LLM/actions/types/ActionTypes";
 import { ProjectInfo } from "@services/LLM/utils/ProjectInfo";
 import * as fs from "fs";
 import { autoInjectable } from "tsyringe";
+import { MessageContextBuilder } from "./context/MessageContextBuilder";
 import { MessageContextCleaner } from "./context/MessageContextCleanup";
+import { MessageContextStore } from "./context/MessageContextStore";
 import { PhaseManager } from "./PhaseManager";
 import { IPhasePromptArgs } from "./types/PhaseTypes";
 
@@ -23,7 +25,9 @@ export class LLMContextCreator {
     private projectInfo: ProjectInfo,
     private configService: ConfigService,
     private phaseManager: PhaseManager,
-    private messageContextCleanup: MessageContextCleaner,
+    private messageContextCleaner: MessageContextCleaner,
+    private messageContextBuilder: MessageContextBuilder,
+    private messageContextStore: MessageContextStore,
   ) {}
 
   private async loadCustomInstructions(): Promise<string> {
@@ -65,7 +69,7 @@ export class LLMContextCreator {
       // Reset to discovery phase on first message
       this.phaseManager.resetPhase();
       // Clear message context only on first message
-      this.messageContextCleanup.cleanupContext();
+      this.messageContextCleaner.cleanupContext();
 
       const [environmentDetails, projectInfo] = await Promise.all([
         this.getEnvironmentDetails(root),
@@ -79,7 +83,24 @@ export class LLMContextCreator {
       });
     }
 
-    return this.formatSequentialMessage(baseContext);
+    // Only generate new phase prompt if phase has changed
+    const currentPhase = this.phaseManager.getCurrentPhase();
+    const contextData = this.messageContextStore.getContextData();
+    const lastPhaseInstructions =
+      this.messageContextBuilder.getLatestPhaseInstructions(contextData);
+    const phaseInstructions = Array.from(
+      contextData.phaseInstructions.values(),
+    );
+    const currentPhaseInstruction = phaseInstructions.find(
+      (instruction) => instruction.phase === currentPhase,
+    );
+
+    if (!currentPhaseInstruction) {
+      return this.formatSequentialMessage(baseContext);
+    }
+
+    // Return just the message if phase hasn't changed
+    return baseContext.message;
   }
 
   private async getEnvironmentDetails(root: string): Promise<string> {
@@ -182,7 +203,6 @@ ${phaseConfig.generatePrompt(promptArgs)}`;
 
   async executeAction(actionContent: string): Promise<IActionResult> {
     const result = await this.actionExecutor.executeAction(actionContent);
-
     return result;
   }
 }
