@@ -51,7 +51,6 @@ describe("WriteFileAction", () => {
   describe("parameter extraction", () => {
     it("should preserve nested tags in content parameter", async () => {
       const filePath = "/test/file.ts";
-      const adjustedPath = "/adjusted/test/file.ts";
       const content = "<div>Test</div>\n<span>Content</span>";
       const actionContent = `
         <write_file>
@@ -67,7 +66,6 @@ describe("WriteFileAction", () => {
       });
 
       mockModelScaler.isAutoScalerEnabled.mockReturnValue(false);
-      mockFileOperations.getAdjustedPath.mockResolvedValue(adjustedPath);
       mockFileOperations.exists.mockResolvedValue(false);
       mockFileOperations.write.mockResolvedValue({ success: true });
       mockHtmlEntityDecoder.decode.mockReturnValue(content);
@@ -75,15 +73,11 @@ describe("WriteFileAction", () => {
       const result = await writeFileAction.execute(actionContent);
 
       expect(result.success).toBe(true);
-      expect(mockFileOperations.write).toHaveBeenCalledWith(
-        adjustedPath,
-        content,
-      );
+      expect(mockFileOperations.write).toHaveBeenCalledWith(filePath, content);
     });
 
     it("should handle content with XML-like syntax", async () => {
       const filePath = "/test/file.xml";
-      const adjustedPath = "/adjusted/test/file.xml";
       const content = `
         <?xml version="1.0" encoding="UTF-8"?>
         <root>
@@ -103,7 +97,6 @@ describe("WriteFileAction", () => {
       });
 
       mockModelScaler.isAutoScalerEnabled.mockReturnValue(false);
-      mockFileOperations.getAdjustedPath.mockResolvedValue(adjustedPath);
       mockFileOperations.exists.mockResolvedValue(false);
       mockFileOperations.write.mockResolvedValue({ success: true });
       mockHtmlEntityDecoder.decode.mockReturnValue(content);
@@ -111,17 +104,13 @@ describe("WriteFileAction", () => {
       const result = await writeFileAction.execute(actionContent);
 
       expect(result.success).toBe(true);
-      expect(mockFileOperations.write).toHaveBeenCalledWith(
-        adjustedPath,
-        content,
-      );
+      expect(mockFileOperations.write).toHaveBeenCalledWith(filePath, content);
     });
   });
 
   describe("file operations", () => {
     it("should increment try count for existing files", async () => {
       const filePath = "/test/file.ts";
-      const adjustedPath = "/adjusted/test/file.ts";
       const content = "test content";
       const actionContent = `
         <write_file>
@@ -135,7 +124,6 @@ describe("WriteFileAction", () => {
       });
 
       mockModelScaler.isAutoScalerEnabled.mockReturnValue(false);
-      mockFileOperations.getAdjustedPath.mockResolvedValue(adjustedPath);
       mockFileOperations.exists.mockResolvedValue(true);
       mockFileOperations.read.mockResolvedValue({
         success: true,
@@ -147,18 +135,12 @@ describe("WriteFileAction", () => {
       const result = await writeFileAction.execute(actionContent);
 
       expect(result.success).toBe(true);
-      expect(mockModelScaler.incrementTryCount).toHaveBeenCalledWith(
-        adjustedPath,
-      );
-      expect(mockFileOperations.write).toHaveBeenCalledWith(
-        adjustedPath,
-        content,
-      );
+      expect(mockModelScaler.incrementTryCount).toHaveBeenCalledWith(filePath);
+      expect(mockFileOperations.write).toHaveBeenCalledWith(filePath, content);
     });
 
     it("should not modify try count for new files", async () => {
       const filePath = "/test/file.ts";
-      const adjustedPath = "/adjusted/test/file.ts";
       const content = "test content";
       const actionContent = `
         <write_file>
@@ -172,7 +154,6 @@ describe("WriteFileAction", () => {
       });
 
       mockModelScaler.isAutoScalerEnabled.mockReturnValue(false);
-      mockFileOperations.getAdjustedPath.mockResolvedValue(adjustedPath);
       mockFileOperations.exists.mockResolvedValue(false);
       mockFileOperations.write.mockResolvedValue({ success: true });
       mockHtmlEntityDecoder.decode.mockReturnValue(content);
@@ -181,15 +162,11 @@ describe("WriteFileAction", () => {
 
       expect(result.success).toBe(true);
       expect(mockModelScaler.incrementTryCount).not.toHaveBeenCalled();
-      expect(mockFileOperations.write).toHaveBeenCalledWith(
-        adjustedPath,
-        content,
-      );
+      expect(mockFileOperations.write).toHaveBeenCalledWith(filePath, content);
     });
 
     it("should handle file write errors", async () => {
       const filePath = "/test/file.ts";
-      const adjustedPath = "/adjusted/test/file.ts";
       const content = "test content";
       const actionContent = `
         <write_file>
@@ -203,7 +180,6 @@ describe("WriteFileAction", () => {
       });
 
       mockModelScaler.isAutoScalerEnabled.mockReturnValue(false);
-      mockFileOperations.getAdjustedPath.mockResolvedValue(adjustedPath);
       mockFileOperations.exists.mockResolvedValue(false);
       mockFileOperations.write.mockResolvedValue({
         success: false,
@@ -221,7 +197,6 @@ describe("WriteFileAction", () => {
   describe("content removal protection", () => {
     it("should allow writes with acceptable content reduction", async () => {
       const filePath = "/test/file.ts";
-      const adjustedPath = "/adjusted/test/file.ts";
       const existingContent = "Original content";
       const newContent = "Modified content";
       const actionContent = `
@@ -236,7 +211,6 @@ describe("WriteFileAction", () => {
       });
 
       mockModelScaler.isAutoScalerEnabled.mockReturnValue(false);
-      mockFileOperations.getAdjustedPath.mockResolvedValue(adjustedPath);
       mockFileOperations.exists.mockResolvedValue(true);
       mockFileOperations.read.mockResolvedValue({
         success: true,
@@ -250,14 +224,13 @@ describe("WriteFileAction", () => {
 
       expect(result.success).toBe(true);
       expect(mockFileOperations.write).toHaveBeenCalledWith(
-        adjustedPath,
+        filePath,
         newContent,
       );
     });
 
     it("should properly decode HTML entities before writing", async () => {
       const filePath = "/test/file.ts";
-      const adjustedPath = "/adjusted/test/file.ts";
       const encodedContent = "&lt;div&gt;Test&lt;/div&gt;";
       const decodedContent = "<div>Test</div>";
       const actionContent = `
@@ -272,7 +245,6 @@ describe("WriteFileAction", () => {
       });
 
       mockModelScaler.isAutoScalerEnabled.mockReturnValue(false);
-      mockFileOperations.getAdjustedPath.mockResolvedValue(adjustedPath);
       mockFileOperations.exists.mockResolvedValue(false);
       mockFileOperations.write.mockResolvedValue({ success: true });
       mockHtmlEntityDecoder.decode.mockReturnValue(decodedContent);
@@ -287,7 +259,7 @@ describe("WriteFileAction", () => {
         },
       );
       expect(mockFileOperations.write).toHaveBeenCalledWith(
-        adjustedPath,
+        filePath,
         decodedContent,
       );
     });
