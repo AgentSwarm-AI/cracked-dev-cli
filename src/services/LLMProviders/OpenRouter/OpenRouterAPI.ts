@@ -2,7 +2,7 @@
 /* eslint-disable no-useless-catch */
 import { MessageContextHistory } from "@/services/LLM/context/MessageContextHistory";
 import { MessageContextLimiter } from "@/services/LLM/context/MessageContextLimiter";
-import { MesssageContextTokenCount } from "@/services/LLM/context/MessageContextTokenCount";
+import { MessageContextTokenCount } from "@/services/LLM/context/MessageContextTokenCount";
 import { openRouterClient } from "@constants/openRouterClient";
 import {
   IConversationHistoryMessage,
@@ -61,7 +61,7 @@ export class OpenRouterAPI implements ILLMProvider {
     private costTracker: OpenRouterAPICostTracking,
     private messageContextHistory: MessageContextHistory,
     private messageContextLimiter: MessageContextLimiter,
-    private messageContextTokenCount: MesssageContextTokenCount,
+    private messageContextTokenCount: MessageContextTokenCount,
   ) {
     this.httpClient = openRouterClient;
     this.initializeModelInfo();

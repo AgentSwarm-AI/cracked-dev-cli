@@ -4,6 +4,7 @@ import { ModelInfo } from "../ModelInfo";
 import { MessageContextBuilder } from "./MessageContextBuilder";
 import { MessageContextHistory } from "./MessageContextHistory";
 import { MessageContextStore } from "./MessageContextStore";
+import { MessageContextTokenCount } from "./MessageContextTokenCount";
 
 @singleton()
 export class MessageContextCleaner {
@@ -13,34 +14,30 @@ export class MessageContextCleaner {
     private messageContextStore: MessageContextStore,
     private messageContextBuilder: MessageContextBuilder,
     private messageContextHistory: MessageContextHistory,
+    private messageContextTokenCount: MessageContextTokenCount,
   ) {}
 
   async cleanupContext(): Promise<boolean> {
     const contextData = this.messageContextStore.getContextData();
     const maxTokens = await this.modelInfo.getCurrentModelContextLength();
-
-    const estimateTokenCount = (text: string) =>
-      this.messageContextStore.estimateTokenCount(text);
-
     const messages = this.messageContextBuilder.getMessageContext(contextData);
-
-    const currentTokens = messages.reduce(
-      (sum, message) => sum + estimateTokenCount(message.content),
-      0,
-    );
+    const currentTokens =
+      this.messageContextTokenCount.estimateTokenCount(messages);
 
     if (currentTokens <= maxTokens) {
       return false; // No cleanup needed
     }
 
     const cleanedHistory = [...messages];
-
     let cleanedTokens = currentTokens;
 
     while (cleanedTokens > maxTokens && cleanedHistory.length > 0) {
       const removedMessage = cleanedHistory.shift();
       if (removedMessage) {
-        cleanedTokens -= estimateTokenCount(removedMessage.content);
+        cleanedTokens -=
+          this.messageContextTokenCount.estimateTokenCountForMessage(
+            removedMessage,
+          );
       }
     }
     const removedHistory = messages.slice(
@@ -53,6 +50,12 @@ export class MessageContextCleaner {
         removedHistory.length,
       );
 
+      // Update the context data with the cleaned history
+      this.messageContextStore.setContextData({
+        ...contextData,
+        conversationHistory: updatedHistory,
+      });
+
       this.debugLogger.log("Context", "Context cleanup performed", {
         maxTokens,
         removedMessages: removedHistory.length,
@@ -63,7 +66,7 @@ export class MessageContextCleaner {
       );
 
       // Update history through the history service
-      this.messageContextHistory.mergeConversationHistory();
+      await this.messageContextHistory.mergeConversationHistory();
       return true; // Cleanup was performed
     }
     return false; // No cleanup was performed

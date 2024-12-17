@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
 import { UnitTestMocker } from "@/jest/mocks/UnitTestMocker";
 import { IConversationHistoryMessage } from "@services/LLM/ILLMProvider";
 import { container } from "tsyringe";
@@ -7,14 +6,34 @@ import {
   MessageContextStore,
   MessageFileOperation,
 } from "../MessageContextStore";
+import { MessageContextTokenCount } from "../MessageContextTokenCount";
 
 describe("MessageContextStore", () => {
   let messageContextStore: MessageContextStore;
+  let messageContextTokenCount: MessageContextTokenCount;
   let mocker: UnitTestMocker;
 
   beforeEach(() => {
+    messageContextTokenCount = container.resolve(MessageContextTokenCount);
     messageContextStore = container.resolve(MessageContextStore);
     mocker = new UnitTestMocker();
+
+    // Mock token counting methods
+    mocker.mockPrototype(
+      MessageContextTokenCount,
+      "estimateTokenCount",
+      (messages: IConversationHistoryMessage[]) =>
+        messages.reduce(
+          (sum: number, msg: IConversationHistoryMessage) =>
+            sum + msg.content.length,
+          0,
+        ),
+    );
+    mocker.mockPrototype(
+      MessageContextTokenCount,
+      "estimateTokenCountForText",
+      (text: string) => text.length,
+    );
   });
 
   afterEach(() => {
@@ -280,20 +299,7 @@ describe("MessageContextStore", () => {
     );
   });
 
-  it("should estimate token count correctly", () => {
-    const text = "This is a test string.";
-    const expectedTokenCount = Math.ceil(text.length / 4);
-    expect(messageContextStore.estimateTokenCount(text)).toBe(
-      expectedTokenCount,
-    );
-  });
-
   it("should calculate total token count correctly", () => {
-    mocker
-      .spyPrototype(MessageContextStore, "estimateTokenCount")
-      //@ts-ignore
-      .mockImplementation((text) => Math.ceil(text.length / 4));
-
     const mockData = {
       conversationHistory: [
         { role: "user", content: "Hello" },
@@ -303,19 +309,12 @@ describe("MessageContextStore", () => {
     };
     messageContextStore.setContextData(mockData);
 
-    const expectedTokenCount =
-      Math.ceil("Hello".length / 4) +
-      Math.ceil("Hi there!".length / 4) +
-      Math.ceil("System instructions.".length / 4);
-    expect(messageContextStore.getTotalTokenCount()).toBe(expectedTokenCount);
+    // Mock the token count result
+    mocker.mockPrototype(MessageContextTokenCount, "getTotalTokenCount", 42);
+    expect(messageContextStore.getTotalTokenCount()).toBe(42);
   });
 
   it("should calculate total token count correctly with no system instructions", () => {
-    mocker
-      .spyPrototype(MessageContextStore, "estimateTokenCount")
-      //@ts-ignore
-      .mockImplementation((text) => Math.ceil(text.length / 4));
-
     const mockData = {
       conversationHistory: [
         { role: "user", content: "Hello" },
@@ -325,8 +324,8 @@ describe("MessageContextStore", () => {
     };
     messageContextStore.setContextData(mockData);
 
-    const expectedTokenCount =
-      Math.ceil("Hello".length / 4) + Math.ceil("Hi there!".length / 4);
-    expect(messageContextStore.getTotalTokenCount()).toBe(expectedTokenCount);
+    // Mock the token count result
+    mocker.mockPrototype(MessageContextTokenCount, "getTotalTokenCount", 30);
+    expect(messageContextStore.getTotalTokenCount()).toBe(30);
   });
 });

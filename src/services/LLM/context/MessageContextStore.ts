@@ -1,5 +1,6 @@
 import { IConversationHistoryMessage } from "@services/LLM/ILLMProvider";
-import { singleton } from "tsyringe";
+import { delay, inject, singleton } from "tsyringe";
+import { MessageContextTokenCount } from "./MessageContextTokenCount";
 
 export interface BaseOperation {
   timestamp: number;
@@ -43,6 +44,11 @@ export class MessageContextStore {
     systemInstructions: null,
   };
 
+  constructor(
+    @inject(delay(() => MessageContextTokenCount))
+    private messageContextTokenCount: MessageContextTokenCount,
+  ) {}
+
   public getContextData(): IMessageContextData {
     return this.contextData;
   }
@@ -82,18 +88,7 @@ export class MessageContextStore {
     };
   }
 
-  public estimateTokenCount(text: string): number {
-    return Math.ceil(text.length / 4);
-  }
-
   public getTotalTokenCount(): number {
-    let total = 0;
-    if (this.contextData.systemInstructions) {
-      total += this.estimateTokenCount(this.contextData.systemInstructions);
-    }
-    this.contextData.conversationHistory.forEach((message) => {
-      total += this.estimateTokenCount(message.content);
-    });
-    return total;
+    return this.messageContextTokenCount.getTotalTokenCount();
   }
 }

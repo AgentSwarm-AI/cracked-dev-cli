@@ -1,3 +1,4 @@
+import { IConversationHistoryMessage } from "@services/LLM/ILLMProvider";
 import { DebugLogger } from "@services/logging/DebugLogger";
 import { container } from "tsyringe";
 import { UnitTestMocker } from "../../../../jest/mocks/UnitTestMocker";
@@ -6,6 +7,7 @@ import { MessageContextBuilder } from "../MessageContextBuilder";
 import { MessageContextCleaner } from "../MessageContextCleanup";
 import { MessageContextHistory } from "../MessageContextHistory";
 import { MessageContextStore } from "../MessageContextStore";
+import { MessageContextTokenCount } from "../MessageContextTokenCount";
 
 describe("MessageContextCleaner", () => {
   let contextCleaner: MessageContextCleaner;
@@ -14,6 +16,7 @@ describe("MessageContextCleaner", () => {
   let messageContextStore: MessageContextStore;
   let messageContextBuilder: MessageContextBuilder;
   let messageContextHistory: MessageContextHistory;
+  let messageContextTokenCount: MessageContextTokenCount;
   let mocker: any;
   let unitTestMocker: UnitTestMocker;
 
@@ -23,6 +26,7 @@ describe("MessageContextCleaner", () => {
     messageContextStore = container.resolve(MessageContextStore);
     messageContextBuilder = container.resolve(MessageContextBuilder);
     messageContextHistory = container.resolve(MessageContextHistory);
+    messageContextTokenCount = container.resolve(MessageContextTokenCount);
 
     contextCleaner = new MessageContextCleaner(
       debugLogger,
@@ -30,6 +34,7 @@ describe("MessageContextCleaner", () => {
       messageContextStore,
       messageContextBuilder,
       messageContextHistory,
+      messageContextTokenCount,
     );
 
     unitTestMocker = new UnitTestMocker();
@@ -44,10 +49,21 @@ describe("MessageContextCleaner", () => {
       .mockResolvedValue(1000);
     mocker.spyOn(modelInfo, "logCurrentModelUsage").mockResolvedValue();
     mocker
-      .spyOn(messageContextStore, "estimateTokenCount")
-      .mockImplementation((text: string) => text.length);
+      .spyOn(messageContextTokenCount, "estimateTokenCount")
+      .mockImplementation((messages: IConversationHistoryMessage[]) =>
+        messages.reduce(
+          (sum: number, msg: IConversationHistoryMessage) =>
+            sum + msg.content.length,
+          0,
+        ),
+      );
     mocker
-      .spyOn(messageContextStore, "getTotalTokenCount")
+      .spyOn(messageContextTokenCount, "estimateTokenCountForMessage")
+      .mockImplementation(
+        (msg: IConversationHistoryMessage) => msg.content.length,
+      );
+    mocker
+      .spyOn(messageContextTokenCount, "getTotalTokenCount")
       .mockReturnValue(500);
     mocker
       .spyOn(messageContextHistory, "mergeConversationHistory")
@@ -97,10 +113,15 @@ describe("MessageContextCleaner", () => {
         { role: "user", content: "long message 3" },
       ]);
 
-      // Mock estimateTokenCount to return high values
+      // Mock getCurrentModelContextLength to return a lower value
       mocker
-        .spyOn(messageContextStore, "estimateTokenCount")
-        .mockImplementation(() => 400);
+        .spyOn(modelInfo, "getCurrentModelContextLength")
+        .mockResolvedValue(300);
+
+      // Mock token count to be higher than the context length
+      mocker
+        .spyOn(messageContextTokenCount, "estimateTokenCount")
+        .mockReturnValue(400);
 
       const result = await contextCleaner.cleanupContext();
 
@@ -153,13 +174,24 @@ describe("MessageContextCleaner", () => {
         .spyOn(messageContextBuilder, "getMessageContext")
         .mockReturnValue(messages);
 
-      // Mock token count to be high for first two messages
+      // Mock getCurrentModelContextLength to return a lower value
       mocker
-        .spyOn(messageContextStore, "estimateTokenCount")
-        .mockImplementationOnce(() => 600) // msg1
-        .mockImplementationOnce(() => 500) // msg2
-        .mockImplementationOnce(() => 100) // msg3
-        .mockImplementationOnce(() => 100); // msg4
+        .spyOn(modelInfo, "getCurrentModelContextLength")
+        .mockResolvedValue(300);
+
+      // Mock initial token count to be higher than context length
+      mocker
+        .spyOn(messageContextTokenCount, "estimateTokenCount")
+        .mockReturnValue(400);
+
+      // Mock individual message token counts
+      mocker
+        .spyOn(messageContextTokenCount, "estimateTokenCountForMessage")
+        .mockImplementation((msg: { content: string }) => {
+          if (msg.content === "msg1") return 150;
+          if (msg.content === "msg2") return 150;
+          return 50;
+        });
 
       const result = await contextCleaner.cleanupContext();
 

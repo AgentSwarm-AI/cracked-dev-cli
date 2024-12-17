@@ -79,6 +79,7 @@
     "fast-glob": "^3.3.2",
     "fs-extra": "^11.2.0",
     "fuse.js": "^7.0.0",
+    "gpt-tokenizer": "^2.8.1",
     "he": "^1.2.0",
     "reflect-metadata": "^0.2.2",
     "tree-cli": "^0.6.7",

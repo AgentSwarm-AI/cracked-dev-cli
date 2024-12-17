@@ -10,6 +10,7 @@ import {
   MessageIActionResult,
 } from "../MessageContextLogger";
 import { MessageContextStore } from "../MessageContextStore";
+import { MessageContextTokenCount } from "../MessageContextTokenCount";
 
 interface IContextData {
   conversationHistory: IConversationHistoryMessage[];
@@ -38,6 +39,7 @@ describe("MessageContextLogger", () => {
   let messageContextStoreSetContextDataSpy: jest.SpyInstance;
   let messageContextStoreGetContextDataSpy: jest.SpyInstance;
   let messageContextBuilderUpdateOperationResultSpy: jest.SpyInstance;
+  let estimateTokenCountSpy: jest.SpyInstance;
 
   const mockContextData: IContextData = {
     conversationHistory: [],
@@ -95,6 +97,12 @@ describe("MessageContextLogger", () => {
 
     // Mock fs.existsSync for path checks
     unitTestMocker.mockModule(fs, "existsSync", true);
+
+    // Add spy for token counting
+    estimateTokenCountSpy = unitTestMocker.spyPrototype(
+      MessageContextTokenCount,
+      "estimateTokenCount",
+    );
   });
 
   afterEach(() => {
