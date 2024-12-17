@@ -138,10 +138,9 @@ Run Type Check: ${runTypeCheckCmd}`;
     };
 
     return `
-
-    <task>
+# Task
 ${context.message}
-</task>
+
     
     <instructions details="NEVER_OUTPUT">
 <!-- These are internal instructions. Just follow them. Do not output. -->
