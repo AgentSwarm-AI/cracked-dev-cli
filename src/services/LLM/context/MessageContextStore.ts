@@ -54,28 +54,41 @@ export class MessageContextStore {
   }
 
   public setContextData(data: Partial<IMessageContextData>): void {
-    // If new phase instructions are provided, only keep the latest one
+    // Keep only the latest phase instruction
     let newPhaseInstructions = this.contextData.phaseInstructions;
     if (data.phaseInstructions !== undefined) {
-      const instructions = Array.from(data.phaseInstructions.values()).sort(
-        (a, b) => b.timestamp - a.timestamp,
-      );
-      newPhaseInstructions = new Map();
-      if (instructions.length > 0) {
-        newPhaseInstructions.set(instructions[0].phase, instructions[0]);
-      }
+      const instructions = Array.from(data.phaseInstructions.values())
+        .sort((a, b) => b.timestamp - a.timestamp)
+        .slice(0, 1); // Keep only the latest instruction
+
+      newPhaseInstructions = new Map(instructions.map((i) => [i.phase, i]));
     }
+
+    // Clean up file operations - remove successful ones after 1 hour
+    const oneHourAgo = Date.now() - 3600000;
+    const cleanFileOps = new Map(
+      Array.from(this.contextData.fileOperations.entries()).filter(
+        ([_, op]) => !op.success || op.timestamp > oneHourAgo,
+      ),
+    );
+
+    // Clean up command operations similarly
+    const cleanCommandOps = new Map(
+      Array.from(this.contextData.commandOperations.entries()).filter(
+        ([_, op]) => !op.success || op.timestamp > oneHourAgo,
+      ),
+    );
 
     this.contextData = {
       phaseInstructions: newPhaseInstructions,
       fileOperations:
         data.fileOperations !== undefined
           ? new Map([...(data.fileOperations || [])])
-          : this.contextData.fileOperations,
+          : cleanFileOps,
       commandOperations:
         data.commandOperations !== undefined
           ? new Map([...(data.commandOperations || [])])
-          : this.contextData.commandOperations,
+          : cleanCommandOps,
       conversationHistory:
         data.conversationHistory !== undefined
           ? data.conversationHistory

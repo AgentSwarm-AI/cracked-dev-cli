@@ -371,24 +371,17 @@ describe("MessageContextBuilder", () => {
       messageContextStore.getContextData(),
     );
 
-    expect(messages).toHaveLength(7);
+    expect(messages).toHaveLength(6);
     expect(messages[0].content).toBe("system instruction");
     expect(messages[1].content).toBe(
       "<phase_prompt>instruction</phase_prompt>",
     );
     expect(messages[2].content).toBe(
-      "Content of file1 [SUCCESS]\nContent:\ncontent1",
+      "Command: command2 [FAILED (Error: error)]",
     );
-    expect(messages[3].content).toBe(
-      "Written to file2 [FAILED (Error: error)]\nContent:\ncontent2",
-    );
-    expect(messages[4].content).toBe(
-      "Command: command1 [SUCCESS]\nOutput:\noutput1",
-    );
-    expect(messages[5].content).toBe(
-      "Command: command2 [FAILED (Error: error)]\nOutput:\noutput2",
-    );
-    expect(messages[6].content).toBe("hello");
+    expect(messages[3].content).toBe("Content of file1:\ncontent1");
+    expect(messages[4].content).toBe("Command: command1");
+    expect(messages[5].content).toBe("hello");
   });
 
   it("should get latest phase instructions correctly", () => {
@@ -715,8 +708,8 @@ describe("MessageContextBuilder", () => {
     expect(messages[1].content).toBe(
       "<phase_prompt>phase instruction</phase_prompt>",
     );
-    expect(messages[2].content).toContain("Content of file1");
-    expect(messages[3].content).toContain("Command: cmd1");
+    expect(messages[2].content).toBe("Content of file1:\ncontent1");
+    expect(messages[3].content).toBe("Command: cmd1");
     expect(messages[4].content).toBe("hello");
   });
 
@@ -819,10 +812,10 @@ describe("MessageContextBuilder", () => {
       (m) => m.content.includes("Content of") || m.content.includes("Command:"),
     );
 
-    expect(operationMessages[0].content).toContain("file1");
-    expect(operationMessages[1].content).toContain("file2");
-    expect(operationMessages[2].content).toContain("cmd1");
-    expect(operationMessages[3].content).toContain("cmd2");
+    expect(operationMessages[0].content).toBe("Content of file1:\ncontent1");
+    expect(operationMessages[1].content).toBe("Content of file2:\ncontent2");
+    expect(operationMessages[2].content).toBe("Command: cmd1");
+    expect(operationMessages[3].content).toBe("Command: cmd2");
   });
 
   it("should handle empty or null context data gracefully", () => {

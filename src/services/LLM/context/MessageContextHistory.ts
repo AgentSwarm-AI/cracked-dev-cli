@@ -18,14 +18,42 @@ export class MessageContextHistory {
     private messageContextBuilder: MessageContextBuilder,
   ) {}
 
+  private cleanContent(content: string): string {
+    // Remove phase prompts
+    content = content.replace(/<phase_prompt>.*?<\/phase_prompt>/gs, "").trim();
+
+    // Remove file operation messages
+    if (
+      content.includes("Content of") ||
+      content.includes("Written to") ||
+      content.includes("FILE CREATED AND EXISTS:") ||
+      content.includes("Command executed:") ||
+      content.includes("Command:")
+    ) {
+      return "";
+    }
+
+    return content;
+  }
+
   public mergeConversationHistory(): void {
     const history =
       this.messageContextStore.getContextData().conversationHistory;
     if (history.length === 0) return;
 
-    const mergedContent = history
+    const cleanedHistory = history
+      .map((msg) => ({
+        role: msg.role,
+        content: this.cleanContent(msg.content),
+      }))
+      .filter((msg) => msg.content !== ""); // Remove empty messages
+
+    if (cleanedHistory.length === 0) return;
+
+    const mergedContent = cleanedHistory
       .map((msg) => `${msg.role}: ${msg.content}`)
       .join("\n\n");
+
     this.addMessage("assistant", mergedContent, false);
     this.messageContextStore.setContextData({
       conversationHistory: [],

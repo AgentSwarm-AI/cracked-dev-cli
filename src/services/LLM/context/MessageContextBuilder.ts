@@ -263,7 +263,7 @@ export class MessageContextBuilder {
 
     if (contextData.systemInstructions) {
       result.push({
-        role: "system" as const,
+        role: "system",
         content: contextData.systemInstructions,
       });
     }
@@ -274,72 +274,61 @@ export class MessageContextBuilder {
 
     if (currentPhaseInstructions) {
       result.push({
-        role: "system" as const,
+        role: "system",
         content: `<phase_prompt>${currentPhaseInstructions.content}</phase_prompt>`,
       });
     }
 
-    const allOperations: MessageOperation[] = [
+    const criticalOperations: MessageOperation[] = [
       ...Array.from(fileOperations.values()),
       ...Array.from(commandOperations.values()),
-    ].sort((a, b) => a.timestamp - b.timestamp);
+    ]
+      .filter((op) => !op.success || op.error)
+      .sort((a, b) => a.timestamp - b.timestamp);
 
-    for (const operation of allOperations) {
+    for (const operation of criticalOperations) {
       if ("command" in operation) {
-        const status =
-          operation.success !== undefined
-            ? operation.success
-              ? "SUCCESS"
-              : "FAILED"
-            : "PENDING";
+        const status = operation.success === false ? "FAILED" : "PENDING";
         const errorInfo = operation.error ? ` (Error: ${operation.error})` : "";
-        const content = operation.output
-          ? `Command: ${operation.command} [${status}${errorInfo}]\nOutput:\n${operation.output}`
-          : `Command executed: ${operation.command} [${status}${errorInfo}]`;
-
         result.push({
-          role: "system" as const,
-          content,
-        });
-      } else {
-        const status =
-          operation.success !== undefined
-            ? operation.success
-              ? "SUCCESS"
-              : "FAILED"
-            : "PENDING";
-        const errorInfo = operation.error ? ` (Error: ${operation.error})` : "";
-
-        const content =
-          operation.type === "write_file" && operation.success
-            ? `FILE CREATED AND EXISTS: ${operation.path} [${status}${errorInfo}]${
-                operation.content ? `\nContent:\n${operation.content}` : ""
-              }`
-            : `${operation.type === "read_file" ? "Content of" : "Written to"} ${
-                operation.path
-              } [${status}${errorInfo}]${
-                operation.content ? `\nContent:\n${operation.content}` : ""
-              }`;
-
-        result.push({
-          role: "system" as const,
-          content,
+          role: "system",
+          content: `Command: ${operation.command} [${status}${errorInfo}]`,
         });
       }
     }
 
-    const remainingMessages = conversationHistory.filter(
+    const successfulOperations = [
+      ...Array.from(fileOperations.values()),
+      ...Array.from(commandOperations.values()),
+    ]
+      .filter((op) => op.success === true && !op.error)
+      .sort((a, b) => a.timestamp - b.timestamp);
+
+    for (const operation of successfulOperations) {
+      if ("command" in operation) {
+        result.push({
+          role: "assistant",
+          content: `Command: ${operation.command}`,
+        });
+      } else {
+        result.push({
+          role: "assistant",
+          content: `Content of ${operation.path}:\n${operation.content}`,
+        });
+      }
+    }
+
+    const userAssistantMessages = conversationHistory.filter(
       (msg) =>
-        !(
-          msg.content.includes("Content of") ||
-          msg.content.includes("Command:") ||
-          msg.content.includes("Command executed:") ||
-          msg.content.includes("FILE CREATED AND EXISTS:") ||
-          msg.content.includes("Written to")
-        ),
+        msg.role !== "system" ||
+        (!msg.content.includes("Content of") &&
+          !msg.content.includes("Command:") &&
+          !msg.content.includes("Command executed:") &&
+          !msg.content.includes("FILE CREATED AND EXISTS:") &&
+          !msg.content.includes("Written to")),
     );
 
-    result.push(...remainingMessages);
+    result.push(...userAssistantMessages);
 
     return result;
   }
