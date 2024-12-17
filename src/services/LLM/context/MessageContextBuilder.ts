@@ -261,13 +261,6 @@ export class MessageContextBuilder {
 
     const result: IConversationHistoryMessage[] = [];
 
-    if (contextData.systemInstructions) {
-      result.push({
-        role: "system",
-        content: contextData.systemInstructions,
-      });
-    }
-
     const currentPhaseInstructions = Array.from(
       phaseInstructions.values(),
     ).sort((a, b) => b.timestamp - a.timestamp)[0];
