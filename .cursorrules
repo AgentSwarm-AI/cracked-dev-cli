@@ -1,2 +1,4 @@
-When writing unit tests, try using the helper UnitTestMocker.ts
-Public methods shoudl come first on the class
+- When writing unit tests, try using the helper UnitTestMocker.ts
+- Public methods should come first on the class
+- Always have Single Responsibility Principle in mind. Do not mix responsibilities. Create new classes for new responsibilities.
+- Prefer prefixing interfaces with I
