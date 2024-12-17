@@ -13,8 +13,7 @@ export const discoveryPhaseBlueprint: IPhaseConfig = {
 
 ### Critical 
 - Gather info to solve the problem; no code here. If none, <end_phase>.
-- If no discovery, immediately <end_phase>.
-- After file read, immediately <end_phase>.
+- If no discovery, immediately <end_phase>. 
 - Start by stating intent.
 - FIRST action: always <read_file>. If unsure, <search_string> or <search_file>.
 - For test fixes, run specific tests with <execute_command>.

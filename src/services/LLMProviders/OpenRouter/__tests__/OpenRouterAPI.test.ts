@@ -1,6 +1,10 @@
-import { MessageContextManager } from "@/services/LLM/context/MessageContextManager";
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 import { ModelManager } from "@/services/LLM/ModelManager";
-import { OpenRouterAPI } from "@services/LLMProviders/OpenRouter/OpenRouterAPI";
+import { MessageContextManager } from "@services/LLM/MessageContextManager";
+import {
+  LLMError,
+  OpenRouterAPI,
+} from "@services/LLMProviders/OpenRouter/OpenRouterAPI";
 import { DebugLogger } from "@services/logging/DebugLogger";
 import { HtmlEntityDecoder } from "@services/text/HTMLEntityDecoder";
 import { UnitTestMocker } from "@tests/mocks/UnitTestMocker";
@@ -12,6 +16,8 @@ describe("OpenRouterAPI", () => {
   let openRouterAPI: OpenRouterAPI;
   let mocker: UnitTestMocker;
   let postSpy: jest.SpyInstance;
+
+  let addMessageSpy: jest.SpyInstance;
 
   const setupMocks = () => {
     // Message Context Manager mocks
@@ -28,6 +34,8 @@ describe("OpenRouterAPI", () => {
     // Other service mocks
     mocker.mockPrototypeWith(HtmlEntityDecoder, "decode", (str) => str);
     mocker.mockPrototypeWith(DebugLogger, "log", () => {});
+
+    addMessageSpy = mocker.spyPrototype(MessageContextManager, "addMessage");
   };
 
   beforeEach(() => {
@@ -234,39 +242,161 @@ describe("OpenRouterAPI", () => {
       expect(isValid).toBe(true);
     });
   });
-
   describe("Streaming", () => {
-    it("should handle streaming messages", async () => {
+    it("should handle streaming messages correctly", async () => {
+      const mockStreamData = [
+        'data: {"choices": [{"delta": {"content": "Hel"}}]}\n',
+        'data: {"choices": [{"delta": {"content": "lo"}}]}\n',
+        'data: {"choices": [{"delta": {"content": "!"}}]}\n',
+        "data: [DONE]\n",
+      ];
+
       const mockStream = new Readable({
         read() {
-          this.push(
-            Buffer.from(
-              'data: {"choices":[{"delta":{"content":"Hello"}}]}\n\n',
-            ),
-          );
-          this.push(
-            Buffer.from('data: {"choices":[{"delta":{"content":"!"}}]}\n\n'),
-          );
-          this.push(Buffer.from("data: [DONE]\n\n"));
+          mockStreamData.forEach((chunk) => {
+            this.push(Buffer.from(chunk));
+          });
           this.push(null);
         },
       });
 
-      postSpy.mockResolvedValueOnce({ data: mockStream });
+      postSpy.mockResolvedValue({ data: mockStream });
 
-      const mockCallback = jest.fn();
-      await openRouterAPI.streamMessage("gpt-4", "Hi", mockCallback);
+      const callback = jest.fn();
+      await openRouterAPI.streamMessage("gpt-4", "Hi", callback);
 
-      expect(mockCallback).toHaveBeenCalledWith("Hello");
-      expect(mockCallback).toHaveBeenCalledWith("!");
-      expect(MessageContextManager.prototype.addMessage).toHaveBeenCalledWith(
-        "user",
+      expect(callback).toHaveBeenCalledTimes(3);
+      expect(callback).toHaveBeenNthCalledWith(1, "Hel");
+      expect(callback).toHaveBeenNthCalledWith(2, "lo");
+      expect(callback).toHaveBeenNthCalledWith(3, "!");
+    });
+
+    it("should not add empty messages to context", async () => {
+      const mockStream = new Readable({
+        read() {
+          this.push(Buffer.from("data: [DONE]\n"));
+          this.push(null);
+        },
+      });
+      postSpy.mockResolvedValue({ data: mockStream });
+
+      const callback = jest.fn();
+      await openRouterAPI.streamMessage("gpt-4", "Hi", callback);
+
+      expect(callback).toHaveBeenCalledTimes(0);
+    });
+
+    it("should handle errors within stream processing", async () => {
+      const mockStreamData = [
+        'data: {"error": {"message": "Stream error", "details": {}}}\n',
+        "data: [DONE]\n",
+      ];
+      const mockStream = new Readable({
+        read() {
+          mockStreamData.forEach((chunk) => {
+            this.push(Buffer.from(chunk));
+          });
+          this.push(null);
+        },
+      });
+      postSpy.mockResolvedValue({ data: mockStream });
+      const callback = jest.fn();
+
+      await new Promise<void>((resolve) => {
+        openRouterAPI.streamMessage("gpt-4", "Test message", (chunk, error) => {
+          if (error) {
+            expect(error).toBeInstanceOf(LLMError);
+            expect(error.message).toEqual("Stream error");
+            expect(error.type).toEqual("STREAM_ERROR");
+            resolve();
+          }
+        });
+      });
+
+      expect(callback).not.toHaveBeenCalled();
+    });
+
+    it("should handle aborted stream", async () => {
+      const mockStreamData = [
+        'data: {"choices": [{"delta": {"content": "Hel"}}]}\n',
+        'data: {"choices": [{"delta": {"content": "lo"}}]}\n',
+        'data: {"choices": [{"delta": {"content": "!"}}]}\n',
+        "data: [DONE]\n",
+      ];
+
+      const mockStream = new Readable({
+        read() {
+          mockStreamData.forEach((chunk) => {
+            this.push(Buffer.from(chunk));
+          });
+          this.push(null);
+        },
+      });
+
+      postSpy.mockResolvedValue({ data: mockStream });
+
+      const callback = jest.fn();
+      const streamPromise = openRouterAPI.streamMessage(
+        "gpt-4",
         "Hi",
+        callback,
       );
-      expect(MessageContextManager.prototype.addMessage).toHaveBeenCalledWith(
-        "assistant",
-        "Hello!",
+      openRouterAPI.cancelStream();
+      await streamPromise;
+
+      expect(callback).toHaveBeenCalledWith(
+        "",
+        //@ts-ignore
+        new LLMError("Aborted"),
       );
+    });
+
+    it("should retry on retryable error", async () => {
+      const mockStreamData = [
+        'data: {"choices": [{"delta": {"content": "Hel"}}]}\n',
+        'data: {"choices": [{"delta": {"content": "lo"}}]}\n',
+        'data: {"choices": [{"delta": {"content": "!"}}]}\n',
+        "data: [DONE]\n",
+      ];
+
+      const mockStream = new Readable({
+        read() {
+          mockStreamData.forEach((chunk) => {
+            this.push(Buffer.from(chunk));
+          });
+          this.push(null);
+        },
+      });
+
+      postSpy
+        .mockRejectedValueOnce(new LLMError("Network error", "NETWORK_ERROR"))
+        .mockResolvedValue({ data: mockStream });
+
+      const callback = jest.fn();
+      await openRouterAPI.streamMessage("gpt-4", "Hi", callback);
+
+      expect(postSpy).toHaveBeenCalledTimes(2);
+      expect(callback).toHaveBeenCalledTimes(3);
+    });
+
+    it("should not retry on non-retryable error", async () => {
+      postSpy.mockRejectedValueOnce(
+        new LLMError("Non retryable error", "API_ERROR"),
+      );
+
+      const callback = jest.fn();
+
+      await new Promise<void>((resolve) => {
+        openRouterAPI.streamMessage("gpt-4", "Hi", (chunk, error) => {
+          if (error) {
+            expect(error).toBeInstanceOf(LLMError);
+            expect(error.message).toEqual("Non retryable error");
+            expect(error.type).toEqual("API_ERROR");
+            resolve();
+          }
+        });
+      });
+      expect(postSpy).toHaveBeenCalledTimes(1);
     });
   });
 

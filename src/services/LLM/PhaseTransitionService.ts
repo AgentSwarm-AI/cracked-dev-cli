@@ -17,12 +17,12 @@ export class PhaseTransitionService {
 
   async transitionToNextPhase(): Promise<WriteActionData> {
     const currentPhase = this.phaseManager.getCurrentPhase();
+    const nextPhase = this.getNextPhase(currentPhase);
 
     this.messageContextPhase.cleanupPhaseContent();
     if (currentPhase === Phase.Strategy) {
       this.messageContextHistory.mergeConversationHistory();
     }
-    const nextPhase = this.getNextPhase(currentPhase);
 
     // Log phase transition with emojis
     console.log(

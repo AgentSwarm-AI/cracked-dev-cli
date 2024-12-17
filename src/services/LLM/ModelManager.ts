@@ -1,9 +1,8 @@
 import { DebugLogger } from "@services/logging/DebugLogger";
-import { autoInjectable, singleton } from "tsyringe";
-import { ModelInfo } from "../LLM/ModelInfo";
+import { singleton } from "tsyringe";
+import { ModelInfo } from "./ModelInfo";
 
 @singleton()
-@autoInjectable()
 export class ModelManager {
   private currentModel: string = "";
 

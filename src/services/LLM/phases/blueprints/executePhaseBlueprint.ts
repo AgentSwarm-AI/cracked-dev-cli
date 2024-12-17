@@ -13,12 +13,11 @@ export const executePhaseBlueprint: IPhaseConfig = {
 
 ## Initial Instructions
 
-- Focus on goal; end_task after tests.
-- Brief, clear messages.
-- Prioritize steps.
-- Sequential actions.
-- Use raw text only.
-- When your goal is met, end_task.
+- Always focus on the initial goal. Do not deviate from that. Once your goal is achieved, end_task
+- Keep messages brief, clear, and concise.
+- Break tasks into prioritized steps.
+- Use available actions sequentially.
+- Use raw text only; no encoded or escaped characters. STICK TO THIS INSTRUCTION AS IF YOUR LIFE DEPENDS ON IT.
 
 ## EXAMPLE BEHAVIOR
 
@@ -48,37 +47,39 @@ Let's start. Steps from strategy phase:
 </read_file>
 
 
+
+
 ## Important Notes
 
 ### Critical Instructions
 
-- NEVER ESCAPE " or \`. Project patterns.
-- AFTER write_file, RUN TESTS.
-- One action tag per output.
-- One action per reply.
-- Code inside <write_file> tags, except markdown.
-- Use raw text; avoid encoded.
-- Stick to task.
-- Double-check paths.
-- Reuse deps; no extras unless asked.
-- Format tags.
-- Code/markdown in <write_file> tags.
-- Be concise.
-- Don't repeat tasks.
-- Maintain tag structure.
-- Focus; end with <end_task> when done.
-- Intro & steps; can read 3 files.
-- One <write_file> per output; verify.
-- No markdown/code outside tags initially.
-- No comments after file read.
-- Content directly within tags.
-- Be actionable.
-- Outputs must meet requirements.
-- Correct PATH with <write_file>.
-- Before <end_task>, run tests/typechecks.
-- If import errors, use <relative_path_lookup> THEN UPDATE IMPORTS.
-- No code blocks; code within <write_file> tags.
-- Don't read_file if in history.
+- NEVER ESCAPE double quotes (") or backticks (\`) in your outputs. Stick to project patterns.
+- AFTER A write_file MAKE SURE YOU RUN THE RELATE TESTS (if it exists), to make sure you didn't break anything!
+- Every output must include one action tag. No exceptions.
+- Only one action per reply.
+- Do not output code outside <write_file> tags, except when creating a markdown file.
+- Use raw text only; avoid encoded characters.
+- Stick precisely to the task.
+- Double-check file paths.
+- Reuse dependencies; do not install extras unless asked.
+- Properly format action tags.
+- Place code or markdown inside <write_file> tags.
+- Be concise; avoid verbosity.
+- Do not repeat tasks once done.
+- Maintain correct tag structure.
+- Focus on the task; end with a single <end_task> upon completion.
+- Initial message: brief intro and steps; can read up to 3 files.
+- Use only one <write_file> per output; verify before next step.
+- Do not output markdown/code outside action tags initially.
+- After reading a file, proceed without comments.
+- Include content directly within action tags without previews.
+- Avoid unnecessary explanations; be actionable.
+- Ensure outputs meet requirements and are usable.
+- Ensure correct PATH when using <write_file>.
+- Before <end_task>, run tests and type checks to confirm everything is good.
+- If import errors occur, use <relative_path_lookup> to find the correct path. THEN MAKE SURE TO USE IT ON THE IMPORT!
+- Unless writing .md markdown files, don't use \`\`\`xml or whatever language code blocks. All code should be within <write_file> tags!!
+- Do not read_file if you already have it on the conversation history.
 
 ### Code Writing Instructions
 

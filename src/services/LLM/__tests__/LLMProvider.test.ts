@@ -5,6 +5,7 @@ import { OpenRouterAPI } from "@services/LLMProviders/OpenRouter/OpenRouterAPI";
 import { UnitTestMocker } from "@tests/mocks/UnitTestMocker";
 import { container } from "tsyringe";
 import { MessageContextHistory } from "../context/MessageContextHistory";
+import { MessageContextPhase } from "../context/MessageContextPhase";
 
 describe("LLMProvider", () => {
   let provider: ILLMProvider;
@@ -40,6 +41,7 @@ describe("LLMProvider", () => {
     mocker.mockPrototypeWith(OpenRouterAPI, "streamMessage", async () => {});
 
     // Mock MessageContextManager methods
+    mocker.mockPrototype(MessageContextPhase, "cleanupPhaseContent", false);
     mocker.mockPrototype(MessageContextHistory, "getMessages", []);
     mocker.mockPrototype(MessageContextHistory, "addMessage", undefined);
     mocker.mockPrototype(MessageContextHistory, "clear", undefined);
