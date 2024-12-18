@@ -123,6 +123,13 @@ export class LLMContextCreator {
     const runOneTestCmd = config.runOneTestCmd || "yarn test {testPath}";
     const runTypeCheckCmd = config.runTypeCheckCmd || "yarn type-check";
 
+    // Add flexible reference examples section
+    const referenceExamplesSection = Object.entries(
+      config.referenceExamples || {},
+    )
+      .map(([key, path]) => `${key}: ${path}`)
+      .join("\n");
+
     return `# Project Dependencies (from ${info.dependencyFile})
 Main Dependencies: ${info.mainDependencies.join(", ")}
 
@@ -134,7 +141,10 @@ ${Object.entries(info.scripts)
 # Test Commands
 Run All Tests: ${runAllTestsCmd}
 Run Single Test: ${runOneTestCmd}
-Run Type Check: ${runTypeCheckCmd}`;
+Run Type Check: ${runTypeCheckCmd}
+
+# Reference Examples
+${referenceExamplesSection}`;
   }
 
   private async formatInitialInstructions(
