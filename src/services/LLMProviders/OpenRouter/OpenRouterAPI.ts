@@ -389,8 +389,6 @@ export class OpenRouterAPI implements ILLMProvider {
         currentModel,
       );
 
-      console.log(formattedMessages);
-
       const streamOperation = async () => {
         const response = await this.makeRequest(
           "/chat/completions",
