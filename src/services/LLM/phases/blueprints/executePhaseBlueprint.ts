@@ -26,8 +26,8 @@ export const executePhaseBlueprint: IPhaseConfig = {
 
 - VALIDATION GATES:
   1. Before write_file:
-     - Verify imports with <relative_path_lookup>
-     - Check file paths with <execute_command>
+     - Verify imports with relative_path_lookup
+     - Check file paths with execute_command
   2. After write_file:
      - Run unit tests
      - Run type checks
@@ -35,8 +35,8 @@ export const executePhaseBlueprint: IPhaseConfig = {
      - If either fails -> fix or report
 
 - STUCK PREVENTION:
-  1. Import issues -> Use <relative_path_lookup>
-  2. Path issues -> Use <execute_command>
+  1. Import issues -> Use relative_path_lookup
+  2. Path issues -> Use execute_command
   3. Test failures -> Read test file, fix specific issue
   4. Type errors -> Fix one at a time
   5. Max 3 fix attempts -> Then end_task with report
@@ -93,7 +93,7 @@ Let's start. Steps from strategy phase:
 
 ### Critical Instructions
 
-- IMMEDIATELY END TASK (<end_task>) when goal is achieved - do not continue unnecessarily
+- IMMEDIATELY END TASK (end_task) when goal is achieved - do not continue unnecessarily
 - AFTER EVERY write_file:
   1. Run specific tests for modified files
   2. Run type check
@@ -102,30 +102,30 @@ Let's start. Steps from strategy phase:
 - NEVER ESCAPE double quotes (") or backticks (\`) in your outputs
 - Every output must include one action tag. No exceptions.
 - Only one action per reply.
-- Do not output code outside <write_file> tags, except when creating a markdown file.
+- Do not output code outside write_file tags, except when creating a markdown file.
 - Use raw text only; avoid encoded characters.
 - Stick precisely to the task.
 - Double-check file paths.
 - Reuse dependencies; do not install extras unless asked. REMEMBER THIS, DO NOT ADD EXTRA DEPENDENCIES UNLESS ASKED!
 - Properly format action tags.
-- Place code or markdown inside <write_file> tags.
+- Place code or markdown inside write_file tags.
 - Be concise; avoid verbosity.
 - Do not repeat tasks once done.
 - Maintain correct tag structure.
-- Focus on the task; end with a single <end_task> upon completion.
+- Focus on the task; end with a single end_task upon completion.
 - Initial message: brief intro and steps; can read up to 3 files.
-- Use only one <write_file> per output; verify before next step.
+- Use only one write_file per output; verify before next step.
 - Do not output markdown/code outside action tags initially.
 - After reading a file, proceed without comments.
 - Include content directly within action tags without previews.
 - Avoid unnecessary explanations; be actionable.
 - Ensure outputs meet requirements and are usable.
-- Ensure correct PATH when using <write_file>.
-- Before <end_task>, run tests and type checks to confirm everything is good.
-- If import errors occur, use <relative_path_lookup> to find the correct path. THEN MAKE SURE TO USE IT ON THE IMPORT!
-- Unless writing .md markdown files, don't use \`\`\`xml or whatever language code blocks. All code should be within <write_file> tags!!
+- Ensure correct PATH when using write_file.
+- Before end_task, run tests and type checks to confirm everything is good.
+- If import errors occur, use relative_path_lookup to find the correct path. THEN MAKE SURE TO USE IT ON THE IMPORT!
+- Unless writing .md markdown files, don't use \`\`\`xml or whatever language code blocks. All code should be within write_file tags!!
 - Do not read_file if you already have it on the conversation history.
-- Make sure you know the proper path to write the file. If not, use <execute_command> to find the correct path (e.g. 'ls -lha').
+- Make sure you know the proper path to write the file. If not, use execute_command to find the correct path (e.g. 'ls -lha').
 
 ### Code Writing Instructions
 
@@ -156,17 +156,17 @@ Let's start. Steps from strategy phase:
 - Correct import paths.
 - Project file naming conventions.
 - Full implementations.
-- If wrong imports, use <relative_path_lookup>.
-- If stuck on imports, stop <write_file>; use <relative_path_lookup> or <search_file>.
-- If stuck, <read_file> ONLY IF UNREAD.
+- If wrong imports, use relative_path_lookup.
+- If stuck on imports, stop write_file; use relative_path_lookup or search_file.
+- If stuck, read_file ONLY IF UNREAD.
 
 #### After Coding
 
-- After changes:
-  - Run relevant tests; for risky, run folder tests.
-  - Run type checks/all tests at end.
-  - If tests pass, <end_task>.
-  - If tests fail, <end_task> to report.
+  - After changes:
+    - Run relevant tests; for risky, run folder tests.
+    - Run type checks/all tests at end.
+    - If tests pass, end_task.
+    - If tests fail, end_task to report.
 
 ### Tests
 
@@ -231,7 +231,7 @@ DO NOT RUN write_file if import issues are not resolved! Use relative_path_looku
   <path>/path/here</path>
   <content>
    <!-- CRITICAL: Most write_file tasks are ADDITIVES if you already have content in place. -->
-   <!-- CRITICAL: If presented with import errors, USE IMMEDIATELY <relative_path_lookup> to find the correct path. -->
+   <!-- CRITICAL: If presented with import errors, USE IMMEDIATELY relative_path_lookup to find the correct path. -->
    <!-- ALWAYS run a type check after write_file -->
    <!-- ALWAYS output FULL CODE. No skips or partial code -->
    <!-- Use raw text only -->
