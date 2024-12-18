@@ -12,6 +12,7 @@ import { IActionResult } from "./types/ActionTypes";
 interface WriteFileParams {
   path: string;
   content: string;
+  type: "new" | "update";
 }
 
 const MAX_CONTENT_SIZE_MB = 10;
@@ -47,13 +48,16 @@ export class WriteFileAction extends BaseAction {
 
   protected validateParams(params: Record<string, any>): string | null {
     try {
-      const { path: filePath, content } = params as WriteFileParams;
+      const { path: filePath, content, type } = params as WriteFileParams;
 
       if (!filePath) {
         return "No file path provided";
       }
       if (!content) {
         return "No file content provided";
+      }
+      if (!type || !["new", "update"].includes(type)) {
+        return "Invalid or missing type parameter (must be 'new' or 'update')";
       }
 
       // Validate path
@@ -88,12 +92,13 @@ export class WriteFileAction extends BaseAction {
           );
           return null;
         }
-        return contentMatch[1].trim();
+        // Trim whitespace but preserve internal whitespace
+        return contentMatch[1].replace(/^\s+|\s+$/g, "");
       }
 
       // Use default extraction for other parameters
       const value = super.extractParamValue(content, paramName);
-      return Array.isArray(value) ? value[0] : value;
+      return value;
     } catch (error) {
       this.logError(`Error extracting parameter ${paramName}: ${error}`);
       return null;
@@ -104,18 +109,43 @@ export class WriteFileAction extends BaseAction {
     params: Record<string, any>,
   ): Promise<IActionResult> {
     try {
-      const { path: filePath, content: fileContent } =
-        params as WriteFileParams;
+      const {
+        path: filePath,
+        content: fileContent,
+        type,
+      } = params as WriteFileParams;
 
-      this.logInfo(`Writing to file: ${filePath}`);
+      this.logInfo(`Writing to file: ${filePath} (type: ${type})`);
 
-      // Check for large content removal if file exists
-      const removalCheck = await this.checkLargeRemoval(filePath, fileContent);
-      if (!removalCheck.success) {
-        return removalCheck;
+      // For updates, try to find the correct path if file doesn't exist
+      if (type === "update") {
+        const exists = await this.fileOperations.exists(filePath);
+        if (!exists) {
+          const similarFiles =
+            await this.fileOperations.findSimilarFiles(filePath);
+
+          if (similarFiles.length > 0) {
+            const bestMatch = similarFiles[0];
+            this.logInfo(`Found similar existing file: ${bestMatch}`);
+            params.path = bestMatch;
+          } else {
+            return this.createErrorResult(
+              `Cannot update file ${filePath} - file not found and no similar files exist`,
+            );
+          }
+        }
+
+        // Check for large content removal if file exists
+        const removalCheck = await this.checkLargeRemoval(
+          params.path,
+          fileContent,
+        );
+        if (!removalCheck.success) {
+          return removalCheck;
+        }
       }
 
-      // Decode and validate content
+      // Decode content and validate
       const decodedContent = this.htmlEntityDecoder.decode(fileContent, {
         unescapeChars: ['"'],
       });
@@ -126,15 +156,18 @@ export class WriteFileAction extends BaseAction {
       }
 
       // Write file
-      const result = await this.fileOperations.write(filePath, decodedContent);
+      const result = await this.fileOperations.write(
+        params.path,
+        decodedContent,
+      );
 
       if (!result.success) {
-        this.logError(`Failed to write file ${filePath}: ${result.error}`);
+        this.logError(`Failed to write file ${params.path}: ${result.error}`);
         return this.createErrorResult(result.error!);
       }
 
       this.logInfo(
-        `Successfully wrote ${Buffer.byteLength(decodedContent, "utf8")} bytes to ${filePath}`,
+        `Successfully wrote ${Buffer.byteLength(decodedContent, "utf8")} bytes to ${params.path}`,
       );
       return this.createSuccessResult();
     } catch (error) {
@@ -205,8 +238,13 @@ export class WriteFileAction extends BaseAction {
     return (removedLength / existingLength) * 100;
   }
 
-  private isValidContent(content: string): boolean {
+  private isValidContent(content: string | null): boolean {
     try {
+      if (!content) {
+        this.logWarning("Content is null or empty");
+        return false;
+      }
+
       // Check for null bytes and other potentially dangerous content
       if (content.includes("\0")) {
         this.logWarning("Content contains null bytes");

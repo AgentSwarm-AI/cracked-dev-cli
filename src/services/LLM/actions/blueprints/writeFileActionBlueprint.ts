@@ -12,6 +12,15 @@ export const writeFileActionBlueprint: IActionBlueprint = {
   requiresProcessing: false,
   parameters: [
     {
+      name: "type",
+      required: true,
+      description:
+        "Specifies whether this is a new file creation or an update to an existing file",
+      validator: (value: unknown): value is string =>
+        typeof value === "string" &&
+        ["new", "update"].includes(value as string),
+    },
+    {
       name: "path",
       required: true,
       description: "The path where the file will be written",

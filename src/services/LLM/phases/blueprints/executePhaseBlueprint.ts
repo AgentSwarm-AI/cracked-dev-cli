@@ -51,6 +51,7 @@ export const executePhaseBlueprint: IPhaseConfig = {
 ### Example Flow:
 1. Implement feature:
    <write_file>
+     <type>new/update</type>
      <path>/verified/path/here</path>
      <content>
        // Complete implementation
@@ -73,6 +74,7 @@ Let's start. Steps from strategy phase:
 
 <!-- MAKE SURE YOU CLOSE TAGS PROPERLY! -->
 <write_file>
+  <type>new/update</type>
   <path>/path/to/file.ts</path>
   <content>
     // Code here
@@ -200,7 +202,7 @@ Let's start. Steps from strategy phase:
 - Valid markdown; no extra tabs.
 - Mermaid diagrams with explanations.
 - In Mermaid, use [ ] instead of ( ).
-- After <write_file>, use <read_file> to verify, then stop.
+- After write_file, use read_file to verify, then stop.
 
 ### Useful Commands
 

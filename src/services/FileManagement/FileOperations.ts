@@ -63,18 +63,25 @@ export class FileOperations implements IFileOperations {
 
     // Only perform fuzzy search for read operations
     if (isRead) {
-      // For read operations, try to find similar files
       const similarFiles = await this.fileSearch.findByName(
         path.basename(filePath),
         process.cwd(),
       );
+
       if (similarFiles.length > 0) {
         const bestMatch = similarFiles[0];
-        this.debugLogger.log(
-          "FileOperations",
-          `Found similar file: ${bestMatch} for ${filePath}`,
-        );
-        return bestMatch;
+        // Additional validation for the best match
+        if (await fs.pathExists(bestMatch)) {
+          const stats = await fs.stat(bestMatch);
+          if (stats.isFile()) {
+            this.debugLogger.log(
+              "FileOperations",
+              `Found similar file: ${bestMatch} for ${filePath}`,
+              { confidence: "high", originalPath: filePath },
+            );
+            return bestMatch;
+          }
+        }
       }
     }
 
@@ -282,5 +289,9 @@ export class FileOperations implements IFileOperations {
     } catch (error) {
       return { success: false, error: error as Error };
     }
+  }
+
+  async findSimilarFiles(filePath: string): Promise<string[]> {
+    return this.fileSearch.findByName(filePath, process.cwd());
   }
 }

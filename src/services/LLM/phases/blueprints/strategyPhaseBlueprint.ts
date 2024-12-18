@@ -58,6 +58,7 @@ To implement <feature>, we'll:
    - Error case coverage
 
 <write_file>
+  <type>new/update</type>
   <path>/correct/path/here</path>
   <content>
  <!-- CRITICAL: Most write_file tasks are ADDITIVES if you already have content in place. -->
@@ -79,6 +80,7 @@ To implement <feature>, we'll:
 
 YOU CAN ONLY USE THIS ONE TIME! MAKE SURE YOU SUGGEST A write_file and then immediately end_phase!
 <write_file>
+  <type>new/update</type>
   <path>/path/here</path>
   <content>
    <!-- CRITICAL: Most write_file tasks are ADDITIVES if you already have content in place. -->

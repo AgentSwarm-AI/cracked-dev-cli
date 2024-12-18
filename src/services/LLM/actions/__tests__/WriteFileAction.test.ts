@@ -36,6 +36,7 @@ describe("WriteFileAction", () => {
       exists: jest.fn(),
       read: jest.fn(),
       getAdjustedPath: jest.fn(),
+      findSimilarFiles: jest.fn(),
     } as any;
 
     mockActionTagsExtractor = {
@@ -68,14 +69,18 @@ describe("WriteFileAction", () => {
       const content = "<div>Test</div>\n<span>Content</span>";
       const actionContent = `
         <write_file>
+          <type>new</type>
           <path>${filePath}</path>
-          <content>
-            ${content}
-          </content>
+          <content>${content}</content>
         </write_file>`;
 
-      mockActionTagsExtractor.extractTag.mockImplementation((_, tag) => {
+      mockActionTagsExtractor.extractTag.mockImplementation((content, tag) => {
         if (tag === "path") return filePath;
+        if (tag === "content")
+          return (
+            content.match(/<content>([\s\S]*?)<\/content>/)?.[1].trim() || null
+          );
+        if (tag === "type") return "new";
         return null;
       });
 
@@ -92,21 +97,24 @@ describe("WriteFileAction", () => {
 
     it("should handle content with XML-like syntax", async () => {
       const filePath = "/test/file.xml";
-      const content = `
-        <?xml version="1.0" encoding="UTF-8"?>
+      const content = `<?xml version="1.0" encoding="UTF-8"?>
         <root>
           <child attr="value">Text</child>
         </root>`;
       const actionContent = `
         <write_file>
+          <type>new</type>
           <path>${filePath}</path>
-          <content>
-            ${content}
-          </content>
+          <content>${content}</content>
         </write_file>`;
 
-      mockActionTagsExtractor.extractTag.mockImplementation((_, tag) => {
+      mockActionTagsExtractor.extractTag.mockImplementation((content, tag) => {
         if (tag === "path") return filePath;
+        if (tag === "content")
+          return (
+            content.match(/<content>([\s\S]*?)<\/content>/)?.[1].trim() || null
+          );
+        if (tag === "type") return "new";
         return null;
       });
 
@@ -124,10 +132,13 @@ describe("WriteFileAction", () => {
     it("should handle content with no whitespace", async () => {
       const filePath = "/test/file.ts";
       const content = "content-without-whitespace";
-      const actionContent = `<write_file><path>${filePath}</path><content>${content}</content></write_file>`;
+      const actionContent = `<write_file><type>new</type><path>${filePath}</path><content>${content}</content></write_file>`;
 
-      mockActionTagsExtractor.extractTag.mockImplementation((_, tag) => {
+      mockActionTagsExtractor.extractTag.mockImplementation((content, tag) => {
         if (tag === "path") return filePath;
+        if (tag === "content")
+          return content.match(/<content>([\s\S]*?)<\/content>/)?.[1] || null;
+        if (tag === "type") return "new";
         return null;
       });
 
@@ -152,12 +163,18 @@ describe("WriteFileAction", () => {
         </root>`;
       const actionContent = `
         <write_file>
+          <type>new</type>
           <path>${filePath}</path>
           <content>${content}</content>
         </write_file>`;
 
-      mockActionTagsExtractor.extractTag.mockImplementation((_, tag) => {
+      mockActionTagsExtractor.extractTag.mockImplementation((content, tag) => {
         if (tag === "path") return filePath;
+        if (tag === "content")
+          return (
+            content.match(/<content>([\s\S]*?)<\/content>/)?.[1].trim() || null
+          );
+        if (tag === "type") return "new";
         return null;
       });
 
@@ -179,12 +196,16 @@ describe("WriteFileAction", () => {
       const content = "test content";
       const actionContent = `
         <write_file>
+          <type>update</type>
           <path>${filePath}</path>
           <content>${content}</content>
         </write_file>`;
 
-      mockActionTagsExtractor.extractTag.mockImplementation((_, tag) => {
+      mockActionTagsExtractor.extractTag.mockImplementation((content, tag) => {
         if (tag === "path") return filePath;
+        if (tag === "content")
+          return content.match(/<content>([\s\S]*?)<\/content>/)?.[1] || null;
+        if (tag === "type") return "update";
         return null;
       });
 
@@ -209,12 +230,16 @@ describe("WriteFileAction", () => {
       const content = "test content";
       const actionContent = `
         <write_file>
+          <type>new</type>
           <path>${filePath}</path>
           <content>${content}</content>
         </write_file>`;
 
-      mockActionTagsExtractor.extractTag.mockImplementation((_, tag) => {
+      mockActionTagsExtractor.extractTag.mockImplementation((content, tag) => {
         if (tag === "path") return filePath;
+        if (tag === "content")
+          return content.match(/<content>([\s\S]*?)<\/content>/)?.[1] || null;
+        if (tag === "type") return "new";
         return null;
       });
 
@@ -235,17 +260,24 @@ describe("WriteFileAction", () => {
       const content = "test content";
       const actionContent = `
         <write_file>
+          <type>update</type>
           <path>${filePath}</path>
           <content>${content}</content>
         </write_file>`;
 
-      mockActionTagsExtractor.extractTag.mockImplementation((_, tag) => {
+      mockActionTagsExtractor.extractTag.mockImplementation((content, tag) => {
         if (tag === "path") return filePath;
+        if (tag === "content")
+          return (
+            content.match(/<content>([\s\S]*?)<\/content>/)?.[1].trim() || null
+          );
+        if (tag === "type") return "update";
         return null;
       });
 
       mockModelScaler.isAutoScalerEnabled.mockReturnValue(false);
       mockFileOperations.exists.mockResolvedValue(false);
+      mockFileOperations.findSimilarFiles.mockResolvedValue([filePath]);
       mockFileOperations.write.mockResolvedValue({
         success: false,
         error: new Error("Write failed"),
@@ -263,13 +295,18 @@ describe("WriteFileAction", () => {
       const content = "new file content";
       const actionContent = `
         <write_file>
+          <type>new</type>
           <path>${filePath}</path>
           <content>${content}</content>
         </write_file>`;
 
-      mockActionTagsExtractor.extractTag.mockImplementation((_, tag) => {
+      mockActionTagsExtractor.extractTag.mockImplementation((content, tag) => {
         if (tag === "path") return filePath;
-        if (tag === "content") return content;
+        if (tag === "content")
+          return (
+            content.match(/<content>([\s\S]*?)<\/content>/)?.[1].trim() || null
+          );
+        if (tag === "type") return "new";
         return null;
       });
 
@@ -281,7 +318,6 @@ describe("WriteFileAction", () => {
       const result = await writeFileAction.execute(actionContent);
 
       expect(result.success).toBe(true);
-      expect(mockFileOperations.exists).toHaveBeenCalledWith(filePath);
       expect(mockFileOperations.write).toHaveBeenCalledWith(filePath, content);
       expect(mockModelScaler.incrementTryCount).not.toHaveBeenCalled();
       expect(mockFileOperations.read).not.toHaveBeenCalled();
@@ -292,12 +328,18 @@ describe("WriteFileAction", () => {
       const content = "New content";
       const actionContent = `
         <write_file>
+          <type>new</type>
           <path>${filePath}</path>
           <content>${content}</content>
         </write_file>`;
 
-      mockActionTagsExtractor.extractTag.mockImplementation((_, tag) => {
+      mockActionTagsExtractor.extractTag.mockImplementation((content, tag) => {
         if (tag === "path") return filePath;
+        if (tag === "content")
+          return (
+            content.match(/<content>([\s\S]*?)<\/content>/)?.[1].trim() || null
+          );
+        if (tag === "type") return "new";
         return null;
       });
 
@@ -320,12 +362,16 @@ describe("WriteFileAction", () => {
       const newContent = "Modified content";
       const actionContent = `
         <write_file>
+          <type>update</type>
           <path>${filePath}</path>
           <content>${newContent}</content>
         </write_file>`;
 
-      mockActionTagsExtractor.extractTag.mockImplementation((_, tag) => {
+      mockActionTagsExtractor.extractTag.mockImplementation((content, tag) => {
         if (tag === "path") return filePath;
+        if (tag === "content")
+          return content.match(/<content>([\s\S]*?)<\/content>/)?.[1] || null;
+        if (tag === "type") return "update";
         return null;
       });
 
@@ -354,12 +400,18 @@ describe("WriteFileAction", () => {
       const decodedContent = "<div>Test</div>";
       const actionContent = `
         <write_file>
+          <type>new</type>
           <path>${filePath}</path>
           <content>${encodedContent}</content>
         </write_file>`;
 
-      mockActionTagsExtractor.extractTag.mockImplementation((_, tag) => {
+      mockActionTagsExtractor.extractTag.mockImplementation((content, tag) => {
         if (tag === "path") return filePath;
+        if (tag === "content")
+          return (
+            content.match(/<content>([\s\S]*?)<\/content>/)?.[1].trim() || null
+          );
+        if (tag === "type") return "new";
         return null;
       });
 
@@ -390,13 +442,16 @@ describe("WriteFileAction", () => {
       const newContent = "Very short";
       const actionContent = `
         <write_file>
+          <type>update</type>
           <path>${filePath}</path>
           <content>${newContent}</content>
         </write_file>`;
 
-      mockActionTagsExtractor.extractTag.mockImplementation((_, tag) => {
+      mockActionTagsExtractor.extractTag.mockImplementation((content, tag) => {
         if (tag === "path") return filePath;
-        if (tag === "content") return newContent;
+        if (tag === "content")
+          return content.match(/<content>([\s\S]*?)<\/content>/)?.[1] || null;
+        if (tag === "type") return "update";
         return null;
       });
 
@@ -421,12 +476,16 @@ describe("WriteFileAction", () => {
       const content = "test content";
       const actionContent = `
         <write_file>
+          <type>update</type>
           <path>${filePath}</path>
           <content>${content}</content>
         </write_file>`;
 
-      mockActionTagsExtractor.extractTag.mockImplementation((_, tag) => {
+      mockActionTagsExtractor.extractTag.mockImplementation((content, tag) => {
         if (tag === "path") return filePath;
+        if (tag === "content")
+          return content.match(/<content>([\s\S]*?)<\/content>/)?.[1] || null;
+        if (tag === "type") return "update";
         return null;
       });
 
@@ -450,12 +509,16 @@ describe("WriteFileAction", () => {
       const newContent = "New content";
       const actionContent = `
         <write_file>
+          <type>update</type>
           <path>${filePath}</path>
           <content>${newContent}</content>
         </write_file>`;
 
-      mockActionTagsExtractor.extractTag.mockImplementation((_, tag) => {
+      mockActionTagsExtractor.extractTag.mockImplementation((content, tag) => {
         if (tag === "path") return filePath;
+        if (tag === "content")
+          return content.match(/<content>([\s\S]*?)<\/content>/)?.[1] || null;
+        if (tag === "type") return "update";
         return null;
       });
 
@@ -500,7 +563,7 @@ describe("WriteFileAction", () => {
           <path>/test/file.ts</path>
         </write_file>`;
 
-      mockActionTagsExtractor.extractTag.mockImplementation((_, tag) => {
+      mockActionTagsExtractor.extractTag.mockImplementation((content, tag) => {
         if (tag === "path") return "/test/file.ts";
         return null;
       });
@@ -513,15 +576,20 @@ describe("WriteFileAction", () => {
     });
 
     it("should fail when path contains traversal", async () => {
+      const filePath = "../test/file.ts";
+      const content = "test content";
       const actionContent = `
         <write_file>
-          <path>../test/file.ts</path>
-          <content>test content</content>
+          <type>new</type>
+          <path>${filePath}</path>
+          <content>${content}</content>
         </write_file>`;
 
-      mockActionTagsExtractor.extractTag.mockImplementation((_, tag) => {
-        if (tag === "path") return "../test/file.ts";
-        if (tag === "content") return "test content";
+      mockActionTagsExtractor.extractTag.mockImplementation((content, tag) => {
+        if (tag === "path") return filePath;
+        if (tag === "content")
+          return content.match(/<content>([\s\S]*?)<\/content>/)?.[1] || null;
+        if (tag === "type") return "new";
         return null;
       });
 
@@ -533,16 +601,22 @@ describe("WriteFileAction", () => {
     });
 
     it("should fail when content size exceeds limit", async () => {
+      const filePath = "/test/file.ts";
       const largeContent = "x".repeat(11 * 1024 * 1024); // 11MB
       const actionContent = `
         <write_file>
-          <path>/test/file.ts</path>
+          <type>new</type>
+          <path>${filePath}</path>
           <content>${largeContent}</content>
         </write_file>`;
 
-      mockActionTagsExtractor.extractTag.mockImplementation((_, tag) => {
-        if (tag === "path") return "/test/file.ts";
-        if (tag === "content") return largeContent;
+      mockActionTagsExtractor.extractTag.mockImplementation((content, tag) => {
+        if (tag === "path") return filePath;
+        if (tag === "content")
+          return (
+            largeContent.match(/<content>([\s\S]*?)<\/content>/)?.[1] || null
+          );
+        if (tag === "type") return "new";
         return null;
       });
 
@@ -553,21 +627,22 @@ describe("WriteFileAction", () => {
       expect(result.error?.message).toContain("exceeds maximum allowed size");
       expect(mockFileOperations.write).not.toHaveBeenCalled();
     });
-  });
 
-  describe("content validation", () => {
     it("should fail when content contains null bytes", async () => {
       const filePath = "/test/file.ts";
       const content = "test\0content";
       const actionContent = `
         <write_file>
+          <type>new</type>
           <path>${filePath}</path>
           <content>${content}</content>
         </write_file>`;
 
-      mockActionTagsExtractor.extractTag.mockImplementation((_, tag) => {
+      mockActionTagsExtractor.extractTag.mockImplementation((content, tag) => {
         if (tag === "path") return filePath;
-        if (tag === "content") return content;
+        if (tag === "content")
+          return content.match(/<content>([\s\S]*?)<\/content>/)?.[1] || null;
+        if (tag === "type") return "new";
         return null;
       });
 
@@ -589,13 +664,16 @@ describe("WriteFileAction", () => {
       const content = "x".repeat(11000); // Line longer than 10000 chars
       const actionContent = `
         <write_file>
+          <type>new</type>
           <path>${filePath}</path>
           <content>${content}</content>
         </write_file>`;
 
-      mockActionTagsExtractor.extractTag.mockImplementation((_, tag) => {
+      mockActionTagsExtractor.extractTag.mockImplementation((content, tag) => {
         if (tag === "path") return filePath;
-        if (tag === "content") return content;
+        if (tag === "content")
+          return content.match(/<content>([\s\S]*?)<\/content>/)?.[1] || null;
+        if (tag === "type") return "new";
         return null;
       });
 
@@ -631,12 +709,16 @@ describe("WriteFileAction", () => {
       const newContent = "content with spaces";
       const actionContent = `
         <write_file>
+          <type>update</type>
           <path>${filePath}</path>
           <content>${newContent}</content>
         </write_file>`;
 
-      mockActionTagsExtractor.extractTag.mockImplementation((_, tag) => {
+      mockActionTagsExtractor.extractTag.mockImplementation((content, tag) => {
         if (tag === "path") return filePath;
+        if (tag === "content")
+          return content.match(/<content>([\s\S]*?)<\/content>/)?.[1] || null;
+        if (tag === "type") return "update";
         return null;
       });
 
@@ -664,12 +746,16 @@ describe("WriteFileAction", () => {
       const newContent = "content\nwith\nnewlines";
       const actionContent = `
         <write_file>
+          <type>update</type>
           <path>${filePath}</path>
           <content>${newContent}</content>
         </write_file>`;
 
-      mockActionTagsExtractor.extractTag.mockImplementation((_, tag) => {
+      mockActionTagsExtractor.extractTag.mockImplementation((content, tag) => {
         if (tag === "path") return filePath;
+        if (tag === "content")
+          return content.match(/<content>([\s\S]*?)<\/content>/)?.[1] || null;
+        if (tag === "type") return "update";
         return null;
       });
 
@@ -689,6 +775,195 @@ describe("WriteFileAction", () => {
         filePath,
         newContent,
       );
+    });
+  });
+
+  describe("file type behavior", () => {
+    it("should fail when type parameter is missing", async () => {
+      const filePath = "/test/file.ts";
+      const content = "test content";
+      const actionContent = `
+        <write_file>
+          <type>update</type>
+          <path>${filePath}</path>
+          <content>${content}</content>
+        </write_file>`;
+
+      mockActionTagsExtractor.extractTag.mockImplementation((content, tag) => {
+        if (tag === "path") return filePath;
+        if (tag === "content")
+          return content.match(/<content>([\s\S]*?)<\/content>/)?.[1] || null;
+        if (tag === "type") return null;
+        return null;
+      });
+
+      const result = await writeFileAction.execute(actionContent);
+
+      expect(result.success).toBe(false);
+      expect(result.error?.message).toBe(
+        "Invalid or missing type parameter (must be 'new' or 'update')",
+      );
+      expect(mockFileOperations.write).not.toHaveBeenCalled();
+    });
+
+    it("should fail when type parameter is invalid", async () => {
+      const filePath = "/test/file.ts";
+      const content = "test content";
+      const actionContent = `
+        <write_file>
+          <type>invalid</type>
+          <path>${filePath}</path>
+          <content>${content}</content>
+        </write_file>`;
+
+      mockActionTagsExtractor.extractTag.mockImplementation((content, tag) => {
+        if (tag === "path") return filePath;
+        if (tag === "content")
+          return content.match(/<content>([\s\S]*?)<\/content>/)?.[1] || null;
+        if (tag === "type") return "invalid";
+        return null;
+      });
+
+      const result = await writeFileAction.execute(actionContent);
+
+      expect(result.success).toBe(false);
+      expect(result.error?.message).toBe(
+        "Invalid or missing type parameter (must be 'new' or 'update')",
+      );
+      expect(mockFileOperations.write).not.toHaveBeenCalled();
+    });
+
+    it("should skip path search for new files", async () => {
+      const filePath = "/test/newfile.ts";
+      const content = "new file content";
+      const actionContent = `
+        <write_file>
+          <type>new</type>
+          <path>${filePath}</path>
+          <content>${content}</content>
+        </write_file>`;
+
+      mockActionTagsExtractor.extractTag.mockImplementation((content, tag) => {
+        if (tag === "path") return filePath;
+        if (tag === "content")
+          return content.match(/<content>([\s\S]*?)<\/content>/)?.[1] || null;
+        if (tag === "type") return "new";
+        return null;
+      });
+
+      mockModelScaler.isAutoScalerEnabled.mockReturnValue(false);
+      mockFileOperations.exists.mockResolvedValue(false);
+      mockFileOperations.write.mockResolvedValue({ success: true });
+      mockHtmlEntityDecoder.decode.mockReturnValue(content);
+
+      const result = await writeFileAction.execute(actionContent);
+
+      expect(result.success).toBe(true);
+      expect(mockFileOperations.findSimilarFiles).not.toHaveBeenCalled();
+      expect(mockFileOperations.write).toHaveBeenCalledWith(filePath, content);
+    });
+
+    it("should search for similar files when updating non-existent file", async () => {
+      const originalPath = "/test/nonexistent.ts";
+      const similarPath = "/test/existing.ts";
+      const content = "update content";
+      const actionContent = `
+        <write_file>
+          <type>update</type>
+          <path>${originalPath}</path>
+          <content>${content}</content>
+        </write_file>`;
+
+      mockActionTagsExtractor.extractTag.mockImplementation((content, tag) => {
+        if (tag === "path") return originalPath;
+        if (tag === "content")
+          return content.match(/<content>([\s\S]*?)<\/content>/)?.[1] || null;
+        if (tag === "type") return "update";
+        return null;
+      });
+
+      mockModelScaler.isAutoScalerEnabled.mockReturnValue(false);
+      mockFileOperations.exists.mockResolvedValue(false);
+      mockFileOperations.findSimilarFiles.mockResolvedValue([similarPath]);
+      mockFileOperations.read.mockResolvedValue({
+        success: true,
+        data: "existing content",
+      });
+      mockFileOperations.write.mockResolvedValue({ success: true });
+      mockHtmlEntityDecoder.decode.mockReturnValue(content);
+
+      const result = await writeFileAction.execute(actionContent);
+
+      expect(result.success).toBe(true);
+      expect(mockFileOperations.findSimilarFiles).toHaveBeenCalledWith(
+        originalPath,
+      );
+      expect(mockFileOperations.write).toHaveBeenCalledWith(
+        similarPath,
+        content,
+      );
+    });
+
+    it("should fail when no similar files found for update", async () => {
+      const filePath = "/test/nonexistent.ts";
+      const content = "update content";
+      const actionContent = `
+        <write_file>
+          <type>update</type>
+          <path>${filePath}</path>
+          <content>${content}</content>
+        </write_file>`;
+
+      mockActionTagsExtractor.extractTag.mockImplementation((content, tag) => {
+        if (tag === "path") return filePath;
+        if (tag === "content")
+          return content.match(/<content>([\s\S]*?)<\/content>/)?.[1] || null;
+        if (tag === "type") return "update";
+        return null;
+      });
+
+      mockModelScaler.isAutoScalerEnabled.mockReturnValue(false);
+      mockFileOperations.exists.mockResolvedValue(false);
+      mockFileOperations.findSimilarFiles.mockResolvedValue([]);
+      mockHtmlEntityDecoder.decode.mockReturnValue(content);
+
+      const result = await writeFileAction.execute(actionContent);
+
+      expect(result.success).toBe(false);
+      expect(result.error?.message).toBe(
+        `Cannot update file ${filePath} - file not found and no similar files exist`,
+      );
+      expect(mockFileOperations.write).not.toHaveBeenCalled();
+    });
+
+    it("should perform content removal check only for updates", async () => {
+      const filePath = "/test/file.ts";
+      const content = "very short content";
+      const actionContent = `
+        <write_file>
+          <type>new</type>
+          <path>${filePath}</path>
+          <content>${content}</content>
+        </write_file>`;
+
+      mockActionTagsExtractor.extractTag.mockImplementation((content, tag) => {
+        if (tag === "path") return filePath;
+        if (tag === "content")
+          return content.match(/<content>([\s\S]*?)<\/content>/)?.[1] || null;
+        if (tag === "type") return "new";
+        return null;
+      });
+
+      mockModelScaler.isAutoScalerEnabled.mockReturnValue(false);
+      mockFileOperations.exists.mockResolvedValue(false);
+      mockFileOperations.write.mockResolvedValue({ success: true });
+      mockHtmlEntityDecoder.decode.mockReturnValue(content);
+
+      const result = await writeFileAction.execute(actionContent);
+
+      expect(result.success).toBe(true);
+      expect(mockFileOperations.read).not.toHaveBeenCalled();
+      expect(mockFileOperations.write).toHaveBeenCalledWith(filePath, content);
     });
   });
 });
