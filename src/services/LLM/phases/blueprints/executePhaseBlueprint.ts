@@ -15,11 +15,51 @@ export const executePhaseBlueprint: IPhaseConfig = {
 
 ## Initial Instructions
 
-- Always focus on the initial goal. Do not deviate from that. Once your goal is achieved, end_task
-- Keep messages brief, clear, and concise.
-- Break tasks into prioritized steps.
-- Use available actions sequentially.
-- Use raw text only; no encoded or escaped characters. STICK TO THIS INSTRUCTION AS IF YOUR LIFE DEPENDS ON IT.
+- EXECUTION FLOW:
+  1. Follow strategy phase steps IN ORDER
+  2. ONE action per response
+  3. After EACH code change:
+     - Run specific tests
+     - Run type checks
+     - Fix or report issues
+  4. End task IMMEDIATELY when goal is achieved
+
+- VALIDATION GATES:
+  1. Before write_file:
+     - Verify imports with <relative_path_lookup>
+     - Check file paths with <execute_command>
+  2. After write_file:
+     - Run unit tests
+     - Run type checks
+     - If both pass -> continue or end_task
+     - If either fails -> fix or report
+
+- STUCK PREVENTION:
+  1. Import issues -> Use <relative_path_lookup>
+  2. Path issues -> Use <execute_command>
+  3. Test failures -> Read test file, fix specific issue
+  4. Type errors -> Fix one at a time
+  5. Max 3 fix attempts -> Then end_task with report
+
+- CODE CHANGES:
+  1. ONE change at a time
+  2. Full implementation (no TODOs)
+  3. Include ALL imports
+  4. Follow project patterns
+  5. Test after EACH change
+
+### Example Flow:
+1. Implement feature:
+   <write_file>
+     <path>/verified/path/here</path>
+     <content>
+       // Complete implementation
+     </content>
+   </write_file>
+
+2. Run tests, fix if needed
+3. Run type check, fix if needed
+4. If all passes and goal met -> <end_task>
 
 ## EXAMPLE BEHAVIOR
 
@@ -53,8 +93,13 @@ Let's start. Steps from strategy phase:
 
 ### Critical Instructions
 
-- NEVER ESCAPE double quotes (") or backticks (\`) in your outputs. Stick to project patterns.
-- AFTER A write_file MAKE SURE YOU RUN THE RELATE TESTS (if it exists), to make sure you didn't break anything!
+- IMMEDIATELY END TASK (<end_task>) when goal is achieved - do not continue unnecessarily
+- AFTER EVERY write_file:
+  1. Run specific tests for modified files
+  2. Run type check
+  3. If both pass and goal is met -> end_task
+  4. If either fails -> fix or report
+- NEVER ESCAPE double quotes (") or backticks (\`) in your outputs
 - Every output must include one action tag. No exceptions.
 - Only one action per reply.
 - Do not output code outside <write_file> tags, except when creating a markdown file.

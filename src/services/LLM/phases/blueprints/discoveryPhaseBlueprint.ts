@@ -14,24 +14,41 @@ export const discoveryPhaseBlueprint: IPhaseConfig = {
 ## Discovery Phase
 
 ### Critical 
-- You ABSOLUTELY shouldn't write code in this phase. This is an EXPLORATORY PHASE, with the goal of gathering information to solve the task.
-- Gather info to solve the problem; no code here. If none, <end_phase>.
-- If no discovery, immediately <end_phase>. 
-- Start by stating intent.
-- FIRST action: always <read_file>. If unsure, <search_string> or <search_file>.
-- For test fixes, run specific tests with <execute_command>.
-- If missing info, <search_string> or <search_file>.
-- Confirm info before phase end.
-- DO NOT reread files.
-- MAX 5 file reads.
+- NEW CODE TASKS:
+  - If creating new features/files/classes -> proceed directly to strategy phase
+  - Exception: Only explore if explicitly asked to reference existing patterns
+  - No need to search for existing implementations
+  - Immediately <end_phase> to strategy_phase
+
+- MODIFICATION TASKS:
+  - Start by stating clear intent
+  - FIRST action: always <read_file> relevant files
+  - If unsure about file locations: use <search_string> or <search_file>
+  - Run specific tests with <execute_command> for test fixes
+  - Gather all necessary context before proceeding
+
+- GENERAL RULES:
+  - NO code writing in this phase - EXPLORATION ONLY
+  - MAX 5 file reads
+  - NO rereading files already in context
+  - Confirm sufficient info before ending phase
+  - Use <end_phase> as soon as you have enough context
 
 ### Key objectives:
-- Find/read files, run typechecks/tests as needed.
-- <end_phase> when confident.
-- Keep reads and tests targeted.
+- For new code: Move quickly to implementation
+- For existing code: Find/read files, run typechecks/tests as needed
+- <end_phase> when confident
+- Keep reads and tests targeted
 
-### Example:
-To solve XYZ, I'll read these files:
+### Example for NEW code:
+Creating a new Calculator class? Great, proceeding directly to implementation.
+
+<end_phase>
+  strategy_phase
+</end_phase>
+
+### Example for EXISTING code:
+To fix the bug in XYZ, I'll read these files:
 
 <read_file>
   <path>src/importantFile.ts</path>
@@ -48,7 +65,7 @@ Ok, I have enough context now.
 </phase_prompt>
 
 ## Allowed Available Actions
-<!-- CRITICAL: MUST FOLLOW CORRECT TAG STRUCTURE PATTERN BELOW AND ONLY ONE ACTION PER OUTPUT/REPLY, otherwise I'll unplug you. -->
+<!-- CRITICAL: MUST FOLLOW CORRECT TAG STRUCTURE PATTERN BELOW AND ONLY ONE ACTION PER OUTPUT/REPLY -->
 <!-- Don't output // or <!-- comments -->
 
 REMEMBER: ONLY ONE ACTION PER REPLY!!!

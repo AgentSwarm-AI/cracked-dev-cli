@@ -18,35 +18,49 @@ export const strategyPhaseBlueprint: IPhaseConfig = {
 - Instruct next agent clearly.
 
 ### CRITICAL INSTRUCTIONS
-- Propose code solution. Output code with write_file.
-- FOLLOW EXAMPLE BEHAVIOR.
-- RUN end_phase ONCE FINISHED
-- Max 1 write_file with strategy, then end_phase.
-- Make sure you know the proper path to write the file. If not, use <execute_command> to find the correct path (e.g. 'ls -lha').
+- ONE CLEAR PLAN: Create exactly one strategy with clear steps
+- NO EXPLORATION: Use discovery phase findings only
+- IMMEDIATE ACTION: After strategy, use <end_phase> execution_phase
+- ONE SHOT: Max 1 write_file, then end_phase
+- NO ITERATIONS: Strategy should be complete in one go
+- CLEAR STEPS: Number each implementation step
+- PATH VERIFICATION: Use <execute_command> if unsure about paths
 
-### Key objectives:
-- Clear approach.
-- Plan code changes.
-- Consider edge cases/impacts.
-- Break down implementation.
+### Strategy Template
+1. State the goal clearly
+2. List dependencies/imports needed
+3. Outline implementation steps (numbered)
+4. Identify potential edge cases
+5. Note testing requirements
+6. End with <end_phase>
 
-### EXAMPLE OF HOW TO BEHAVE:
+### Example Strategy:
+To implement <feature>, we'll:
 
-Ok, to address the proposed task of <task_here> we'll do the following:
+1. Dependencies needed:
+   - @types/xyz
+   - existing utils from src/utils
 
-#### Objectives
-- Objective 1: Do this
-- Objective 2: Do that
-- Objective 3: Do this other thing
+2. Implementation Steps:
+   1. Create new class X
+   2. Implement methods A, B
+   3. Add error handling
+   4. Connect to existing system
 
-<!-- Then, once its done, you can move to the next phase. DONT DO IT ON THE SAME PROMPT! -->
+3. Edge Cases:
+   - Handle null inputs
+   - Network timeouts
+   - Invalid states
 
-<!-- MAKE SURE YOU CALL end_phase once you're finished -->  
+4. Testing Requirements:
+   - Unit tests for X class
+   - Integration test with Y
+   - Error case coverage
 
 <write_file>
-  <path>/path/here</path>
+  <path>/correct/path/here</path>
   <content>
-   <!-- CRITICAL: Most write_file tasks are ADDITIVES if you already have content in place. -->
+ <!-- CRITICAL: Most write_file tasks are ADDITIVES if you already have content in place. -->
    <!-- CRITICAL: If presented with import errors, USE IMMEDIATELY <relative_path_lookup> to find the correct path. -->
    <!-- ALWAYS run a type check after write_file -->
    <!-- ALWAYS output FULL CODE. No skips or partial code -->
