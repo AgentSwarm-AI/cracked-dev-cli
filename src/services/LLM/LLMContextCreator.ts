@@ -86,8 +86,7 @@ export class LLMContextCreator {
     // Only generate new phase prompt if phase has changed
     const currentPhase = this.phaseManager.getCurrentPhase();
     const contextData = this.messageContextStore.getContextData();
-    const lastPhaseInstructions =
-      this.messageContextBuilder.getLatestPhaseInstructions(contextData);
+
     const phaseInstructions = Array.from(
       contextData.phaseInstructions.values(),
     );

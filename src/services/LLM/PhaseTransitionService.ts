@@ -20,9 +20,6 @@ export class PhaseTransitionService {
     const nextPhase = this.getNextPhase(currentPhase);
 
     this.messageContextPhase.cleanupPhaseContent();
-    if (currentPhase === Phase.Strategy) {
-      this.messageContextHistory.mergeConversationHistory();
-    }
 
     // Log phase transition with emojis
     console.log(

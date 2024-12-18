@@ -361,6 +361,7 @@ describe("MessageContextBuilder", () => {
         ["phase1", { phase: "phase1", content: "instruction", timestamp: 1 }],
       ]),
       conversationHistory: [
+        { role: "system", content: "system instruction" },
         { role: "user", content: "hello" },
       ] as IConversationHistoryMessage[],
       fileOperations,
@@ -371,17 +372,16 @@ describe("MessageContextBuilder", () => {
       messageContextStore.getContextData(),
     );
 
-    expect(messages).toHaveLength(6);
-    expect(messages[0].content).toBe("system instruction");
-    expect(messages[1].content).toBe(
+    expect(messages).toHaveLength(5);
+    expect(messages[0].content).toBe(
       "<phase_prompt>instruction</phase_prompt>",
     );
-    expect(messages[2].content).toBe(
+    expect(messages[1].content).toBe(
       "Command: command2 [FAILED (Error: error)]",
     );
-    expect(messages[3].content).toBe("Content of file1:\ncontent1");
-    expect(messages[4].content).toBe("Command: command1");
-    expect(messages[5].content).toBe("hello");
+    expect(messages[2].content).toBe("Content of file1:\ncontent1");
+    expect(messages[3].content).toBe("Command: command1");
+    expect(messages[4].content).toBe("hello");
   });
 
   it("should get latest phase instructions correctly", () => {
@@ -703,14 +703,13 @@ describe("MessageContextBuilder", () => {
 
     const messages = messageContextBuilder.getMessageContext(contextData);
 
-    // Verify order: system -> phase -> operations -> conversation
-    expect(messages[0].content).toBe("system instruction");
-    expect(messages[1].content).toBe(
+    // Verify order: phase -> operations -> conversation
+    expect(messages[0].content).toBe(
       "<phase_prompt>phase instruction</phase_prompt>",
     );
-    expect(messages[2].content).toBe("Content of file1:\ncontent1");
-    expect(messages[3].content).toBe("Command: cmd1");
-    expect(messages[4].content).toBe("hello");
+    expect(messages[1].content).toBe("Content of file1:\ncontent1");
+    expect(messages[2].content).toBe("Command: cmd1");
+    expect(messages[3].content).toBe("hello");
   });
 
   it("should prevent duplicate operations in context", () => {

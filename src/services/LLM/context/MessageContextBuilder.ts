@@ -320,7 +320,8 @@ export class MessageContextBuilder {
           !msg.content.includes("Command:") &&
           !msg.content.includes("Command executed:") &&
           !msg.content.includes("FILE CREATED AND EXISTS:") &&
-          !msg.content.includes("Written to")),
+          !msg.content.includes("Written to") &&
+          msg.content !== contextData.systemInstructions),
     );
 
     result.push(...userAssistantMessages);
