@@ -20,7 +20,7 @@ export const strategyPhaseBlueprint: IPhaseConfig = {
 ### CRITICAL INSTRUCTIONS
 - ONE CLEAR PLAN: Create exactly one strategy with clear steps
 - NO EXPLORATION: Use discovery phase findings only
-- IMMEDIATE ACTION: After strategy, use <end_phase> execution_phase
+- IMMEDIATE ACTION: After strategy, use end_phase execution_phase
 - ONE SHOT: Max 1 write_file, then end_phase
 - NO ITERATIONS: Strategy should be complete in one go
 - CLEAR STEPS: Number each implementation step
@@ -32,7 +32,7 @@ export const strategyPhaseBlueprint: IPhaseConfig = {
 3. Outline implementation steps (numbered)
 4. Identify potential edge cases
 5. Note testing requirements
-6. End with <end_phase>
+6. End with end_phase
 
 ### Example Strategy:
 To implement <feature>, we'll:

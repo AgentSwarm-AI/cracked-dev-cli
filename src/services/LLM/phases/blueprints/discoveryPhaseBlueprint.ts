@@ -18,7 +18,7 @@ export const discoveryPhaseBlueprint: IPhaseConfig = {
   - If creating new features/files/classes -> proceed directly to strategy phase
   - Exception: Only explore if explicitly asked to reference existing patterns
   - No need to search for existing implementations
-  - Immediately <end_phase> to strategy_phase
+  - Immediately end_phase to strategy_phase
 
 - MODIFICATION TASKS:
   - Start by stating clear intent
@@ -32,12 +32,12 @@ export const discoveryPhaseBlueprint: IPhaseConfig = {
   - MAX 5 file reads
   - NO rereading files already in context
   - Confirm sufficient info before ending phase
-  - Use <end_phase> as soon as you have enough context
+  - Use end_phase as soon as you have enough context
 
 ### Key objectives:
 - For new code: Move quickly to implementation
 - For existing code: Find/read files, run typechecks/tests as needed
-- <end_phase> when confident
+- end_phase when confident
 - Keep reads and tests targeted
 
 ### Example for NEW code:
