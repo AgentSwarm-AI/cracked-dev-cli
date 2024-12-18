@@ -2,7 +2,6 @@ import { BLOCK_WRITE_IF_CONTENT_REMOVAL_THRESHOLD } from "@constants/writeConsta
 import { FileOperations } from "@services/FileManagement/FileOperations";
 import { ModelScaler } from "@services/LLM/ModelScaler";
 import { HtmlEntityDecoder } from "@services/text/HTMLEntityDecoder";
-import path from "path";
 import { autoInjectable } from "tsyringe";
 import { ActionTagsExtractor } from "./ActionTagsExtractor";
 import { writeFileActionBlueprint as blueprint } from "./blueprints/writeFileActionBlueprint";
@@ -105,11 +104,9 @@ export class WriteFileAction extends BaseAction {
     params: Record<string, any>,
   ): Promise<IActionResult> {
     try {
-      const { path: rawFilePath, content: fileContent } =
+      const { path: filePath, content: fileContent } =
         params as WriteFileParams;
 
-      // Normalize path
-      const filePath = path.normalize(rawFilePath).replace(/\\/g, "/");
       this.logInfo(`Writing to file: ${filePath}`);
 
       // Check for large content removal if file exists
