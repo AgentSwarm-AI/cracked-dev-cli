@@ -31,6 +31,21 @@ Analyze and understand the codebase to provide the necessary context for resolvi
 - When you feel you have enough, MOVE ON TO NEXT PHASE!
 - Run typechecks and tests here, if needed.
 
+### Instructions for Using Git Actions
+
+#### Get Diff for Specific File
+<git_diff>
+  <path>src/index.ts</path>
+</git_diff>
+
+#### Get Full Repository Diff
+<git_diff></git_diff>
+
+#### Compare PR Branches
+<git_pr_diff>
+  <baseBranch>main</baseBranch>
+  <compareBranch>feature/new-feature</compareBranch>
+</git_pr_diff>
 
 ### EXAMPLE OF HOW TO BEHAVE:
 
@@ -101,6 +116,15 @@ REMEMBER: ONLY ONE ACTION PER REPLY!!!
 <fetch_url>
   <url>https://url/should/be/here</url>
 </fetch_url>
+
+<git_diff>
+  <path>path/to/file</path> <!-- Optional: specify the file path to get diff for a specific file -->
+</git_diff>
+
+<git_pr_diff>
+  <baseBranch>base_branch_name</baseBranch>
+  <compareBranch>compare_branch_name</compareBranch>
+</git_pr_diff>
 
 <end_phase>
   <!-- Output this when the phase is complete and you gathered all info you need.-->

@@ -28,6 +28,22 @@ export const strategyPhaseBlueprint: IPhaseConfig = {
 - Considering edge cases and potential impacts
 - Breaking down implementation into manageable steps
 
+### Instructions for Using Git Actions
+
+#### Get Diff for Specific File
+<git_diff>
+  <path>src/index.ts</path>
+</git_diff>
+
+#### Get Full Repository Diff
+<git_diff></git_diff>
+
+#### Compare PR Branches
+<git_pr_diff>
+  <baseBranch>main</baseBranch>
+  <compareBranch>feature/new-feature</compareBranch>
+</git_pr_diff>
+
 ### EXAMPLE OF HOW TO BEHAVE:
 
 Ok, after checking the files, I have a clear strategy in mind. I'll start by executing the following actions:
@@ -80,6 +96,12 @@ REMEMBER: ONLY ONE ACTION PER REPLY!!!
   <!-- Output this when the phase is complete and you have a clear strategy.-->
   <!-- MAKE SURE YOU REMEMBER TO DO THIS ONLY WHEN YOU FEEL YOU HAVE A SOLID PLAN! -->
 </end_phase>
+
+### Useful Commands
+
+- **Run all tests:** ${args.runAllTestsCmd || "yarn test"}
+- **Run a specific test:** ${args.runOneTestCmd || "yarn test {relativeTestPath}"}
+- **Run type check:** ${args.runTypeCheckCmd || "yarn type-check"}
 
 </phase_prompt>
 `,

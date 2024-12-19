@@ -137,6 +137,22 @@ Alright, let's start the execution phase. I'll begin by executing the following 
 - In Mermaid, use [ ] instead of ( ) for diagrams.
 - After <write_file>, use <read_file> to verify changes, then stop.
 
+### Instructions for Using Git Actions
+
+#### Get Diff for Specific File
+<git_diff>
+  <path>src/index.ts</path>
+</git_diff>
+
+#### Get Full Repository Diff
+<git_diff></git_diff>
+
+#### Compare PR Branches
+<git_pr_diff>
+  <baseBranch>main</baseBranch>
+  <compareBranch>feature/new-feature</compareBranch>
+</git_pr_diff>
+
 ### Useful Commands
 
 - **Run all tests:** ${args.runAllTestsCmd || "yarn test"}
@@ -218,6 +234,15 @@ DO NOT RUN write_file if import issues are not resolved! Use relative_path_looku
 <fetch_url>
   <url>https://url/should/be/here</url>
 </fetch_url>
+
+<git_diff>
+  <path>path/to/file</path> <!-- Optional: specify the file path to get diff for a specific file -->
+</git_diff>
+
+<git_pr_diff>
+  <baseBranch>base_branch_name</baseBranch>
+  <compareBranch>compare_branch_name</compareBranch>
+</git_pr_diff>
 
 <end_task>
   <!-- SINGLE <end_task> PER OUTPUT. Do not mix with other actions -->

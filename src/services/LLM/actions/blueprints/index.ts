@@ -5,6 +5,8 @@ import { deleteFileActionBlueprint } from "./deleteFileActionBlueprint";
 import { endPhaseActionBlueprint } from "./endPhaseActionBlueprint";
 import { endTaskActionBlueprint } from "./endTaskActionBlueprint";
 import { fetchUrlActionBlueprint } from "./fetchUrlActionBlueprint";
+import { gitDiffActionBlueprint } from "./gitDiffActionBlueprint";
+import { gitPRDiffActionBlueprint } from "./gitPRDiffActionBlueprint";
 import { moveFileActionBlueprint } from "./moveFileActionBlueprint";
 import { readFileActionBlueprint } from "./readFileActionBlueprint";
 import { relativePathLookupActionBlueprint } from "./relativePathLookupActionBlueprint";
@@ -27,6 +29,8 @@ export const actionsBlueprints = {
   move_file: moveFileActionBlueprint,
   fetch_url: fetchUrlActionBlueprint,
   copy_file: copyFileActionBlueprint,
+  git_diff: gitDiffActionBlueprint,
+  git_pr_diff: gitPRDiffActionBlueprint,
 } as const;
 
 // Infer action types from blueprints
