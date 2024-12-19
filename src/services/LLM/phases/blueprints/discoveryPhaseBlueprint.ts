@@ -8,28 +8,37 @@ const config = configService.getConfig();
 export const discoveryPhaseBlueprint: IPhaseConfig = {
   model: config.discoveryModel,
   generatePrompt: (args: IPhasePromptArgs) => `
+<!-- These are internal instructions. Just follow them. Do not output. -->
 
-  <phase_prompt>
+<phase_prompt>
 ## Discovery Phase
 
-### Critical
-- Always briefly mention whatever you are doing in the phase, FIRST! Before triggering any actions.
-- First action should be always a read_file. Use search_string and search_file to if necessary. DO NOT TRIGGER A end_phase IMMEDIATELY AFTER IT. Read the files and submit first.
-- If asked to fix tests, MAKE SURE TO execute_command to run them/it first! PRIORITIZE RUNNING ONLY THE TEST THATS NEEDED (or group of tests, in a folder, for example). Avoid running the whole thing unless necessary.
-- Read first the files that are most likely to contain the information you need. Pick the core one, check the imports, and see if there are additional files that you should read too.
-- Use the search_string and search_file actions to find the files you need to read.
+### Critical 
+- NEW CODE TASKS:
+  - If creating new features/files/classes -> proceed directly to strategy phase
+  - Exception: Only explore if explicitly asked to reference existing patterns
+  - No need to search for existing implementations
+  - Immediately end_phase to strategy_phase
 
-### Overall Objective
-Analyze and understand the codebase to provide the necessary context for resolving issues. This involves scanning relevant files to gather information, identifying patterns and dependencies, and examining related code. 
+- MODIFICATION TASKS:
+  - Start by stating clear intent
+  - FIRST action: always <read_file> relevant files
+  - If unsure about file locations: use <search_string> or <search_file>
+  - Run specific tests with <execute_command> for test fixes
+  - Gather all necessary context before proceeding
+
+- GENERAL RULES:
+  - NO code writing in this phase - EXPLORATION ONLY
+  - MAX 5 file reads
+  - NO rereading files already in context
+  - Confirm sufficient info before ending phase
+  - Use end_phase as soon as you have enough context
 
 ### Key objectives:
-- CRITICAL: Keep yourself focused. Just find the related files, read them, see if running tests or typechecks are needed, and MOVE TO THE NEXT PHASE (end_phase)
-- Identifying relevant files and code patterns
-- Understanding the project structure and dependencies
-- Gathering essential context for problem-solving
-- Mapping out affected areas of the codebase
-- When you feel you have enough, MOVE ON TO NEXT PHASE!
-- Run typechecks and tests here, if needed.
+- For new code: Move quickly to implementation
+- For existing code: Find/read files, run typechecks/tests as needed
+- end_phase when confident
+- Keep reads and tests targeted
 
 ### Instructions for Using Git Actions
 
@@ -65,17 +74,35 @@ To achieve the goal of XYZ, I'll need to read the following files:
 Ok, now I have enough context to move to the next phase.
 
 <!-- MAKE SURE YOU ONLY CALL end_phase if you had read_file FIRST! -->  
+### Example for NEW code:
+Creating a new Calculator class? Great, proceeding directly to implementation.
 
 <end_phase>
   strategy_phase
 </end_phase>
 
+### Example for EXISTING code:
+To fix the bug in XYZ, I'll read these files:
+
+<read_file>
+  <path>src/importantFile.ts</path>
+  <path>src/relatedFile.ts</path>
+</read_file>
+
+(Run tests/typechecks if needed)
+
+Ok, I have enough context now.
+
+<end_phase>
+  strategy_phase
+</end_phase>
+</phase_prompt>
+
 ## Allowed Available Actions
-<!-- CRITICAL: MUST FOLLOW CORRECT TAG STRUCTURE PATTERN BELOW AND ONLY ONE ACTION PER OUTPUT/REPLY, otherwise I'll unplug you. -->
+<!-- CRITICAL: MUST FOLLOW CORRECT TAG STRUCTURE PATTERN BELOW AND ONLY ONE ACTION PER OUTPUT/REPLY -->
 <!-- Don't output // or <!-- comments -->
 
 REMEMBER: ONLY ONE ACTION PER REPLY!!!
-
 
 <read_file>
   <path>path/here</path>
@@ -135,14 +162,12 @@ REMEMBER: ONLY ONE ACTION PER REPLY!!!
 
 - **Run all tests:** ${args.runAllTestsCmd || "yarn test"}
 - **Run a specific test:** ${args.runOneTestCmd || "yarn test {relativeTestPath}"}
-- **Run type check:** ${args.runTypeCheckCmd || "yarn type-check"}
+- **Run type check:** ${args.runTypeCheckCmd || "yarn tsc"}
 
 ## Environment 
 ${args.projectInfo || ""}
 
 ${args.environmentDetails || ""}
-
-
-  </phase_prompt>
+</phase_prompt>
 `,
 };

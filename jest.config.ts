@@ -13,6 +13,7 @@ const config: Config = {
     "^@commands/(.*)$": "<rootDir>/src/commands/$1",
     "^@config/(.*)$": "<rootDir>/src/config/$1",
     "^@tests/(.*)$": "<rootDir>/src/jest/$1",
+    "^@errors/(.*)$": "<rootDir>/src/errors/$1",
     "^(\\.{1,2}/.*)\\.js$": "$1",
   },
   transform: {

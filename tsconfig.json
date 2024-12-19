@@ -24,7 +24,8 @@
       "@middleware/*": ["src/middleware/*"],
       "@commands/*": ["src/commands/*"],
       "@config/*": ["src/config/*"],
-      "@tests/*": ["src/jest/*"]
+      "@tests/*": ["src/jest/*"],
+      "@errors/*": ["src/errors/*"]
     }
   },
   "include": ["src"],

@@ -44,7 +44,16 @@ export class FileOperations implements IFileOperations {
     }
   }
 
-  private async adjustPath(filePath: string): Promise<string> {
+  async getAdjustedPath(filePath: string): Promise<string> {
+    await this.ensureInitialized();
+    const adjustedPath = await this.pathAdjuster.adjustPath(filePath);
+    return adjustedPath || filePath;
+  }
+
+  private async adjustPath(
+    filePath: string,
+    isRead: boolean = false,
+  ): Promise<string> {
     await this.ensureInitialized();
 
     // If path exists, return as is
@@ -52,21 +61,31 @@ export class FileOperations implements IFileOperations {
       return filePath;
     }
 
-    // For read operations, try to find similar files
-    const similarFiles = await this.fileSearch.findByName(
-      path.basename(filePath),
-      process.cwd(),
-    );
-    if (similarFiles.length > 0) {
-      const bestMatch = similarFiles[0];
-      this.debugLogger.log(
-        "FileOperations",
-        `Found similar file: ${bestMatch} for ${filePath}`,
+    // Only perform fuzzy search for read operations
+    if (isRead) {
+      const similarFiles = await this.fileSearch.findByName(
+        path.basename(filePath),
+        process.cwd(),
       );
-      return bestMatch;
+
+      if (similarFiles.length > 0) {
+        const bestMatch = similarFiles[0];
+        // Additional validation for the best match
+        if (await fs.pathExists(bestMatch)) {
+          const stats = await fs.stat(bestMatch);
+          if (stats.isFile()) {
+            this.debugLogger.log(
+              "FileOperations",
+              `Found similar file: ${bestMatch} for ${filePath}`,
+              { confidence: "high", originalPath: filePath },
+            );
+            return bestMatch;
+          }
+        }
+      }
     }
 
-    // If no similar files found, try PathAdjuster
+    // If no similar files found or not a read operation, try PathAdjuster
     const adjustedPath = await this.pathAdjuster.adjustPath(filePath);
     if (adjustedPath && (await fs.pathExists(adjustedPath))) {
       this.debugLogger.log(
@@ -81,7 +100,7 @@ export class FileOperations implements IFileOperations {
 
   async read(filePath: string): Promise<IFileOperationResult> {
     try {
-      const adjustedPath = await this.adjustPath(filePath);
+      const adjustedPath = await this.adjustPath(filePath, true);
       if (!(await fs.pathExists(adjustedPath))) {
         return {
           success: false,
@@ -137,13 +156,51 @@ export class FileOperations implements IFileOperations {
     }
   }
 
+  private async validateAndAdjustWritePath(filePath: string): Promise<{
+    adjustedPath: string;
+    isNewFile: boolean;
+  }> {
+    // For write operations, we want to be very strict
+    // Only use the exact path or create a new file
+    const absolutePath = path.resolve(process.cwd(), filePath);
+
+    // First check if file exists at exact path
+    if (await fs.pathExists(filePath)) {
+      return { adjustedPath: filePath, isNewFile: false };
+    }
+
+    // For new files, just ensure the path is within the project
+    const projectRoot = process.cwd();
+    if (!absolutePath.startsWith(projectRoot)) {
+      throw new Error(`File path must be within project root: ${projectRoot}`);
+    }
+
+    // This is a new file
+    return { adjustedPath: filePath, isNewFile: true };
+  }
+
   async write(
     filePath: string,
     content: string | Buffer,
   ): Promise<IFileOperationResult> {
     try {
-      await fs.ensureDir(path.dirname(filePath));
-      await fs.writeFile(filePath, content);
+      const { adjustedPath, isNewFile } =
+        await this.validateAndAdjustWritePath(filePath);
+
+      if (!isNewFile) {
+        this.debugLogger.log(
+          "FileOperations",
+          `Writing to existing file at: ${adjustedPath}`,
+        );
+      } else {
+        this.debugLogger.log(
+          "FileOperations",
+          `Creating new file at: ${adjustedPath}`,
+        );
+      }
+
+      await fs.ensureDir(path.dirname(adjustedPath));
+      await fs.writeFile(adjustedPath, content);
       return { success: true };
     } catch (error) {
       return { success: false, error: error as Error };
@@ -232,5 +289,9 @@ export class FileOperations implements IFileOperations {
     } catch (error) {
       return { success: false, error: error as Error };
     }
+  }
+
+  async findSimilarFiles(filePath: string): Promise<string[]> {
+    return this.fileSearch.findByName(filePath, process.cwd());
   }
 }

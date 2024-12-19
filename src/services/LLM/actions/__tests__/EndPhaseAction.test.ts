@@ -26,7 +26,7 @@ describe("EndPhaseAction", () => {
         selectedModel: "test-model",
       };
 
-      mocker.spyOnPrototypeAndReturn(
+      mocker.mockPrototype(
         PhaseTransitionService,
         "transitionToNextPhase",
         transitionResult,
@@ -43,7 +43,7 @@ describe("EndPhaseAction", () => {
     it("should handle transition errors", async () => {
       const error = new Error("Transition failed");
 
-      mocker.spyOnPrototypeWithImplementation(
+      mocker.mockPrototypeWith(
         PhaseTransitionService,
         "transitionToNextPhase",
         () => Promise.reject(error),

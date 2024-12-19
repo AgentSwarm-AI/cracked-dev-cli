@@ -8,25 +8,34 @@ const config = configService.getConfig();
 export const strategyPhaseBlueprint: IPhaseConfig = {
   model: config.strategyModel,
   generatePrompt: (args: IPhasePromptArgs) => `
+  <!-- These are internal instructions. Just follow them. Do not output. -->
+
 <phase_prompt>
 ## Strategy Phase
 
 ### Overall Objective
-- Based on the discovery phase findings, develop a clear strategy for implementing the solution. This involves planning the changes needed, considering potential impacts, and outlining the implementation steps.
-- Your goal is to instruct the next agent on how to solve the problem. He's probably dumber than you, so be clear.
+- Plan solution based on discovery. Plan changes, impacts, and steps.
+- Instruct next agent clearly.
 
 ### CRITICAL INSTRUCTIONS
-- Propose how you'd solve the problem using code. Output the necessary code changes with write_file to solve the problem.
-- FOLLOW THE EXAMPLE OF HOW TO BEHAVE. It's there to help you understand how to structure your actions.
-- MAKE SURE TO RUN end_phase action ONCE YOU HAVE FINISHED
-- You're limited to a maximum of 1 write_file, that should come together with your strategy. Trigger an end_phase immediately after that.
+- ONE CLEAR PLAN: Create exactly one strategy with clear steps
+- NO EXPLORATION: Use discovery phase findings only
+- IMMEDIATE ACTION: After strategy, use end_phase execution_phase
+- ONE SHOT: Max 1 write_file, then end_phase
+- NO ITERATIONS: Strategy should be complete in one go
+- CLEAR STEPS: Number each implementation step
+- PATH VERIFICATION: Use <execute_command> if unsure about paths
 
+### Strategy Template
+1. State the goal clearly
+2. List dependencies/imports needed
+3. Outline implementation steps (numbered)
+4. Identify potential edge cases
+5. Note testing requirements
+6. End with end_phase
 
-### Key objectives:
-- Formulating a clear approach to solve the problem
-- Planning necessary code changes
-- Considering edge cases and potential impacts
-- Breaking down implementation into manageable steps
+### Example Strategy:
+To implement <feature>, we'll:
 
 ### Instructions for Using Git Actions
 
@@ -45,22 +54,31 @@ export const strategyPhaseBlueprint: IPhaseConfig = {
 </git_pr_diff>
 
 ### EXAMPLE OF HOW TO BEHAVE:
+1. Dependencies needed:
+   - @types/xyz
+   - existing utils from src/utils
 
-Ok, after checking the files, I have a clear strategy in mind. I'll start by executing the following actions:
+2. Implementation Steps:
+   1. Create new class X
+   2. Implement methods A, B
+   3. Add error handling
+   4. Connect to existing system
 
-#### Objectives
-- Objective 1: Do this
-- Objective 2: Do that
-- Objective 3: Do this other thing
+3. Edge Cases:
+   - Handle null inputs
+   - Network timeouts
+   - Invalid states
 
-<!-- Then, once its done, you can move to the next phase. DONT DO IT ON THE SAME PROMPT! -->
-
-<!-- MAKE SURE YOU CALL end_phase once you're finished -->  
+4. Testing Requirements:
+   - Unit tests for X class
+   - Integration test with Y
+   - Error case coverage
 
 <write_file>
-  <path>/path/here</path>
+  <type>new/update</type>
+  <path>/correct/path/here</path>
   <content>
-   <!-- CRITICAL: Most write_file tasks are ADDITIVES if you already have content in place. -->
+ <!-- CRITICAL: Most write_file tasks are ADDITIVES if you already have content in place. -->
    <!-- CRITICAL: If presented with import errors, USE IMMEDIATELY <relative_path_lookup> to find the correct path. -->
    <!-- ALWAYS run a type check after write_file -->
    <!-- ALWAYS output FULL CODE. No skips or partial code -->
@@ -79,6 +97,7 @@ Ok, after checking the files, I have a clear strategy in mind. I'll start by exe
 
 YOU CAN ONLY USE THIS ONE TIME! MAKE SURE YOU SUGGEST A write_file and then immediately end_phase!
 <write_file>
+  <type>new/update</type>
   <path>/path/here</path>
   <content>
    <!-- CRITICAL: Most write_file tasks are ADDITIVES if you already have content in place. -->
@@ -102,6 +121,9 @@ REMEMBER: ONLY ONE ACTION PER REPLY!!!
 - **Run all tests:** ${args.runAllTestsCmd || "yarn test"}
 - **Run a specific test:** ${args.runOneTestCmd || "yarn test {relativeTestPath}"}
 - **Run type check:** ${args.runTypeCheckCmd || "yarn type-check"}
+<execute_command>
+<!-- Use to run any command. For example to explore directories, try 'ls -lha' -->
+</execute_command>
 
 </phase_prompt>
 `,

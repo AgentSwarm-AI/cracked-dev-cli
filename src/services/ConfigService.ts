@@ -6,7 +6,8 @@ import { z } from "zod";
 
 const configSchema = z.object({
   provider: z.string(),
-  customInstructions: z.string(),
+  customInstructions: z.string().optional(),
+  customInstructionsPath: z.string().optional(),
   interactive: z.boolean(),
   stream: z.boolean(),
   debug: z.boolean(),
@@ -36,6 +37,7 @@ const configSchema = z.object({
   runOneTestCmd: z.string().optional(),
   runTypeCheckCmd: z.string().optional(),
   enableConversationLog: z.boolean().optional(),
+  logDirectory: z.string().optional(),
   directoryScanner: z
     .object({
       defaultIgnore: z
@@ -53,6 +55,7 @@ const configSchema = z.object({
       directoryFirst: true,
       excludeDirectories: false,
     }),
+  referenceExamples: z.record(z.string(), z.string()).optional().default({}),
 });
 
 export type Config = z.infer<typeof configSchema>;
@@ -84,6 +87,7 @@ export class ConfigService {
       const defaultConfig = {
         provider: "open-router",
         customInstructions: "Follow clean code principles",
+        customInstructionsPath: "",
         interactive: true,
         stream: true,
         debug: false,
@@ -123,6 +127,7 @@ export class ConfigService {
         runOneTestCmd: "yarn test {relativeTestPath}",
         runTypeCheckCmd: "yarn typecheck",
         enableConversationLog: false,
+        logDirectory: "logs",
         directoryScanner: {
           defaultIgnore: [
             "dist",
@@ -136,6 +141,12 @@ export class ConfigService {
           allFiles: true,
           directoryFirst: true,
           excludeDirectories: false,
+        },
+        referenceExamples: {
+          example1: "path/to/example1/file.ts",
+          example2: "path/to/example2/file.ts",
+          myService: "src/services/MyService.ts",
+          anotherKey: "path/to/some/other/example.ts",
         },
       };
       fs.writeFileSync(

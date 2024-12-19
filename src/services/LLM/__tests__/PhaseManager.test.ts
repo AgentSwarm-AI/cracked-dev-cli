@@ -46,6 +46,7 @@ describe("PhaseManager", () => {
         maxGlobalTries: 20,
       },
     ],
+    referenceExamples: {}, // Added referenceExamples
   };
 
   beforeAll(() => {

@@ -8,134 +8,201 @@ const config = configService.getConfig();
 export const executePhaseBlueprint: IPhaseConfig = {
   model: config.executeModel,
   generatePrompt: (args: IPhasePromptArgs) => `
+<!-- These are internal instructions. Just follow them. Do not output. -->
+
 <phase_prompt>
 ## Execute Phase
 
-### Current Task
-${args.message}
-
 ## Initial Instructions
 
-- Always focus on the initial goal. Do not deviate from that. Once your goal is achieved, end_task
-- Keep messages brief, clear, and concise.
-- Break tasks into prioritized steps.
-- Use available actions sequentially.
-- Use raw text only; no encoded or escaped characters. STICK TO THIS INSTRUCTION AS IF YOUR LIFE DEPENDS ON IT.
-- MAKE SURE TO RUN end_phase action ONCE YOU HAVE FINISHED
+- EXECUTION FLOW:
+  1. Follow strategy phase steps IN ORDER
+  2. ONE action per response
+  3. After EACH code change:
+     - Run specific tests
+     - Run type checks
+     - Fix or report issues
+  4. End task IMMEDIATELY when goal is achieved
+
+- VALIDATION GATES:
+  1. Before write_file:
+     - Verify imports with relative_path_lookup
+     - Check file paths with execute_command
+  2. After write_file:
+     - Run unit tests
+     - Run type checks
+     - If both pass -> continue or end_task
+     - If either fails -> fix or report
+
+- STUCK PREVENTION:
+  1. Import issues -> Use relative_path_lookup
+  2. Path issues -> Use execute_command
+  3. Test failures -> Read test file, fix specific issue
+  4. Type errors -> Fix one at a time
+  5. Max 3 fix attempts -> Then end_task with report
+
+- CODE CHANGES:
+  1. ONE change at a time
+  2. Full implementation (no TODOs)
+  3. Include ALL imports
+  4. Follow project patterns
+  5. Test after EACH change
+
+### Example Flow:
+1. Implement feature:
+   <write_file>
+     <type>new/update</type>
+     <path>/verified/path/here</path>
+     <content>
+       // Complete implementation
+     </content>
+   </write_file>
+
+2. Run tests, fix if needed
+3. Run type check, fix if needed
+4. If all passes and goal met -> <end_task>
 
 ## EXAMPLE BEHAVIOR
 
 <!-- NO NEED TO OUTPUT SPECIFIC DETAILS FROM STRATEGY PHASE. JUST SUMAMRIZE. IF YOU NEED TO OUTPUT CODE, MAKE SURE TO DO IT WITHIN A write_file TAG -->
 
-Alright, let's start the execution phase. I'll begin by executing the following steps planned during the strategy phase:
+Let's start. Steps from strategy phase:
 
 - Objective 1: Do this
 - Objective 2: Do that
 - Objective 3: Do this other thing
 
+<!-- MAKE SURE YOU CLOSE TAGS PROPERLY! -->
+<write_file>
+  <type>new/update</type>
+  <path>/path/to/file.ts</path>
+  <content>
+    // Code here
+  </content>
+</write_file>
+
+
+<!-- or -->
+
+<!-- Dive into imports if you need more info! -->
+<!-- ONLY READ IF YOU DON'T HAVE IT ON THE CONVERSATION HISTORY! -->
+<read_file>
+  <path>/path/to/file.ts</path>
+</read_file>
+
+
 ## Important Notes
 
 ### Critical Instructions
 
-- AFTER A write_file MAKE SURE YOU RUN THE RELATE TESTS (if it exists), to make sure you didn't break anything!
+- IMMEDIATELY END TASK (end_task) when goal is achieved - do not continue unnecessarily
+- AFTER EVERY write_file:
+  1. Run specific tests for modified files
+  2. Run type check
+  3. If both pass and goal is met -> end_task
+  4. If either fails -> fix or report
+- NEVER ESCAPE double quotes (") or backticks (\`) in your outputs
 - Every output must include one action tag. No exceptions.
 - Only one action per reply.
-- Do not output code outside <write_file> tags, except when creating a markdown file.
+- Do not output code outside write_file tags, except when creating a markdown file.
 - Use raw text only; avoid encoded characters.
 - Stick precisely to the task.
 - Double-check file paths.
-- Reuse dependencies; do not install extras unless asked.
+- Reuse dependencies; do not install extras unless asked. REMEMBER THIS, DO NOT ADD EXTRA DEPENDENCIES UNLESS ASKED!
 - Properly format action tags.
-- Place code or markdown inside <write_file> tags.
+- Place code or markdown inside write_file tags.
 - Be concise; avoid verbosity.
 - Do not repeat tasks once done.
 - Maintain correct tag structure.
-- Focus on the task; end with a single <end_task> upon completion.
+- Focus on the task; end with a single end_task upon completion.
 - Initial message: brief intro and steps; can read up to 3 files.
-- Use only one <write_file> per output; verify before next step.
+- Use only one write_file per output; verify before next step.
 - Do not output markdown/code outside action tags initially.
 - After reading a file, proceed without comments.
 - Include content directly within action tags without previews.
 - Avoid unnecessary explanations; be actionable.
 - Ensure outputs meet requirements and are usable.
-- Ensure correct PATH when using <write_file>.
-- Before <end_task>, run tests and type checks to confirm everything is good.
-- If import errors occur, use <relative_path_lookup> to find the correct path.
+- Ensure correct PATH when using write_file.
+- Before end_task, run tests and type checks to confirm everything is good.
+- If import errors occur, use relative_path_lookup to find the correct path. THEN MAKE SURE TO USE IT ON THE IMPORT!
+- Unless writing .md markdown files, don't use \`\`\`xml or whatever language code blocks. All code should be within write_file tags!!
+- Do not read_file if you already have it on the conversation history.
+- Make sure you know the proper path to write the file. If not, use execute_command to find the correct path (e.g. 'ls -lha').
 
 ### Code Writing Instructions
 
 #### Before Starting
 
-- Read relevant files for context.
-- Follow project patterns; for tests, read up to 2 existing tests.
-- Evaluate the conversation history and propose a solution. Use write_file to perform it.
-- If an external dependency is needed and unavailable, ask for confirmation.
-- Avoid extra dependencies; reuse existing ones.
+- Read context files.
+- Follow project patterns; read up to 2 existing tests.
+- Propose solution. Use write_file.
+- Confirm external deps if needed.
+- Reuse deps.
 
 #### During Coding
 
-- Only one action per reply.
-- If stuck, read related files and strategize.
-- Use raw text only; no encoded characters.
-- Output full code; no partial code.
-- Make minimal changes; focus on the goal.
-- Iterate; don't do everything at once.
+- One action per reply.
+- If stuck, read files/strategize.
+- Raw text only; no encoded.
+- Output full code.
+- Minimal changes.
+- Iterate.
 - Follow principles: DRY, SRP, KISS, YAGNI, LoD, Immutability.
-- Prefer composition over inheritance.
-- Aim for high cohesion and low coupling.
-- Use meaningful names.
+- Composition over inheritance.
+- High cohesion, low coupling.
+- Meaningful names.
 - Comment on why, not what.
-- Adhere to Clean Code principles.
-- Make few changes to prevent bugs.
-- If unsure, check docs or use <end_task> to ask.
-- Ensure correct import paths.
-- Follow project file naming conventions.
-- Provide full implementations; no empty comments.
-- If wrong import paths are found, use <relative_path_lookup>.
-- Critical: If struggling with imports, stop <write_file> with same path; use <relative_path_lookup> or <search_file>.
-- Critical: If stuck, use <read_file> to get more needed context ONLY IF FILE WAS NOT READ BEFORE.
+- Clean Code principles.
+- Few changes to prevent bugs.
+- If unsure, check docs or use <end_task>.
+- Correct import paths.
+- Project file naming conventions.
+- Full implementations.
+- If wrong imports, use relative_path_lookup.
+- If stuck on imports, stop write_file; use relative_path_lookup or search_file.
+- If stuck, read_file ONLY IF UNREAD.
 
 #### After Coding
 
-- After changes:
-  - Run relevant tests; for risky changes, run folder tests.
-  - Run type checks and all tests at the end.
-  - If tests pass, use <end_task>.
-  - If tests fail, use <end_task> to report issues and seek guidance.
+  - After changes:
+    - Run relevant tests; for risky, run folder tests.
+    - Run type checks/all tests at end.
+    - If tests pass, end_task.
+    - If tests fail, end_task to report.
 
 ### Tests
 
-- CRITICAL: Before creating a new test file, review existing files to understand patterns. Use search or directory listing to locate file paths if unknown. Avoid using non-existent files.
-- CRITICAL: Whenever stuck on multiple test failures, do a read_file in other UNREAD test files to understand patterns.
-- If working on a test, assume the related file is correct. So don't make any changes on it, unless you find a critical bug.
-- Do not remove previous tests unless necessary; add new ones.
-- Prioritize individual test file runs.
-- No tests for logging messages.
-- Critical: When fixing tests, run them first before reading files.
-- When adding tests, read target and related files.
-- Ensure added tests pass.
-- If asked to write tests, no need to read the test file if it doesn't exist yet.
-- Write all tests at once when requested to save tokens.
-- Critical: Full test run only allowed when ending task; otherwise, run specific tests.
+- DO NOT REMOVE PREVIOUS TESTS; ADD NEW.
+- Before new tests, review existing for patterns. Use search if needed.
+- When stuck on multiple failures, read other UNREAD test files.
+- When working on a test, assume related file is correct.
+- Do not remove previous tests unless necessary.
+- Prioritize individual test runs.
+- No tests for logging.
+- When fixing tests, run them first.
+- When adding tests, read target/related files.
+- Added tests must pass.
+- If asked to write tests, no need to read test file if non-existent.
+- Write all tests at once to save tokens.
+- Full test run only at task end; specific tests otherwise.
 
 ### Commands Writing Instructions
 
-- Use the project's package manager.
-- Combine commands when possible for efficiency.
+- Project's package manager.
+- Combine commands when possible.
 
 ### Other Instructions
-
-- Summarize progress or completion with <end_task>; exclude action details.
-- If unsure about paths/formats, use placeholders and ask.
-- If stuck, try alternatives or ask for clarification; avoid irrelevant or verbose output.
+ 
+- If unsure about paths/formats, use placeholders & ask.
+- If stuck, try alternatives or ask; avoid irrelevant output.
 
 ### Docs Writing Instructions
 
-- Do not add extra tabs at line starts.
-- Ensure valid markdown; no extra tabs.
-- Use Mermaid diagrams with clear explanations when applicable.
-- In Mermaid, use [ ] instead of ( ) for diagrams.
-- After <write_file>, use <read_file> to verify changes, then stop.
+- No extra tabs at line starts.
+- Valid markdown; no extra tabs.
+- Mermaid diagrams with explanations.
+- In Mermaid, use [ ] instead of ( ).
+- After write_file, use read_file to verify, then stop.
 
 ### Instructions for Using Git Actions
 
@@ -182,7 +249,7 @@ DO NOT RUN write_file if import issues are not resolved! Use relative_path_looku
   <path>/path/here</path>
   <content>
    <!-- CRITICAL: Most write_file tasks are ADDITIVES if you already have content in place. -->
-   <!-- CRITICAL: If presented with import errors, USE IMMEDIATELY <relative_path_lookup> to find the correct path. -->
+   <!-- CRITICAL: If presented with import errors, USE IMMEDIATELY relative_path_lookup to find the correct path. -->
    <!-- ALWAYS run a type check after write_file -->
    <!-- ALWAYS output FULL CODE. No skips or partial code -->
    <!-- Use raw text only -->
@@ -226,6 +293,7 @@ DO NOT RUN write_file if import issues are not resolved! Use relative_path_looku
 
 <relative_path_lookup>
   <!-- CRITICAL: source_path is the file containing the broken imports -->
+  <!-- ONCE YOU FIND THE CORRECT PATH MAKE SURE TO UPDATE YOUR IMPORTS! -->
   <source_path>/absolute/path/to/source/file.ts</source_path>
   <path>../relative/path/to/fix</path>
   <threshold>0.6</threshold>  <!-- Optional, defaults to 0.6. Higher means more strict. -->
@@ -245,6 +313,7 @@ DO NOT RUN write_file if import issues are not resolved! Use relative_path_looku
 </git_pr_diff>
 
 <end_task>
+ <!-- ONLY END IF TEST PASSES -->
   <!-- SINGLE <end_task> PER OUTPUT. Do not mix with other actions -->
   <!-- Before finishing, make sure TASK OBJECTIVE WAS COMPLETED! -->
   <!-- Run tests and type checks to confirm changes before ending -->

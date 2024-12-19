@@ -2,6 +2,9 @@ import { Args, Command, Flags } from "@oclif/core";
 import { CrackedAgent, CrackedAgentOptions } from "@services/CrackedAgent";
 import { LLMProviderType } from "@services/LLM/LLMProvider";
 import { ModelManager } from "@services/LLM/ModelManager";
+import { OpenRouterAPI } from "@services/LLMProviders/OpenRouter/OpenRouterAPI";
+import { InteractiveSessionManager } from "@services/streaming/InteractiveSessionManager";
+import { StreamHandler } from "@services/streaming/StreamHandler";
 import * as readline from "readline";
 import { container } from "tsyringe";
 import { ConfigService } from "../services/ConfigService";
@@ -31,11 +34,23 @@ export class Run extends Command {
 
   private configService: ConfigService;
   private modelManager: ModelManager;
+  private streamHandler: StreamHandler;
+  private openRouterAPI: OpenRouterAPI;
+  private sessionManager: InteractiveSessionManager;
+  private rl: readline.Interface;
 
   constructor(argv: string[], config: any) {
     super(argv, config);
     this.configService = container.resolve(ConfigService);
     this.modelManager = container.resolve(ModelManager);
+    this.streamHandler = container.resolve(StreamHandler);
+    this.openRouterAPI = container.resolve(OpenRouterAPI);
+    this.sessionManager = container.resolve(InteractiveSessionManager);
+    this.rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+      prompt: "> ",
+    });
   }
 
   private parseOptions(optionsString: string): Record<string, unknown> {
@@ -58,54 +73,6 @@ export class Run extends Command {
     }
 
     return options;
-  }
-
-  private createReadlineInterface() {
-    return readline.createInterface({
-      input: process.stdin,
-      output: process.stdout,
-      prompt: "> ",
-    });
-  }
-
-  private async startInteractiveMode(
-    agent: CrackedAgent,
-    options: CrackedAgentOptions,
-  ) {
-    const rl = this.createReadlineInterface();
-    console.log(
-      'Interactive mode started. Type "exit" or press Ctrl+C to quit.',
-    );
-
-    rl.prompt();
-
-    rl.on("line", async (input) => {
-      if (input.toLowerCase() === "exit") {
-        console.log("Goodbye!");
-        rl.close();
-        return;
-      }
-
-      try {
-        const result = await agent.execute(input, options);
-        if (!options.stream && result) {
-          console.log("\nResponse:", result.response);
-          if (result.actions?.length) {
-            console.log("\nExecuted Actions:");
-            result.actions.forEach(({ action, result }) => {
-              console.log(`\nAction: ${action}`);
-              console.log(`Result: ${JSON.stringify(result, null, 2)}`);
-            });
-          }
-        }
-      } catch (error) {
-        console.error("Error:", (error as Error).message);
-      }
-
-      rl.prompt();
-    }).on("close", () => {
-      process.exit(0);
-    });
   }
 
   async run(): Promise<void> {
@@ -150,28 +117,42 @@ export class Run extends Command {
         throw new Error(`Invalid provider: ${options.provider}`);
       }
 
+      this.modelManager.setCurrentModel(config.discoveryModel);
+
       console.log(
         `Using ${options.provider} provider and model: ${this.modelManager.getCurrentModel()}`,
       );
 
       const agent = container.resolve(CrackedAgent);
+      this.sessionManager.initialize(this.rl, agent, options);
 
       if (isInteractive) {
-        await this.startInteractiveMode(agent, options);
+        await this.sessionManager.start();
       } else {
-        const result = await agent.execute(args.message!, options);
-        if (!options.stream && result) {
-          this.log(result.response);
-          if (result.actions?.length) {
-            this.log("\nExecuted Actions:");
-            result.actions.forEach(({ action, result }) => {
-              this.log(`\nAction: ${action}`);
-              this.log(`Result: ${JSON.stringify(result, null, 2)}`);
-            });
+        console.log("Press Enter to start the stream...");
+        this.rl.once("line", async () => {
+          try {
+            const result = await agent.execute(args.message!, options);
+            if (!options.stream && result) {
+              this.log(result.response);
+              if (result.actions?.length) {
+                this.log("\nExecuted Actions:");
+                result.actions.forEach(({ action, result }) => {
+                  this.log(`\nAction: ${action}`);
+                  this.log(`Result: ${JSON.stringify(result, null, 2)}`);
+                });
+              }
+            }
+            this.sessionManager.cleanup();
+            process.exit(0);
+          } catch (error) {
+            this.sessionManager.cleanup();
+            this.error((error as Error).message);
           }
-        }
+        });
       }
     } catch (error) {
+      this.sessionManager.cleanup();
       this.error((error as Error).message);
     }
   }

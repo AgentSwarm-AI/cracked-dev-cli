@@ -15,11 +15,6 @@ interface FileEntry {
   dir: string;
 }
 
-interface FuseResult {
-  item: FileEntry;
-  score?: number;
-}
-
 @autoInjectable()
 export class FileSearch implements IFileSearch {
   constructor(private debugLogger: DebugLogger) {}
@@ -135,7 +130,6 @@ export class FileSearch implements IFileSearch {
         directory,
       });
 
-      // Get all files in directory
       const entries = await fg("**/*", {
         cwd: directory,
         dot: true,
@@ -143,57 +137,71 @@ export class FileSearch implements IFileSearch {
         onlyFiles: true,
       });
 
-      // Convert to FileEntry objects
+      if (!entries.length) {
+        this.debugLogger.log("FileSearch", "No files found in directory", {
+          directory,
+        });
+        return [];
+      }
+
       const fileEntries: FileEntry[] = entries.map((entry) => ({
         fullPath: entry,
-        name: path.basename(entry),
+        name: path.basename(entry).toLowerCase(),
         dir: path.dirname(entry),
       }));
 
-      // First try exact name matches
-      const exactMatches = fileEntries.filter(
-        (entry) => entry.name === targetName,
-      );
+      const searchName = targetName.toLowerCase();
+
+      // First try exact matches (case insensitive)
+      const exactMatches = fileEntries.filter((entry) => {
+        const entryName = entry.name;
+        return (
+          entryName === searchName ||
+          entryName === `${searchName}.txt` ||
+          entryName.startsWith(`${searchName}.`)
+        );
+      });
 
       this.debugLogger.log("FileSearch", "exact matches", exactMatches);
 
       if (exactMatches.length > 0) {
-        // If we have exact matches, sort by directory similarity
-        const fuse = new Fuse<FileEntry>(exactMatches, {
-          includeScore: true,
-          threshold: 0.3,
-          keys: ["dir"],
-        });
-
-        const results = fuse.search(targetDir);
-        this.debugLogger.log("FileSearch", "dir similarity results", results);
-
-        if (results.length > 0) {
-          return results.map((result: FuseResult) => result.item.fullPath);
-        }
-
-        // If no directory matches, return all exact name matches
-        return exactMatches.map((entry) => entry.fullPath);
+        return exactMatches
+          .sort((a, b) => {
+            // Prioritize exact matches
+            const aExact =
+              a.name === searchName || a.name === `${searchName}.txt`;
+            const bExact =
+              b.name === searchName || b.name === `${searchName}.txt`;
+            if (aExact !== bExact) return aExact ? -1 : 1;
+            return a.fullPath.length - b.fullPath.length;
+          })
+          .map((entry) => entry.fullPath);
       }
 
-      // If no exact matches, try fuzzy name matching
+      // For fuzzy matching
       const fuse = new Fuse<FileEntry>(fileEntries, {
         includeScore: true,
-        threshold: 0.3,
+        threshold: 0.3, // Stricter threshold
+        minMatchCharLength: Math.min(3, searchName.length),
         keys: [
-          { name: "name", weight: 3 }, // Filename is most important
-          { name: "dir", weight: 1 }, // Directory path has less weight
+          { name: "name", weight: 1 }, // Only match on name
         ],
       });
 
-      const results = fuse.search(targetName);
+      const results = fuse.search(searchName);
       this.debugLogger.log("FileSearch", "fuzzy search results", results);
 
+      // Filter and sort results
       return results
-        .filter((result: FuseResult) => result.score && result.score < 0.3)
-        .map((result: FuseResult) => result.item.fullPath);
+        .filter((result) => {
+          if (!result.score) return false;
+          // Only accept very close matches
+          return result.score < 0.2 || result.item.name.includes(searchName);
+        })
+        .slice(0, 5) // Limit results
+        .map((result) => result.item.fullPath);
     } catch (error) {
-      console.error("Error in findByName:", error);
+      this.debugLogger.log("FileSearch", "Error in findByName", { error });
       return [];
     }
   }

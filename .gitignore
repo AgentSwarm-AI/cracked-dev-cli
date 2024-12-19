@@ -10,3 +10,7 @@ coverage
 
 .vscode/settings.json
 crkdrc.json
+
+
+conversationHistory.json
+logs

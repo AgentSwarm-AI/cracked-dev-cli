@@ -1,4 +1,4 @@
-export interface IMessage {
+export interface IConversationHistoryMessage {
   role: "user" | "assistant" | "system";
   content: string;
 }
@@ -24,7 +24,7 @@ export interface ILLMProvider {
 
   // Conversation management
   clearConversationContext(): void;
-  getConversationContext(): IMessage[];
+  getConversationContext(): IConversationHistoryMessage[];
   addSystemInstructions(instructions: string): void;
 
   // Model management

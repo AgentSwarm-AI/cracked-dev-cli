@@ -14,39 +14,15 @@ describe("ActionsParser", () => {
     mocker = new UnitTestMocker();
 
     // Setup spies on prototype methods of dependencies before instantiating ActionsParser
-    mocker.spyOnPrototypeAndReturn(DebugLogger, "log", jest.fn());
-    mocker.spyOnPrototypeAndReturn(
-      LLMContextCreator,
-      "executeAction",
-      jest.fn(),
-    );
-    mocker.spyOnPrototypeAndReturn(HtmlEntityDecoder, "decode", jest.fn());
-    mocker.spyOnPrototypeAndReturn(
-      ActionTagsExtractor,
-      "validateStructure",
-      jest.fn(),
-    );
-    mocker.spyOnPrototypeAndReturn(
-      ActionTagsExtractor,
-      "extractTag",
-      jest.fn(),
-    );
-    mocker.spyOnPrototypeAndReturn(
-      ActionTagsExtractor,
-      "extractTags",
-      jest.fn(),
-    );
-    mocker.spyOnPrototypeAndReturn(
-      ActionTagsExtractor,
-      "extractTagLines",
-      jest.fn(),
-    );
-    mocker.spyOnPrototypeAndReturn(
-      ActionTagsExtractor,
-      "extractNestedTags",
-      jest.fn(),
-    );
-    mocker.spyOnPrototypeAndReturn(
+    mocker.mockPrototype(DebugLogger, "log", jest.fn());
+    mocker.mockPrototype(LLMContextCreator, "executeAction", jest.fn());
+    mocker.mockPrototype(HtmlEntityDecoder, "decode", jest.fn());
+    mocker.mockPrototype(ActionTagsExtractor, "validateStructure", jest.fn());
+    mocker.mockPrototype(ActionTagsExtractor, "extractTag", jest.fn());
+    mocker.mockPrototype(ActionTagsExtractor, "extractTags", jest.fn());
+    mocker.mockPrototype(ActionTagsExtractor, "extractTagLines", jest.fn());
+    mocker.mockPrototype(ActionTagsExtractor, "extractNestedTags", jest.fn());
+    mocker.mockPrototype(
       ActionTagsExtractor,
       "extractAllTagsWithContent",
       jest.fn(),

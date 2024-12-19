@@ -1,5 +1,6 @@
-import { MessageContextManager } from "@services/LLM/MessageContextManager";
 import { autoInjectable } from "tsyringe";
+import { MessageContextHistory } from "../context/MessageContextHistory";
+import { MessageContextLogger } from "../context/MessageContextLogger";
 import { ActionTag, getBlueprint, getImplementedActions } from "./blueprints";
 import { ActionFactory } from "./core/ActionFactory";
 import { ActionQueue } from "./core/ActionQueue";
@@ -10,7 +11,8 @@ export class ActionExecutor {
   constructor(
     private actionFactory: ActionFactory,
     private actionQueue: ActionQueue,
-    private messageContextManager: MessageContextManager,
+    private messageContextLogger: MessageContextLogger,
+    private messageContextHistory: MessageContextHistory,
   ) {}
 
   async executeAction(actionText: string): Promise<IActionResult> {
@@ -28,11 +30,11 @@ export class ActionExecutor {
           const error = new Error(
             `Found "${actionType}" without proper XML tag structure. Tags must be wrapped in < > brackets. For example: <${actionType}>content</${actionType}>`,
           );
-          this.messageContextManager.logAction(actionType, {
+          this.messageContextLogger.logActionResult(actionType, {
             success: false,
             error,
           });
-          this.messageContextManager.addMessage(
+          this.messageContextHistory.addMessage(
             "system",
             `Action ${actionType} failed: Invalid XML structure`,
           );
@@ -48,11 +50,11 @@ export class ActionExecutor {
         const error = new Error(
           "No valid action tags found. Actions must be wrapped in XML-style tags.",
         );
-        this.messageContextManager.logAction("unknown", {
+        this.messageContextLogger.logActionResult("unknown", {
           success: false,
           error,
         });
-        this.messageContextManager.addMessage(
+        this.messageContextHistory.addMessage(
           "system",
           "Action failed: No valid action tags found",
         );
@@ -66,11 +68,11 @@ export class ActionExecutor {
             this.actionQueue.enqueue(actionType, fullMatch);
           } else {
             const error = new Error(`Unknown action type: ${actionType}`);
-            this.messageContextManager.logAction(actionType, {
+            this.messageContextLogger.logActionResult(actionType, {
               success: false,
               error,
             });
-            this.messageContextManager.addMessage(
+            this.messageContextHistory.addMessage(
               "system",
               `Action failed: Unknown type ${actionType}`,
             );
@@ -92,11 +94,11 @@ export class ActionExecutor {
           const error = new Error(
             `Failed to create action instance for "${action.type}"`,
           );
-          this.messageContextManager.logAction(action.type, {
+          this.messageContextLogger.logActionResult(action.type, {
             success: false,
             error,
           });
-          this.messageContextManager.addMessage(
+          this.messageContextHistory.addMessage(
             "system",
             `Action ${action.type} failed: Could not create instance`,
           );
@@ -115,17 +117,17 @@ export class ActionExecutor {
         lastResult = await actionInstance.execute(action.content);
 
         // Log the result
-        this.messageContextManager.logAction(action.type, lastResult);
+        this.messageContextLogger.logActionResult(action.type, lastResult);
 
         // Add result to conversation history
         if (lastResult.success) {
           if (lastResult.data) {
-            this.messageContextManager.addMessage(
+            this.messageContextHistory.addMessage(
               "system",
-              `Action ${action.type} succeeded: ${lastResult.data}`,
+              `Action ${action.type} succeeded: ${JSON.stringify(lastResult.data)}`,
             );
           } else {
-            this.messageContextManager.addMessage(
+            this.messageContextHistory.addMessage(
               "system",
               `Action ${action.type} succeeded`,
             );
@@ -134,7 +136,7 @@ export class ActionExecutor {
           const errorMessage = lastResult.error
             ? lastResult.error.message
             : "Unknown error";
-          this.messageContextManager.addMessage(
+          this.messageContextHistory.addMessage(
             "system",
             `Action ${action.type} failed: ${errorMessage}`,
           );
@@ -177,11 +179,11 @@ export class ActionExecutor {
       this.actionQueue.clear();
 
       // Log the error
-      this.messageContextManager.logAction("unknown", {
+      this.messageContextLogger.logActionResult("unknown", {
         success: false,
         error: error as Error,
       });
-      this.messageContextManager.addMessage(
+      this.messageContextHistory.addMessage(
         "system",
         `Action failed with error: ${(error as Error).message}`,
       );

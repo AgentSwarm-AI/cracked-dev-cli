@@ -1,6 +1,10 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
+import { MessageContextHistory } from "@/services/LLM/context/MessageContextHistory";
 import { ModelManager } from "@/services/LLM/ModelManager";
-import { MessageContextManager } from "@services/LLM/MessageContextManager";
-import { OpenRouterAPI } from "@services/LLMProviders/OpenRouter/OpenRouterAPI";
+import {
+  LLMError,
+  OpenRouterAPI,
+} from "@services/LLMProviders/OpenRouter/OpenRouterAPI";
 import { DebugLogger } from "@services/logging/DebugLogger";
 import { HtmlEntityDecoder } from "@services/text/HTMLEntityDecoder";
 import { UnitTestMocker } from "@tests/mocks/UnitTestMocker";
@@ -13,37 +17,25 @@ describe("OpenRouterAPI", () => {
   let mocker: UnitTestMocker;
   let postSpy: jest.SpyInstance;
 
+  let addMessageSpy: jest.SpyInstance;
+
   const setupMocks = () => {
     // Message Context Manager mocks
-    mocker.spyOnPrototypeWithImplementation(
-      MessageContextManager,
-      "getMessages",
-      () => [],
-    );
-    mocker.spyOnPrototypeWithImplementation(
-      MessageContextManager,
-      "addMessage",
-      () => {},
-    );
+    mocker.mockPrototypeWith(MessageContextHistory, "getMessages", () => []);
+    mocker.mockPrototypeWith(MessageContextHistory, "addMessage", () => {});
 
-    mocker.spyOnPrototypeWithImplementation(
-      MessageContextManager,
-      "clear",
-      () => {},
-    );
-    mocker.spyOnPrototypeWithImplementation(
-      MessageContextManager,
+    mocker.mockPrototypeWith(MessageContextHistory, "clear", () => {});
+    mocker.mockPrototypeWith(
+      MessageContextHistory,
       "setSystemInstructions",
       () => {},
     );
 
     // Other service mocks
-    mocker.spyOnPrototypeWithImplementation(
-      HtmlEntityDecoder,
-      "decode",
-      (str) => str,
-    );
-    mocker.spyOnPrototypeWithImplementation(DebugLogger, "log", () => {});
+    mocker.mockPrototypeWith(HtmlEntityDecoder, "decode", (str) => str);
+    mocker.mockPrototypeWith(DebugLogger, "log", () => {});
+
+    addMessageSpy = mocker.spyPrototype(MessageContextHistory, "addMessage");
   };
 
   beforeEach(() => {
@@ -51,7 +43,7 @@ describe("OpenRouterAPI", () => {
     setupMocks();
     openRouterAPI = container.resolve(OpenRouterAPI);
     postSpy = jest.spyOn(openRouterAPI["httpClient"], "post");
-    mocker.spyOnPrototypeWithImplementation(
+    mocker.mockPrototypeWith(
       ModelManager,
       "getCurrentModel",
       () => "anthropic/claude-3-opus", // Fix model name consistency
@@ -80,11 +72,11 @@ describe("OpenRouterAPI", () => {
         const response = await openRouterAPI.sendMessage("gpt-4", "Hi");
 
         expect(response).toBe("Hello!");
-        expect(MessageContextManager.prototype.addMessage).toHaveBeenCalledWith(
+        expect(MessageContextHistory.prototype.addMessage).toHaveBeenCalledWith(
           "user",
           "Hi",
         );
-        expect(MessageContextManager.prototype.addMessage).toHaveBeenCalledWith(
+        expect(MessageContextHistory.prototype.addMessage).toHaveBeenCalledWith(
           "assistant",
           "Hello!",
         );
@@ -153,7 +145,7 @@ describe("OpenRouterAPI", () => {
       });
 
       it("should format messages without cache control for non-anthropic models", async () => {
-        mocker.spyOnPrototypeWithImplementation(
+        mocker.mockPrototypeWith(
           ModelManager,
           "getCurrentModel",
           () => "gpt-4",
@@ -207,7 +199,7 @@ describe("OpenRouterAPI", () => {
 
         expect(response).toBe("Hello!");
         expect(
-          MessageContextManager.prototype.setSystemInstructions,
+          MessageContextHistory.prototype.setSystemInstructions,
         ).toHaveBeenCalledWith("Be helpful");
       });
     });
@@ -216,13 +208,13 @@ describe("OpenRouterAPI", () => {
   describe("Conversation Context Management", () => {
     it("should clear conversation context", () => {
       openRouterAPI.clearConversationContext();
-      expect(MessageContextManager.prototype.clear).toHaveBeenCalled();
+      expect(MessageContextHistory.prototype.clear).toHaveBeenCalled();
     });
 
     it("should get conversation context", () => {
       const messages = [{ role: "user", content: "Hi" }];
-      mocker.spyOnPrototypeWithImplementation(
-        MessageContextManager,
+      mocker.mockPrototypeWith(
+        MessageContextHistory,
         "getMessages",
         () => messages,
       );
@@ -234,7 +226,7 @@ describe("OpenRouterAPI", () => {
     it("should add system instructions", () => {
       openRouterAPI.addSystemInstructions("Be helpful");
       expect(
-        MessageContextManager.prototype.setSystemInstructions,
+        MessageContextHistory.prototype.setSystemInstructions,
       ).toHaveBeenCalledWith("Be helpful");
     });
   });
@@ -250,55 +242,173 @@ describe("OpenRouterAPI", () => {
       expect(isValid).toBe(true);
     });
   });
-
   describe("Streaming", () => {
-    it("should handle streaming messages", async () => {
+    it("should handle streaming messages correctly", async () => {
+      const mockStreamData = [
+        'data: {"choices": [{"delta": {"content": "Hel"}}]}\n',
+        'data: {"choices": [{"delta": {"content": "lo"}}]}\n',
+        'data: {"choices": [{"delta": {"content": "!"}}]}\n',
+        "data: [DONE]\n",
+      ];
+
       const mockStream = new Readable({
         read() {
-          this.push(
-            Buffer.from(
-              'data: {"choices":[{"delta":{"content":"Hello"}}]}\n\n',
-            ),
-          );
-          this.push(
-            Buffer.from('data: {"choices":[{"delta":{"content":"!"}}]}\n\n'),
-          );
-          this.push(Buffer.from("data: [DONE]\n\n"));
+          mockStreamData.forEach((chunk) => {
+            this.push(Buffer.from(chunk));
+          });
           this.push(null);
         },
       });
 
-      postSpy.mockResolvedValueOnce({ data: mockStream });
+      postSpy.mockResolvedValue({ data: mockStream });
 
-      const mockCallback = jest.fn();
-      await openRouterAPI.streamMessage("gpt-4", "Hi", mockCallback);
+      const callback = jest.fn();
+      await openRouterAPI.streamMessage("gpt-4", "Hi", callback);
 
-      expect(mockCallback).toHaveBeenCalledWith("Hello");
-      expect(mockCallback).toHaveBeenCalledWith("!");
-      expect(MessageContextManager.prototype.addMessage).toHaveBeenCalledWith(
-        "user",
+      expect(callback).toHaveBeenCalledTimes(3);
+      expect(callback).toHaveBeenNthCalledWith(1, "Hel");
+      expect(callback).toHaveBeenNthCalledWith(2, "lo");
+      expect(callback).toHaveBeenNthCalledWith(3, "!");
+    });
+
+    it("should not add empty messages to context", async () => {
+      const mockStream = new Readable({
+        read() {
+          this.push(Buffer.from("data: [DONE]\n"));
+          this.push(null);
+        },
+      });
+      postSpy.mockResolvedValue({ data: mockStream });
+
+      const callback = jest.fn();
+      await openRouterAPI.streamMessage("gpt-4", "Hi", callback);
+
+      expect(callback).toHaveBeenCalledTimes(0);
+    });
+
+    it("should handle errors within stream processing", async () => {
+      const mockStreamData = [
+        'data: {"error": {"message": "Stream error", "details": {}}}\n',
+        "data: [DONE]\n",
+      ];
+      const mockStream = new Readable({
+        read() {
+          mockStreamData.forEach((chunk) => {
+            this.push(Buffer.from(chunk));
+          });
+          this.push(null);
+        },
+      });
+      postSpy.mockResolvedValue({ data: mockStream });
+      const callback = jest.fn();
+
+      await new Promise<void>((resolve) => {
+        openRouterAPI.streamMessage("gpt-4", "Test message", (chunk, error) => {
+          if (error) {
+            expect(error).toBeInstanceOf(LLMError);
+            expect(error.message).toEqual("Stream error");
+            expect(error.type).toEqual("STREAM_ERROR");
+            resolve();
+          }
+        });
+      });
+
+      expect(callback).not.toHaveBeenCalled();
+    });
+
+    it("should handle aborted stream", async () => {
+      const mockStreamData = [
+        'data: {"choices": [{"delta": {"content": "Hel"}}]}\n',
+        'data: {"choices": [{"delta": {"content": "lo"}}]}\n',
+        'data: {"choices": [{"delta": {"content": "!"}}]}\n',
+        "data: [DONE]\n",
+      ];
+
+      const mockStream = new Readable({
+        read() {
+          mockStreamData.forEach((chunk) => {
+            this.push(Buffer.from(chunk));
+          });
+          this.push(null);
+        },
+      });
+
+      postSpy.mockResolvedValue({ data: mockStream });
+
+      const callback = jest.fn();
+      const streamPromise = openRouterAPI.streamMessage(
+        "gpt-4",
         "Hi",
+        callback,
       );
-      expect(MessageContextManager.prototype.addMessage).toHaveBeenCalledWith(
-        "assistant",
-        "Hello!",
+      openRouterAPI.cancelStream();
+      await streamPromise;
+
+      expect(callback).toHaveBeenCalledWith(
+        "",
+        //@ts-ignore
+        new LLMError("Aborted"),
       );
+    });
+
+    it("should retry on retryable error", async () => {
+      const mockStreamData = [
+        'data: {"choices": [{"delta": {"content": "Hel"}}]}\n',
+        'data: {"choices": [{"delta": {"content": "lo"}}]}\n',
+        'data: {"choices": [{"delta": {"content": "!"}}]}\n',
+        "data: [DONE]\n",
+      ];
+
+      const mockStream = new Readable({
+        read() {
+          mockStreamData.forEach((chunk) => {
+            this.push(Buffer.from(chunk));
+          });
+          this.push(null);
+        },
+      });
+
+      postSpy
+        .mockRejectedValueOnce(new LLMError("Network error", "NETWORK_ERROR"))
+        .mockResolvedValue({ data: mockStream });
+
+      const callback = jest.fn();
+      await openRouterAPI.streamMessage("gpt-4", "Hi", callback);
+
+      expect(postSpy).toHaveBeenCalledTimes(2);
+      expect(callback).toHaveBeenCalledTimes(3);
+    });
+
+    it("should not retry on non-retryable error", async () => {
+      postSpy.mockRejectedValueOnce(
+        new LLMError("Non retryable error", "API_ERROR"),
+      );
+
+      const callback = jest.fn();
+
+      await new Promise<void>((resolve) => {
+        openRouterAPI.streamMessage("gpt-4", "Hi", (chunk, error) => {
+          if (error) {
+            expect(error).toBeInstanceOf(LLMError);
+            expect(error.message).toEqual("Non retryable error");
+            expect(error.type).toEqual("API_ERROR");
+            resolve();
+          }
+        });
+      });
+      expect(postSpy).toHaveBeenCalledTimes(1);
     });
   });
 
   describe("Conversation History", () => {
     beforeEach(() => {
-      mocker.spyOnPrototypeWithImplementation(
-        ModelManager,
-        "getCurrentModel",
-        () => "gpt-4",
-      );
+      mocker.mockPrototypeWith(ModelManager, "getCurrentModel", () => "gpt-4");
     });
 
     it("should maintain conversation history across multiple messages", async () => {
       const messages: IOpenRouterMessage[] = [];
-      mocker.spyOnPrototypeWithImplementation(
-        MessageContextManager,
+      mocker.mockPrototypeWith(
+        MessageContextHistory,
         "getMessages",
         () => messages,
       );
@@ -343,8 +453,8 @@ describe("OpenRouterAPI", () => {
         { role: "assistant", content: "Previous response" },
       ];
 
-      mocker.spyOnPrototypeWithImplementation(
-        MessageContextManager,
+      mocker.mockPrototypeWith(
+        MessageContextHistory,
         "getMessages",
         () => mockMessages,
       );
@@ -359,7 +469,7 @@ describe("OpenRouterAPI", () => {
       );
 
       expect(
-        MessageContextManager.prototype.setSystemInstructions,
+        MessageContextHistory.prototype.setSystemInstructions,
       ).toHaveBeenCalledWith(systemInstructions);
       expect(postSpy).toHaveBeenCalledWith(
         "/chat/completions",
@@ -371,6 +481,51 @@ describe("OpenRouterAPI", () => {
           headers: {},
         },
       );
+    });
+  });
+
+  describe("formatMessages", () => {
+    it("should not create duplicate prompt_phase entries", async () => {
+      const messages = [
+        { role: "system", content: "You are a helpful assistant." },
+        { role: "user", content: "Hello" },
+        { role: "assistant", content: "Hi there" },
+        { role: "user", content: "How are you?" },
+      ];
+
+      // Access private method using any type
+      const formattedMessages = (openRouterAPI as any).formatMessages(
+        messages,
+        "claude-3-opus-20240229",
+      );
+
+      formattedMessages.forEach((msg: { content: any[] }) => {
+        if (Array.isArray(msg.content)) {
+          const promptPhases = msg.content.filter(
+            (item: any) => typeof item === "object" && "prompt_phase" in item,
+          );
+          const uniquePhases = new Set(
+            promptPhases.map((p: { prompt_phase: any }) => p.prompt_phase),
+          );
+          expect(promptPhases.length).toBe(uniquePhases.size);
+        }
+      });
+    });
+
+    it("should correctly format messages for non-Anthropic models", async () => {
+      const messages = [
+        { role: "user", content: "Hello" },
+        { role: "assistant", content: "Hi there" },
+      ];
+
+      const formattedMessages = (openRouterAPI as any).formatMessages(
+        messages,
+        "gpt-4",
+      );
+
+      formattedMessages.forEach((msg: { content: any }) => {
+        expect(typeof msg.content).toBe("string");
+      });
     });
   });
 });

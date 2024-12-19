@@ -1,9 +1,11 @@
+// services/PhaseManager.ts
 import { ConfigService } from "@services/ConfigService";
-import { singleton } from "tsyringe";
+import { injectable, singleton } from "tsyringe";
 import { ModelManager } from "./ModelManager";
 import { phaseBlueprints } from "./phases/blueprints";
 import { IPhaseConfig, Phase } from "./types/PhaseTypes";
 
+@injectable()
 @singleton()
 export class PhaseManager {
   private currentPhase: Phase = Phase.Discovery;

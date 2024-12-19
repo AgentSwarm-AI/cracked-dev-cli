@@ -55,6 +55,7 @@ describe("ConfigService", () => {
       const mockConfig = {
         provider: "open-router",
         customInstructions: "Follow clean code principles",
+        customInstructionsPath: "",
         interactive: true,
         stream: true,
         debug: false,
@@ -107,6 +108,7 @@ describe("ConfigService", () => {
           directoryFirst: true,
           excludeDirectories: false,
         },
+        referenceExamples: {}, // Added referenceExamples
       };
 
       (fs.existsSync as jest.Mock).mockReturnValue(true);

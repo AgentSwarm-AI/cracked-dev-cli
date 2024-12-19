@@ -1,15 +1,21 @@
 import { openRouterClient } from "@constants/openRouterClient";
 import { DebugLogger } from "@services/logging/DebugLogger";
-import { autoInjectable, singleton } from "tsyringe";
+import { singleton } from "tsyringe";
 import { IModelInfo } from "./types/ModelTypes";
 
 @singleton()
-@autoInjectable()
 export class ModelInfo {
   private modelInfoMap: Map<string, IModelInfo> = new Map();
   private currentModel: string | null = null;
   private currentModelInfo: IModelInfo | null = null;
   private initialized: boolean = false;
+  private usageHistory: {
+    [model: string]: {
+      prompt_tokens: number;
+      completion_tokens: number;
+      total_tokens: number;
+    }[];
+  } = {};
 
   constructor(private debugLogger: DebugLogger) {}
 
@@ -140,5 +146,38 @@ export class ModelInfo {
       percentage: `${usagePercent}%`,
       remaining: contextLength - usedTokens,
     });
+  }
+
+  async logDetailedUsage(usage: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  }): Promise<void> {
+    await this.ensureInitialized();
+
+    if (!this.currentModel) {
+      return;
+    }
+
+    if (!this.usageHistory[this.currentModel]) {
+      this.usageHistory[this.currentModel] = [];
+    }
+
+    this.usageHistory[this.currentModel].push(usage);
+
+    this.debugLogger.log("ModelInfo", "Detailed token usage", {
+      model: this.currentModel,
+      usage,
+    });
+  }
+
+  getUsageHistory(): {
+    [model: string]: {
+      prompt_tokens: number;
+      completion_tokens: number;
+      total_tokens: number;
+    }[];
+  } {
+    return this.usageHistory;
   }
 }
