@@ -206,15 +206,13 @@ Let's start. Steps from strategy phase:
 
 ### Instructions for Using Git Actions
 
-#### Get Diff for Specific File
+#### Compare Commits
 <git_diff>
-  <path>src/index.ts</path>
+  <fromCommit>HEAD^</fromCommit>
+  <toCommit>HEAD</toCommit>
 </git_diff>
 
-#### Get Full Repository Diff
-<git_diff></git_diff>
-
-#### Compare PR Branches
+#### Compare Branches
 <git_pr_diff>
   <baseBranch>main</baseBranch>
   <compareBranch>feature/new-feature</compareBranch>
@@ -277,6 +275,7 @@ DO NOT RUN write_file if import issues are not resolved! Use relative_path_looku
 <!-- Dont install extra dependencies unless allowed -->
 <!-- Use the project's package manager -->
 <!-- Use raw text only -->
+<!-- Avoid git commands here. Prefer git_diff and git_pr_diff. Exception: git command not available on this instruction-->
 </execute_command>
 
 <search_string>

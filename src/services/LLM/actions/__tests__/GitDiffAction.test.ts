@@ -1,43 +1,143 @@
+import { UnitTestMocker } from "@/jest/mocks/UnitTestMocker";
+import { ConfigService } from "@/services/ConfigService";
 import { GitService } from "@/services/GitManagement/GitService";
-import { DebugLogger } from "@/services/logging/DebugLogger";
-import { ActionTagsExtractor } from "../ActionTagsExtractor";
+import { container } from "tsyringe";
 import { GitDiffAction } from "../GitDiffAction";
 
 describe("GitDiffAction", () => {
-  let action: GitDiffAction;
-  let mockGitService: jest.Mocked<GitService>;
+  let gitDiffAction: GitDiffAction;
+  let mocker: UnitTestMocker;
+
+  beforeAll(() => {
+    gitDiffAction = container.resolve(GitDiffAction);
+  });
 
   beforeEach(() => {
-    mockGitService = {
-      getDiff: jest.fn(),
-    } as any;
+    mocker = new UnitTestMocker();
+    mocker.mockPrototype(ConfigService, "getConfig", {
+      gitDiff: {
+        excludeLockFiles: false,
+        lockFiles: [],
+      },
+    });
+  });
 
-    action = new GitDiffAction(
-      new ActionTagsExtractor(),
-      mockGitService,
-      new DebugLogger(),
+  afterEach(() => {
+    mocker.clearAllMocks();
+  });
+
+  it("should get diff between commits", async () => {
+    const mockDiff = "mock diff content";
+    const getDiffSpy = mocker.mockPrototype(
+      GitService,
+      "getDiff",
+      Promise.resolve(mockDiff),
+    );
+
+    const result = await gitDiffAction.execute(`
+      <git_diff>
+        <fromCommit>HEAD^</fromCommit>
+        <toCommit>HEAD</toCommit>
+      </git_diff>
+    `);
+
+    expect(result.success).toBe(true);
+    expect(result.data).toBe(mockDiff);
+    expect(getDiffSpy).toHaveBeenCalledWith("HEAD^", "HEAD", "");
+  });
+
+  it("should get diff with exclude pattern when excludeLockFiles is true", async () => {
+    const mockDiff = "mock diff content";
+    const getDiffSpy = mocker.mockPrototype(
+      GitService,
+      "getDiff",
+      Promise.resolve(mockDiff),
+    );
+
+    mocker.mockPrototype(ConfigService, "getConfig", {
+      gitDiff: {
+        excludeLockFiles: true,
+        lockFiles: ["package-lock.json", "yarn.lock"],
+      },
+    });
+
+    const result = await gitDiffAction.execute(`
+      <git_diff>
+        <fromCommit>HEAD^</fromCommit>
+        <toCommit>HEAD</toCommit>
+      </git_diff>
+    `);
+
+    expect(result.success).toBe(true);
+    expect(result.data).toBe(mockDiff);
+    expect(getDiffSpy).toHaveBeenCalledWith(
+      "HEAD^",
+      "HEAD",
+      ":!package-lock.json :!yarn.lock",
     );
   });
 
-  it("should get diff for specific file", async () => {
-    mockGitService.getDiff.mockResolvedValue("mock diff content");
-
-    const result = await action.execute(
-      "<git_diff><path>src/index.ts</path></git_diff>",
+  it("should handle missing fromCommit", async () => {
+    const mockDiff = "mock diff content";
+    const getDiffSpy = mocker.mockPrototype(
+      GitService,
+      "getDiff",
+      Promise.resolve(mockDiff),
     );
 
-    expect(result.success).toBe(true);
-    expect(result.data).toBe("mock diff content");
-    expect(mockGitService.getDiff).toHaveBeenCalledWith("src/index.ts");
+    const result = await gitDiffAction.execute(`
+      <git_diff>
+        <toCommit>HEAD</toCommit>
+      </git_diff>
+    `);
+
+    expect(result.success).toBe(false);
+    expect(result.error?.message).toBe(
+      "fromCommit is required and must be a non-empty string",
+    );
+    expect(getDiffSpy).not.toHaveBeenCalled();
   });
 
-  it("should get diff for full repository when no path is provided", async () => {
-    mockGitService.getDiff.mockResolvedValue("mock full repo diff content");
+  it("should handle missing toCommit", async () => {
+    const mockDiff = "mock diff content";
+    const getDiffSpy = mocker.mockPrototype(
+      GitService,
+      "getDiff",
+      Promise.resolve(mockDiff),
+    );
 
-    const result = await action.execute("<git_diff></git_diff>");
+    const result = await gitDiffAction.execute(`
+      <git_diff>
+        <fromCommit>HEAD^</fromCommit>
+      </git_diff>
+    `);
 
-    expect(result.success).toBe(true);
-    expect(result.data).toBe("mock full repo diff content");
-    expect(mockGitService.getDiff).toHaveBeenCalledWith(undefined);
+    expect(result.success).toBe(false);
+    expect(result.error?.message).toBe(
+      "toCommit is required and must be a non-empty string",
+    );
+    expect(getDiffSpy).not.toHaveBeenCalled();
+  });
+
+  it("should handle git service errors", async () => {
+    const error = new Error("Git error");
+    mocker.mockPrototype(GitService, "getDiff", Promise.reject(error));
+
+    const result = await gitDiffAction.execute(`
+      <git_diff>
+        <fromCommit>HEAD^</fromCommit>
+        <toCommit>HEAD</toCommit>
+      </git_diff>
+    `);
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe(error);
+  });
+
+  it("should handle malformed XML content", async () => {
+    const result = await gitDiffAction.execute("<git_diff>"); // Missing closing tag
+
+    expect(result.success).toBe(false);
+    expect(result.error?.message).toContain("Failed to parse git diff content");
   });
 });

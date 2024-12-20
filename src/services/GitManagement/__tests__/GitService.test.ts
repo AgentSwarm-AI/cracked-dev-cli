@@ -24,18 +24,29 @@ describe("GitService", () => {
     jest.clearAllMocks();
   });
 
-  it("should get the diff with a filepath", async () => {
-    mockedGit.diff.mockResolvedValue("test diff");
-    const diff = await gitService.getDiff("test.txt");
-    expect(diff).toBe("test diff");
-    expect(mockedGit.diff).toHaveBeenCalledWith(["--", "test.txt"]);
-  });
+  describe("getDiff", () => {
+    it("should get the diff between two commits", async () => {
+      mockedGit.diff.mockResolvedValue("test diff");
+      const diff = await gitService.getDiff("HEAD^", "HEAD");
+      expect(diff).toBe("test diff");
+      expect(mockedGit.diff).toHaveBeenCalledWith(["HEAD^", "HEAD"]);
+    });
 
-  it("should get the diff without a filepath", async () => {
-    mockedGit.diff.mockResolvedValue("test diff");
-    const diff = await gitService.getDiff();
-    expect(diff).toBe("test diff");
-    expect(mockedGit.diff).toHaveBeenCalledWith();
+    it("should get the diff between two commits with exclude pattern", async () => {
+      mockedGit.diff.mockResolvedValue("test diff");
+      const diff = await gitService.getDiff(
+        "HEAD^",
+        "HEAD",
+        ":!package-lock.json :!yarn.lock",
+      );
+      expect(diff).toBe("test diff");
+      expect(mockedGit.diff).toHaveBeenCalledWith([
+        "HEAD^",
+        "HEAD",
+        ":!package-lock.json",
+        ":!yarn.lock",
+      ]);
+    });
   });
 
   it("should get the status", async () => {
@@ -61,11 +72,29 @@ describe("GitService", () => {
     expect(mockedGit.status).toHaveBeenCalled();
   });
 
-  it("should get the PR diff", async () => {
-    mockedGit.diff.mockResolvedValue("pr diff");
-    const diff = await gitService.getPRDiff("main", "feature");
-    expect(diff).toBe("pr diff");
-    expect(mockedGit.diff).toHaveBeenCalledWith(["main...feature"]);
+  describe("getPRDiff", () => {
+    it("should get the PR diff without exclude pattern", async () => {
+      mockedGit.diff.mockResolvedValue("pr diff");
+      const diff = await gitService.getPRDiff("main", "feature");
+      expect(diff).toBe("pr diff");
+      expect(mockedGit.diff).toHaveBeenCalledWith(["main", "feature"]);
+    });
+
+    it("should get the PR diff with exclude pattern", async () => {
+      mockedGit.diff.mockResolvedValue("pr diff");
+      const diff = await gitService.getPRDiff(
+        "main",
+        "feature",
+        ":!package-lock.json :!yarn.lock",
+      );
+      expect(diff).toBe("pr diff");
+      expect(mockedGit.diff).toHaveBeenCalledWith([
+        "main",
+        "feature",
+        ":!package-lock.json",
+        ":!yarn.lock",
+      ]);
+    });
   });
 
   it("should get the file history", async () => {

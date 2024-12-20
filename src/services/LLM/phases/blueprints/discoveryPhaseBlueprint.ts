@@ -19,13 +19,15 @@ export const discoveryPhaseBlueprint: IPhaseConfig = {
   - Exception: Only explore if explicitly asked to reference existing patterns
   - No need to search for existing implementations
   - Immediately end_phase to strategy_phase
+  - Don't output code on markdown.
 
 - MODIFICATION TASKS:
   - Start by stating clear intent
-  - FIRST action: always <read_file> relevant files
-  - If unsure about file locations: use <search_string> or <search_file>
-  - Run specific tests with <execute_command> for test fixes
+  - FIRST action: always read_file relevant files
+  - If unsure about file locations: use search_string or search_file
+  - Run specific tests with execute_command for test fixes
   - Gather all necessary context before proceeding
+  - If git tree exploration is needed (eg. to find a file, find regressions, explore bugs), use git related tools.
 
 - GENERAL RULES:
   - NO code writing in this phase - EXPLORATION ONLY
@@ -33,6 +35,7 @@ export const discoveryPhaseBlueprint: IPhaseConfig = {
   - NO rereading files already in context
   - Confirm sufficient info before ending phase
   - Use end_phase as soon as you have enough context
+  - When running actions, REMEMBER THEY SHOULD COME WITH A PROPER TAG STRUCTURE!
 
 ### Key objectives:
 - For new code: Move quickly to implementation
@@ -40,62 +43,25 @@ export const discoveryPhaseBlueprint: IPhaseConfig = {
 - end_phase when confident
 - Keep reads and tests targeted
 
-### Instructions for Using Git Actions
-
-#### Get Diff for Specific File
-<git_diff>
-  <path>src/index.ts</path>
-</git_diff>
-
-#### Get Full Repository Diff
-<git_diff></git_diff>
-
-#### Compare PR Branches
-<git_pr_diff>
-  <baseBranch>main</baseBranch>
-  <compareBranch>feature/new-feature</compareBranch>
-</git_pr_diff>
-
 ### EXAMPLE OF HOW TO BEHAVE:
 
-To achieve the goal of XYZ, I'll need to read the following files:
+  To achieve the goal of XYZ, I'll need to read the following files:
 
-<read_file>
-  <path>src/someRelatedFile.ts</path>
-  <path>src/someRelatedFile.ts</path>
-  <path>src/someRelatedFile.ts</path>
-  <path>src/someRelatedFile.ts</path>
-</read_file>
+  <read_file>
+    <path>src/someRelatedFile.ts</path>
+    <path>src/anotherFile.ts</path>
+  </read_file>
 
-<!-- Note that you can also run typecheks and tests here, if you need to. -->
+  <!-- Note that you can also run typechecks and tests here, if you need to. -->
 
-<!-- Then, once its done, you can move to the next phase. DONT DO IT ON THE SAME PROMPT! -->
+  <!-- Then, once its done, you can move to the next phase. DONT DO IT ON THE SAME PROMPT! -->
 
-Ok, now I have enough context to move to the next phase.
+  Ok, now I have enough context to move to the next phase.
 
-<!-- MAKE SURE YOU ONLY CALL end_phase if you had read_file FIRST! -->  
-### Example for NEW code:
-Creating a new Calculator class? Great, proceeding directly to implementation.
+  <end_phase>
+    strategy_phase
+  </end_phase>
 
-<end_phase>
-  strategy_phase
-</end_phase>
-
-### Example for EXISTING code:
-To fix the bug in XYZ, I'll read these files:
-
-<read_file>
-  <path>src/importantFile.ts</path>
-  <path>src/relatedFile.ts</path>
-</read_file>
-
-(Run tests/typechecks if needed)
-
-Ok, I have enough context now.
-
-<end_phase>
-  strategy_phase
-</end_phase>
 </phase_prompt>
 
 ## Allowed Available Actions
@@ -119,10 +85,11 @@ REMEMBER: ONLY ONE ACTION PER REPLY!!!
 <!-- Dont install extra dependencies unless allowed -->
 <!-- Use the project's package manager -->
 <!-- Use raw text only -->
+<!-- Avoid git commands here. Prefer git_diff and git_pr_diff. Exception: git command not available on this instruction-->
 </execute_command>
 
 <search_string>
-<!-- Use this to search for a string in a file -->
+  <!-- Use this to search for a string in a file -->
   <directory>/path/to/search</directory>
   <term>pattern to search</term>
 </search_string>
@@ -144,14 +111,40 @@ REMEMBER: ONLY ONE ACTION PER REPLY!!!
   <url>https://url/should/be/here</url>
 </fetch_url>
 
-<git_diff>
-  <path>path/to/file</path> <!-- Optional: specify the file path to get diff for a specific file -->
-</git_diff>
+### Git Operations
 
-<git_pr_diff>
-  <baseBranch>base_branch_name</baseBranch>
-  <compareBranch>compare_branch_name</compareBranch>
-</git_pr_diff>
+1. Git Diff Action
+   <!-- Compare commits -->
+   
+   a) Compare with previous commit:
+   <git_diff>
+     <fromCommit>HEAD^</fromCommit>
+     <toCommit>HEAD</toCommit>
+   </git_diff>
+   
+   b) Compare specific commits:
+   <git_diff>
+     <fromCommit>abc123</fromCommit>
+     <toCommit>def456</toCommit>
+   </git_diff>
+
+2. Git PR Diff Action
+   <!-- Compare branches -->
+   <git_pr_diff>
+     <baseBranch>main</baseBranch>
+     <compareBranch>feature-branch</compareBranch>
+   </git_pr_diff>
+   
+   <!--Compare with master/main-->
+   <git_pr_diff>
+     <baseBranch>master</baseBranch>
+     <compareBranch>HEAD</compareBranch>
+   </git_pr_diff>
+
+Note: 
+- git_diff requires both commits to be specified
+- git_pr_diff requires both branches to be specified
+- Use HEAD for current state, HEAD^ for previous commit
 
 <end_phase>
   <!-- Output this when the phase is complete and you gathered all info you need.-->

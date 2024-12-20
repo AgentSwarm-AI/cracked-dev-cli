@@ -34,26 +34,6 @@ export const strategyPhaseBlueprint: IPhaseConfig = {
 5. Note testing requirements
 6. End with end_phase
 
-### Example Strategy:
-To implement <feature>, we'll:
-
-### Instructions for Using Git Actions
-
-#### Get Diff for Specific File
-<git_diff>
-  <path>src/index.ts</path>
-</git_diff>
-
-#### Get Full Repository Diff
-<git_diff></git_diff>
-
-#### Compare PR Branches
-<git_pr_diff>
-  <baseBranch>main</baseBranch>
-  <compareBranch>feature/new-feature</compareBranch>
-</git_pr_diff>
-
-### EXAMPLE OF HOW TO BEHAVE:
 1. Dependencies needed:
    - @types/xyz
    - existing utils from src/utils
@@ -123,7 +103,25 @@ REMEMBER: ONLY ONE ACTION PER REPLY!!!
 - **Run type check:** ${args.runTypeCheckCmd || "yarn type-check"}
 <execute_command>
 <!-- Use to run any command. For example to explore directories, try 'ls -lha' -->
+<!-- Avoid git commands here. Prefer git_diff and git_pr_diff. Exception: git command not available on this instruction-->
 </execute_command>
+
+### Example Strategy:
+  To implement <feature>, we'll:
+
+  ### Instructions for Using Git Actions
+
+  #### Compare Commits
+  <git_diff>
+    <fromCommit>HEAD^</fromCommit>
+    <toCommit>HEAD</toCommit>
+  </git_diff>
+
+  #### Compare Branches
+  <git_pr_diff>
+    <baseBranch>main</baseBranch>
+    <compareBranch>feature/new-feature</compareBranch>
+  </git_pr_diff>
 
 </phase_prompt>
 `,
