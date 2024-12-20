@@ -82,6 +82,7 @@
     "gpt-tokenizer": "^2.8.1",
     "he": "^1.2.0",
     "reflect-metadata": "^0.2.2",
+    "simple-git": "^3.27.0",
     "tree-cli": "^0.6.7",
     "tsup": "^8.3.5",
     "tsyringe": "^4.8.0",

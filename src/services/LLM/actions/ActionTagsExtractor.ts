@@ -1,15 +1,14 @@
 import { autoInjectable } from "tsyringe";
-import { getBlueprint, getImplementedActions } from "./blueprints";
+import { actionsBlueprints } from "./blueprints";
 
 @autoInjectable()
 export class ActionTagsExtractor {
   private getParameterTags(): string[] {
     // Get all parameter names from all action blueprints
     const paramSet = new Set<string>();
-    const actionTags = getImplementedActions();
+    const blueprints = Object.values(actionsBlueprints);
 
-    for (const tag of actionTags) {
-      const blueprint = getBlueprint(tag);
+    for (const blueprint of blueprints) {
       blueprint.parameters?.forEach((param) => {
         paramSet.add(param.name);
       });
@@ -25,7 +24,7 @@ export class ActionTagsExtractor {
    */
   validateStructure(content: string): string {
     // Get implemented action tags dynamically
-    const actionTags = getImplementedActions();
+    const actionTags = Object.keys(actionsBlueprints);
 
     // First validate the outer action tags
     for (const tag of actionTags) {

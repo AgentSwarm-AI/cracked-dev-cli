@@ -20,7 +20,7 @@ const configSchema = z.object({
   includeAllFilesOnEnvToContext: z.boolean().optional(),
   // Phase-specific model configurations
   discoveryModel: z.string().optional().default("google/gemini-flash-1.5-8b"),
-  strategyModel: z.string().optional().default("qwen/qwq-32b-preview"),
+  strategyModel: z.string().optional().default("openai/o1-mini"),
   executeModel: z
     .string()
     .optional()
@@ -54,6 +54,45 @@ const configSchema = z.object({
       allFiles: true,
       directoryFirst: true,
       excludeDirectories: false,
+    }),
+  gitDiff: z
+    .object({
+      excludeLockFiles: z.boolean().default(true),
+      lockFiles: z
+        .array(z.string())
+        .default([
+          "package-lock.json",
+          "yarn.lock",
+          "pnpm-lock.yaml",
+          "Gemfile.lock",
+          "composer.lock",
+          "Pipfile.lock",
+          "poetry.lock",
+          "packages.lock.json",
+          "Cargo.lock",
+          "Podfile.lock",
+          "mix.lock",
+          "go.sum",
+          "pubspec.lock",
+        ]),
+    })
+    .default({
+      excludeLockFiles: true,
+      lockFiles: [
+        "package-lock.json",
+        "yarn.lock",
+        "pnpm-lock.yaml",
+        "Gemfile.lock",
+        "composer.lock",
+        "Pipfile.lock",
+        "poetry.lock",
+        "packages.lock.json",
+        "Cargo.lock",
+        "Podfile.lock",
+        "mix.lock",
+        "go.sum",
+        "pubspec.lock",
+      ],
     }),
   referenceExamples: z.record(z.string(), z.string()).optional().default({}),
 });
@@ -141,6 +180,24 @@ export class ConfigService {
           allFiles: true,
           directoryFirst: true,
           excludeDirectories: false,
+        },
+        gitDiff: {
+          excludeLockFiles: true,
+          lockFiles: [
+            "package-lock.json",
+            "yarn.lock",
+            "pnpm-lock.yaml",
+            "Gemfile.lock",
+            "composer.lock",
+            "Pipfile.lock",
+            "poetry.lock",
+            "packages.lock.json",
+            "Cargo.lock",
+            "Podfile.lock",
+            "mix.lock",
+            "go.sum",
+            "pubspec.lock",
+          ],
         },
         referenceExamples: {
           example1: "path/to/example1/file.ts",

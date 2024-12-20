@@ -204,6 +204,20 @@ Let's start. Steps from strategy phase:
 - In Mermaid, use [ ] instead of ( ).
 - After write_file, use read_file to verify, then stop.
 
+### Instructions for Using Git Actions
+
+#### Compare Commits
+<git_diff>
+  <fromCommit>HEAD^</fromCommit>
+  <toCommit>HEAD</toCommit>
+</git_diff>
+
+#### Compare Branches
+<git_pr_diff>
+  <baseBranch>main</baseBranch>
+  <compareBranch>feature/new-feature</compareBranch>
+</git_pr_diff>
+
 ### Useful Commands
 
 - **Run all tests:** ${args.runAllTestsCmd || "yarn test"}
@@ -261,6 +275,7 @@ DO NOT RUN write_file if import issues are not resolved! Use relative_path_looku
 <!-- Dont install extra dependencies unless allowed -->
 <!-- Use the project's package manager -->
 <!-- Use raw text only -->
+<!-- Avoid git commands here. Prefer git_diff and git_pr_diff. Exception: git command not available on this instruction-->
 </execute_command>
 
 <search_string>
@@ -286,6 +301,15 @@ DO NOT RUN write_file if import issues are not resolved! Use relative_path_looku
 <fetch_url>
   <url>https://url/should/be/here</url>
 </fetch_url>
+
+<git_diff>
+  <path>path/to/file</path> <!-- Optional: specify the file path to get diff for a specific file -->
+</git_diff>
+
+<git_pr_diff>
+  <baseBranch>base_branch_name</baseBranch>
+  <compareBranch>compare_branch_name</compareBranch>
+</git_pr_diff>
 
 <end_task>
  <!-- ONLY END IF TEST PASSES -->
