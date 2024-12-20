@@ -15,11 +15,9 @@ export const discoveryPhaseBlueprint: IPhaseConfig = {
 
 ### Critical 
 - NEW CODE TASKS:
-  - If creating new features/files/classes -> proceed directly to strategy phase
-  - Exception: Only explore if explicitly asked to reference existing patterns
-  - No need to search for existing implementations
-  - Immediately end_phase to strategy_phase
   - Don't output code on markdown.
+  - If explicitly asked to create a new file, no need to search for existing implementations.
+  - Immediately end_phase to strategy_phase if there's no need to explore.
 
 - MODIFICATION TASKS:
   - Start by stating clear intent
@@ -99,13 +97,6 @@ REMEMBER: ONLY ONE ACTION PER REPLY!!!
   <directory>/path/to/search</directory>
   <term>filename pattern</term>
 </search_file>
-
-<relative_path_lookup>
-  <!-- CRITICAL: source_path is the file containing the broken imports -->
-  <source_path>/absolute/path/to/source/file.ts</source_path>
-  <path>../relative/path/to/fix</path>
-  <threshold>0.6</threshold>  <!-- Optional, defaults to 0.6. Higher means more strict. -->
-</relative_path_lookup>
 
 <fetch_url>
   <url>https://url/should/be/here</url>
