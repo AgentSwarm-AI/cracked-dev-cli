@@ -14,7 +14,27 @@ interface IListDirectoryFilesParams {
 @autoInjectable()
 export class ListDirectoryFilesAction extends BaseAction {
   protected getBlueprint(): IActionBlueprint {
-    throw new Error("Method not implemented.");
+    return {
+      tag: "list_directory_files",
+      class: ListDirectoryFilesAction,
+      description: "Lists files in a specified directory",
+      usageExplanation:
+        "Use this action to list all files within a directory. Optionally, enable recursive listing.",
+      parameters: [
+        {
+          name: "path",
+          required: true,
+          description: "Path to the directory",
+          mayContainNestedContent: false,
+        },
+        {
+          name: "recursive",
+          required: false,
+          description: "Enable recursive listing",
+          mayContainNestedContent: false,
+        },
+      ],
+    };
   }
   constructor(
     protected actionTagsExtractor: ActionTagsExtractor,
