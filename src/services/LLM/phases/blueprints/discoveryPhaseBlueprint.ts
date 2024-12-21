@@ -8,114 +8,110 @@ const config = configService.getConfig();
 export const discoveryPhaseBlueprint: IPhaseConfig = {
   model: config.discoveryModel,
   generatePrompt: (args: IPhasePromptArgs) => `
-<!-- These are internal instructions. Just follow them. Do not output. -->
-
+<!-- Internal instructions. Do not output. Follow precisely. -->
 <phase_prompt>
 ## Discovery Phase
 
-### Critical 
-- NEW CODE TASKS:
-  - Don't output code on markdown.
-  - If explicitly asked to create a new file, no need to search for existing implementations. Skip to strategy_phase.
-  - Immediately end_phase to strategy_phase if there's no need to explore.
-  - If you try to read a file multiple times that do not exist, assume we're trying to create a new file. Skip to strategy_phase.
+Your end goal on this phase is to gather all information that's relevant to achieve our current task. Do not deviate from this goal. 
 
-- MODIFICATION TASKS:
-  - Start by stating clear intent
-  - FIRST action: always read_file relevant files
-  - If unsure about file locations: use search_string or search_file
-  - Run specific tests with execute_command for test fixes
-  - Gather all necessary context before proceeding
-  - If git tree exploration is needed (eg. to find a file, find regressions, explore bugs), use git_diff or git_pr_diff (use action_explainer to learn how)
+### Critical Instructions
 
-- GENERAL RULES:
-  - NO code writing in this phase - EXPLORATION ONLY
-  - MAX 5 file reads
-  - NO rereading files already in context
-  - Confirm sufficient info before ending phase
-  - Use end_phase as soon as you have enough context
-  - When running actions, REMEMBER THEY SHOULD COME WITH A PROPER TAG STRUCTURE!
+- **New Code Tasks:**
+  - Do not output code in markdown.
+  - If asked to create a new file, skip searching and proceed to strategy_phase.
+  - End phase immediately to strategy_phase if exploration isn't needed.
+  - If attempting to read non-existent files repeatedly, assume new file creation and skip to strategy_phase.
+  - Figure out the proper folder structure and file locations to place your files.
 
-### Key objectives:
-- For new code: Move quickly to implementation
-- For existing code: Find/read files, run typechecks/tests as needed
-- end_phase when confident
-- Keep reads and tests targeted
+- **Modification Tasks:**
+  - State intent clearly.
+  - First action: read_file relevant files.
+  - If unsure of file locations, use search_string or search_file.
+  - Use execute_command for specific tests or fixes.
+  - Gather all necessary context before proceeding.
+  - For git-related exploration (e.g., finding files, regressions, bugs), use git_diff or git_pr_diff via action_explainer.
 
-### EXAMPLE OF HOW TO BEHAVE:
+- **General Rules:**
+  - No code writing—exploration only.
+  - Maximum of 5 file reads.
+  - Do not reread files already in context.
+  - Confirm sufficient information before ending phase.
+  - Use end_phase once enough context is gathered.
+  - Ensure actions have proper tag structures.
 
-  To achieve the goal of XYZ, I'll need to read the following files:
+### Key Objectives
 
-  <read_file>
-   <!-- Only read individual files, not directories -->
-    <path>src/someRelatedFile.ts</path>
-    <path>src/anotherFile.ts</path>
-  </read_file>
+- **New Code:** Transition quickly to implementation.
+- **Existing Code:** Locate and read files, run type checks/tests as necessary.
+- End phase when confident.
+- Keep file reads and tests targeted.
 
-  <!-- Note that you can also run typechecks and tests here, if you need to. -->
+### Example Behavior
 
-  <!-- Then, once its done, you can move to the next phase. DONT DO IT ON THE SAME PROMPT! -->
+To achieve the goal of XYZ, I'll need to read the following files:
 
-  Ok, now I have enough context to move to the next phase.
+<read_file>
+  <path>src/someRelatedFile.ts</path>
+  <path>src/anotherFile.ts</path>
+</read_file>
 
-  <end_phase>
-    strategy_phase
-  </end_phase>
+<!-- Run typechecks and tests if needed. -->
+
+<!-- Move to the next phase after completion. Do not do it in the same prompt! -->
+
+Ok, I have enough context to move to the next phase.
+
+<end_phase>
+  strategy_phase
+</end_phase>
 
 </phase_prompt>
 
-## Allowed Available Actions
-<!-- CRITICAL: MUST FOLLOW CORRECT TAG STRUCTURE PATTERN BELOW AND ONLY ONE ACTION PER OUTPUT/REPLY -->
-<!-- Don't output // or <!-- comments -->
+## Allowed Actions
+<!-- Follow correct tag structure and use only one action per reply. No comments or additional text. -->
 
 REMEMBER: ONLY ONE ACTION PER REPLY!!!
 
 <read_file>
-   <!-- Only read individual files, not directories -->
+  <!-- Read individual files only, not directories -->
   <path>path/here</path>
-  <!-- CRITICAL: DO NOT READ THE SAME FILES MULTIPLE TIMES, UNLESS THERES A CHANGE!!! -->
-  <!-- Critical: Make sure <read_file> tag format is correct! -->
-  <!-- Read how many files you want to read at once, but only related files for your goal. Try to aim for <= 4 files-->
+  <!-- Do not read the same file multiple times unless changed -->
+  <!-- Ensure correct <read_file> tag format -->
+  <!-- Read up to 4 related files -->
   <!-- Multiple <path> tags allowed -->
   <!-- Use relative paths -->
 </read_file>
 
 <execute_command>
-<!-- Prompt before removing files or using sudo -->
-<!-- Any command like "ls -la" or "yarn install" -->
-<!-- Dont install extra dependencies unless allowed -->
-<!-- Use the project's package manager -->
-<!-- Use raw text only -->
+  <!-- Use this if you want to explore the codebase further. Examples below: -->
+  <!-- List files and directories: ls -->
+  <!-- Detailed directory list: ls -lh -->
+  <!-- Show current directory path: pwd -->
 </execute_command>
 
 <search_string>
-  <!-- Use this to search for a string in a file -->
   <directory>/path/to/search</directory>
   <term>pattern to search</term>
 </search_string>
 
 <search_file>
-  <!-- Use if you don't know where a file is -->
   <directory>/path/to/search</directory>
   <term>filename pattern</term>
 </search_file>
 
 <end_phase>
-  <!-- Output this when the phase is complete and you gathered all info you need.-->
-  <!-- MAKE SURE YOU REMEMBER TO DO THIS ONLY WHEN YOU FEEL YOU HAVE ENOUGH CONTEXT TO ACCOMPLISH YOUR GOALS! -->
+  <!-- Use when the phase is complete and all necessary information is gathered -->
 </end_phase>
 
 ### Other Actions
 
-There are other actions you might request info about, using the action_explainer. 
-
-Just follow this format to request more info:
+For additional actions, use action_explainer as follows:
 
 <action_explainer>
-   <action>
-   <!-- Don't use the actions below directly, check instructions from explainer before using them -->
-   <!-- Available actions: git_diff, git_pr_diff, fetch_url -->
-   </action>
+  <action>
+    <!-- Do not use these actions directly. Refer to explainer instructions -->
+    <!-- Available actions: git_diff, git_pr_diff, fetch_url -->
+  </action>
 </action_explainer>
 
 ### Useful Commands

@@ -23,11 +23,13 @@ export const executePhaseBlueprint: IPhaseConfig = {
      - Run type checks
      - Fix or report issues
   4. End task IMMEDIATELY when goal is achieved
+  5. If files were already written on the previous phase, just run tests and type checks to validate and see if there's a need to run more steps. If not, end_task.
 
 - VALIDATION GATES:
   1. Before write_file:
      - Verify imports with relative_path_lookup
      - Check file paths with execute_command
+     - See if its necessary to write the file again.
   2. After write_file:
      - Run unit tests
      - Run type checks
@@ -71,24 +73,9 @@ Let's start. Steps from strategy phase:
 - Objective 1: Do this
 - Objective 2: Do that
 - Objective 3: Do this other thing
+ 
+<!-- Then choose an action from the available actions below -->
 
-<!-- MAKE SURE YOU CLOSE TAGS PROPERLY! -->
-<write_file>
-  <type>new/update</type>
-  <path>/path/to/file.ts</path>
-  <content>
-    // Code here
-  </content>
-</write_file>
-
-
-<!-- or -->
-
-<!-- Dive into imports if you need more info! -->
-<!-- ONLY READ IF YOU DON'T HAVE IT ON THE CONVERSATION HISTORY! -->
-<read_file>
-  <path>/path/to/file.ts</path>
-</read_file>
 
 
 ## Important Notes
