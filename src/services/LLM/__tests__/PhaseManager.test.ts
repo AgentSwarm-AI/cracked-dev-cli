@@ -11,60 +11,43 @@ describe("PhaseManager", () => {
   let configService: ConfigService;
 
   const baseMockConfig = {
-    provider: "test-provider",
-    customInstructions: "",
-    interactive: false,
-    stream: false,
+    provider: "open-router",
+    projectLanguage: "typescript",
+    packageManager: "yarn",
+    customInstructions: "Follow clean code principles",
+    interactive: true,
+    stream: true,
     debug: false,
-    options: "",
-    openRouterApiKey: "",
-    appUrl: "",
-    appName: "",
-    discoveryModel: "",
-    strategyModel: "",
-    executeModel: "",
-    anthropicApiKey: "",
-    openAiApiKey: "",
+    options: "temperature=0",
+    openRouterApiKey: "test-key",
+    appUrl: "https://localhost:8080",
+    appName: "TestApp",
+    discoveryModel: "model1",
+    strategyModel: "model2",
+    executeModel: "model3",
+    autoScaler: false,
+    autoScaleMaxTryPerModel: 2,
+    includeAllFilesOnEnvToContext: false,
+    autoScaleAvailableModels: [
+      {
+        id: "model1",
+        description: "Test model 1",
+        maxWriteTries: 5,
+        maxGlobalTries: 10,
+      },
+    ],
     directoryScanner: {
-      defaultIgnore: ["dist", "coverage", ".next", "build", ".cache", ".husky"],
+      defaultIgnore: ["dist"],
       maxDepth: 8,
       allFiles: true,
       directoryFirst: true,
       excludeDirectories: false,
     },
-    autoScaleAvailableModels: [
-      {
-        id: "anthropic/claude-3.5-sonnet:beta",
-        description: "Scaled model for retry attempts",
-        maxWriteTries: 5,
-        maxGlobalTries: 15,
-      },
-      {
-        id: "openai/gpt-4o-2024-11-20",
-        description: "Scaled model for retry attempts",
-        maxWriteTries: 2,
-        maxGlobalTries: 20,
-      },
-    ],
     gitDiff: {
       excludeLockFiles: true,
-      lockFiles: [
-        "package-lock.json",
-        "yarn.lock",
-        "pnpm-lock.yaml",
-        "Gemfile.lock",
-        "composer.lock",
-        "Pipfile.lock",
-        "poetry.lock",
-        "packages.lock.json",
-        "Cargo.lock",
-        "Podfile.lock",
-        "mix.lock",
-        "go.sum",
-        "pubspec.lock",
-      ],
+      lockFiles: ["package-lock.json"],
     },
-    referenceExamples: {}, // Added referenceExamples
+    referenceExamples: {},
   };
 
   beforeAll(() => {
@@ -123,10 +106,43 @@ describe("PhaseManager", () => {
   describe("model overrides", () => {
     it("should use config model override when provided", () => {
       const customConfig = {
-        ...baseMockConfig,
-        discoveryModel: "google/gemini-flash-1.5-8b",
-        strategyModel: "anthropic/claude-3.5-sonnet:beta",
-        executeModel: "qwen/qwen-2.5-coder-32b-instruct",
+        discoveryModel: "custom-model1",
+        strategyModel: "custom-model2",
+        executeModel: "custom-model3",
+        projectLanguage: "typescript",
+        packageManager: "yarn",
+        provider: "open-router",
+        customInstructions: "Follow clean code principles",
+        interactive: true,
+        stream: true,
+        debug: false,
+        options: "temperature=0",
+        openRouterApiKey: "test-key",
+        appUrl: "https://localhost:8080",
+        appName: "TestApp",
+        autoScaler: false,
+        autoScaleMaxTryPerModel: 2,
+        includeAllFilesOnEnvToContext: false,
+        autoScaleAvailableModels: [
+          {
+            id: "model1",
+            description: "Test model 1",
+            maxWriteTries: 5,
+            maxGlobalTries: 10,
+          },
+        ],
+        directoryScanner: {
+          defaultIgnore: ["dist"],
+          maxDepth: 8,
+          allFiles: true,
+          directoryFirst: true,
+          excludeDirectories: false,
+        },
+        gitDiff: {
+          excludeLockFiles: true,
+          lockFiles: ["package-lock.json"],
+        },
+        referenceExamples: {},
       };
 
       jest.spyOn(configService, "getConfig").mockReturnValue(customConfig);
@@ -135,19 +151,55 @@ describe("PhaseManager", () => {
       customPhaseManager.initializePhaseConfigs();
 
       expect(customPhaseManager.getPhaseConfig(Phase.Discovery).model).toBe(
-        "google/gemini-flash-1.5-8b",
+        "custom-model1",
       );
       expect(customPhaseManager.getPhaseConfig(Phase.Strategy).model).toBe(
-        "anthropic/claude-3.5-sonnet:beta",
+        "custom-model2",
       );
       expect(customPhaseManager.getPhaseConfig(Phase.Execute).model).toBe(
-        "qwen/qwen-2.5-coder-32b-instruct",
+        "custom-model3",
       );
     });
 
     it("should use default models when no override provided", () => {
       const emptyConfig = {
-        ...baseMockConfig,
+        provider: "open-router",
+        projectLanguage: "typescript",
+        packageManager: "yarn",
+        customInstructions: "Follow clean code principles",
+        interactive: true,
+        stream: true,
+        debug: false,
+        options: "temperature=0",
+        openRouterApiKey: "test-key",
+        appUrl: "https://localhost:8080",
+        appName: "TestApp",
+        discoveryModel: "model1",
+        strategyModel: "model2",
+        executeModel: "model3",
+        autoScaler: false,
+        autoScaleMaxTryPerModel: 2,
+        includeAllFilesOnEnvToContext: false,
+        autoScaleAvailableModels: [
+          {
+            id: "model1",
+            description: "Test model 1",
+            maxWriteTries: 5,
+            maxGlobalTries: 10,
+          },
+        ],
+        directoryScanner: {
+          defaultIgnore: ["dist"],
+          maxDepth: 8,
+          allFiles: true,
+          directoryFirst: true,
+          excludeDirectories: false,
+        },
+        gitDiff: {
+          excludeLockFiles: true,
+          lockFiles: ["package-lock.json"],
+        },
+        referenceExamples: {},
       };
 
       jest.spyOn(configService, "getConfig").mockReturnValue(emptyConfig);

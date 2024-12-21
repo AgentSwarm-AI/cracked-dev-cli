@@ -95,6 +95,8 @@ const configSchema = z.object({
       ],
     }),
   referenceExamples: z.record(z.string(), z.string()).optional().default({}),
+  projectLanguage: z.string().default("typescript"),
+  packageManager: z.string().default("yarn"),
 });
 
 export type Config = z.infer<typeof configSchema>;
@@ -125,6 +127,8 @@ export class ConfigService {
 
       const defaultConfig = {
         provider: "open-router",
+        projectLanguage: "typescript",
+        packageManager: "yarn",
         customInstructions: "Follow clean code principles",
         customInstructionsPath: "",
         interactive: true,
