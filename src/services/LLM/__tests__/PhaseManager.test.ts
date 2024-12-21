@@ -46,6 +46,24 @@ describe("PhaseManager", () => {
         maxGlobalTries: 20,
       },
     ],
+    gitDiff: {
+      excludeLockFiles: true,
+      lockFiles: [
+        "package-lock.json",
+        "yarn.lock",
+        "pnpm-lock.yaml",
+        "Gemfile.lock",
+        "composer.lock",
+        "Pipfile.lock",
+        "poetry.lock",
+        "packages.lock.json",
+        "Cargo.lock",
+        "Podfile.lock",
+        "mix.lock",
+        "go.sum",
+        "pubspec.lock",
+      ],
+    },
     referenceExamples: {}, // Added referenceExamples
   };
 

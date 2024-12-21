@@ -1,8 +1,8 @@
 import { ActionExecutor } from "@services/LLM/actions/ActionExecutor";
-import { RelativePathLookupAction } from "@services/LLM/actions/RelativePathLookupAction";
 import { WriteFileAction } from "@services/LLM/actions/WriteFileAction";
 import { UnitTestMocker } from "@tests/mocks/UnitTestMocker";
 import { container } from "tsyringe";
+import { RelativePathLookupAction } from "../RelativePathLookupAction";
 
 describe("ActionExecutor", () => {
   let actionExecutor: ActionExecutor;
@@ -21,19 +21,13 @@ describe("ActionExecutor", () => {
   });
 
   describe("tag validation", () => {
-    it("should detect action without proper tag structure", async () => {
+    it("should detect invalid XML structure", async () => {
       const content = "write_file some content";
       const result = await actionExecutor.executeAction(content);
 
       expect(result.success).toBe(false);
-      expect(result.error?.message).toContain(
-        'Found "write_file" without proper XML tag structure',
-      );
-      expect(result.error?.message).toContain(
-        "Tags must be wrapped in < > brackets",
-      );
-      expect(result.error?.message).toContain(
-        "<write_file>content</write_file>",
+      expect(result.error?.message).toBe(
+        "No valid action tags found. Actions must be wrapped in XML-style tags.",
       );
     });
 
@@ -61,7 +55,7 @@ describe("ActionExecutor", () => {
 
     it("should accept properly formatted tags", async () => {
       const content =
-        "<write_file><path>test.txt</path><content>test</content></write_file>";
+        "<write_file><type>new</type><path>test.txt</path><content>test</content></write_file>";
 
       // Mock the WriteFileAction to return success
       const writeSpy = jest

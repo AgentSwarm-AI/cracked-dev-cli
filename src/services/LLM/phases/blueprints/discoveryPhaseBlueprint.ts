@@ -15,17 +15,17 @@ export const discoveryPhaseBlueprint: IPhaseConfig = {
 
 ### Critical 
 - NEW CODE TASKS:
-  - If creating new features/files/classes -> proceed directly to strategy phase
-  - Exception: Only explore if explicitly asked to reference existing patterns
-  - No need to search for existing implementations
-  - Immediately end_phase to strategy_phase
+  - Don't output code on markdown.
+  - If explicitly asked to create a new file, no need to search for existing implementations.
+  - Immediately end_phase to strategy_phase if there's no need to explore.
 
 - MODIFICATION TASKS:
   - Start by stating clear intent
-  - FIRST action: always <read_file> relevant files
-  - If unsure about file locations: use <search_string> or <search_file>
-  - Run specific tests with <execute_command> for test fixes
+  - FIRST action: always read_file relevant files
+  - If unsure about file locations: use search_string or search_file
+  - Run specific tests with execute_command for test fixes
   - Gather all necessary context before proceeding
+  - If git tree exploration is needed (eg. to find a file, find regressions, explore bugs), use git_diff or git_pr_diff (use action_explainer to learn how)
 
 - GENERAL RULES:
   - NO code writing in this phase - EXPLORATION ONLY
@@ -33,6 +33,7 @@ export const discoveryPhaseBlueprint: IPhaseConfig = {
   - NO rereading files already in context
   - Confirm sufficient info before ending phase
   - Use end_phase as soon as you have enough context
+  - When running actions, REMEMBER THEY SHOULD COME WITH A PROPER TAG STRUCTURE!
 
 ### Key objectives:
 - For new code: Move quickly to implementation
@@ -40,28 +41,25 @@ export const discoveryPhaseBlueprint: IPhaseConfig = {
 - end_phase when confident
 - Keep reads and tests targeted
 
-### Example for NEW code:
-Creating a new Calculator class? Great, proceeding directly to implementation.
+### EXAMPLE OF HOW TO BEHAVE:
 
-<end_phase>
-  strategy_phase
-</end_phase>
+  To achieve the goal of XYZ, I'll need to read the following files:
 
-### Example for EXISTING code:
-To fix the bug in XYZ, I'll read these files:
+  <read_file>
+    <path>src/someRelatedFile.ts</path>
+    <path>src/anotherFile.ts</path>
+  </read_file>
 
-<read_file>
-  <path>src/importantFile.ts</path>
-  <path>src/relatedFile.ts</path>
-</read_file>
+  <!-- Note that you can also run typechecks and tests here, if you need to. -->
 
-(Run tests/typechecks if needed)
+  <!-- Then, once its done, you can move to the next phase. DONT DO IT ON THE SAME PROMPT! -->
 
-Ok, I have enough context now.
+  Ok, now I have enough context to move to the next phase.
 
-<end_phase>
-  strategy_phase
-</end_phase>
+  <end_phase>
+    strategy_phase
+  </end_phase>
+
 </phase_prompt>
 
 ## Allowed Available Actions
@@ -94,7 +92,7 @@ REMEMBER: ONLY ONE ACTION PER REPLY!!!
 </execute_command>
 
 <search_string>
-<!-- Use this to search for a string in a file -->
+  <!-- Use this to search for a string in a file -->
   <directory>/path/to/search</directory>
   <term>pattern to search</term>
 </search_string>
@@ -105,21 +103,23 @@ REMEMBER: ONLY ONE ACTION PER REPLY!!!
   <term>filename pattern</term>
 </search_file>
 
-<relative_path_lookup>
-  <!-- CRITICAL: source_path is the file containing the broken imports -->
-  <source_path>/absolute/path/to/source/file.ts</source_path>
-  <path>../relative/path/to/fix</path>
-  <threshold>0.6</threshold>  <!-- Optional, defaults to 0.6. Higher means more strict. -->
-</relative_path_lookup>
-
-<fetch_url>
-  <url>https://url/should/be/here</url>
-</fetch_url>
-
 <end_phase>
   <!-- Output this when the phase is complete and you gathered all info you need.-->
   <!-- MAKE SURE YOU REMEMBER TO DO THIS ONLY WHEN YOU FEEL YOU HAVE ENOUGH CONTEXT TO ACCOMPLISH YOUR GOALS! -->
 </end_phase>
+
+### Other Actions
+
+There are other actions you might request info about, using the action_explainer. 
+
+Just follow this format to request more info:
+
+<action_explainer>
+   <action>
+   <!-- Don't use the actions below directly, check instructions from explainer before using them -->
+   <!-- Available actions: git_diff, git_pr_diff, fetch_url -->
+   </action>
+</action_explainer>
 
 ### Useful Commands
 

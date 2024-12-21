@@ -267,6 +267,7 @@ DO NOT RUN write_file if import issues are not resolved! Use relative_path_looku
 <!-- Dont install extra dependencies unless allowed -->
 <!-- Use the project's package manager -->
 <!-- Use raw text only -->
+<!-- Avoid git commands here. Prefer git_diff and git_pr_diff. Exception: git command not available on this instruction-->
 </execute_command>
 
 <search_string>
@@ -289,10 +290,6 @@ DO NOT RUN write_file if import issues are not resolved! Use relative_path_looku
   <threshold>0.6</threshold>  <!-- Optional, defaults to 0.6. Higher means more strict. -->
 </relative_path_lookup>
 
-<fetch_url>
-  <url>https://url/should/be/here</url>
-</fetch_url>
-
 <end_task>
  <!-- ONLY END IF TEST PASSES -->
   <!-- SINGLE <end_task> PER OUTPUT. Do not mix with other actions -->
@@ -301,6 +298,21 @@ DO NOT RUN write_file if import issues are not resolved! Use relative_path_looku
   <!-- Ensure all tests and type checks pass or report issues -->
   Summarize and finalize.
 </end_task>
+
+
+### Other Actions
+
+There are other actions you might request info about, using the action_explainer.
+
+Just follow this format to request more info:
+
+<action_explainer>
+   <action>
+   <!-- Don't use the actions below directly, check instructions from explainer before using them -->
+   <!-- Available actions: git_diff, git_pr_diff, fetch_url -->
+   </action>
+</action_explainer>
+
 
 ${args.projectInfo ? `\n## Project Context\n${args.projectInfo}` : ""}
 

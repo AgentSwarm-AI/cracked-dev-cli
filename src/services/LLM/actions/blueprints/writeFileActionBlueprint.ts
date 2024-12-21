@@ -7,6 +7,39 @@ export const writeFileActionBlueprint: IActionBlueprint = {
   class: WriteFileAction,
   description:
     "Writes content to a file with safety checks for content removal",
+  usageExplanation: `The write_file action allows you to create new files or update existing ones. Here are common use cases:
+
+1. Create a new file:
+<write_file>
+  <type>new</type>
+  <path>src/services/NewService.ts</path>
+  <content>
+import { injectable } from "tsyringe";
+
+@injectable()
+export class NewService {
+  // ... your code here
+}
+  </content>
+</write_file>
+
+2. Update an existing file:
+<write_file>
+  <type>update</type>
+  <path>src/services/ExistingService.ts</path>
+  <content>
+// ... existing code ...
+// Your new code here
+// ... existing code ...
+  </content>
+</write_file>
+
+Note:
+- For new files: Include all necessary imports
+- For updates: Use // ... existing code ... to preserve unchanged parts
+- Always use relative paths from workspace root
+- Include proper type annotations and decorators
+- Run type checks after writing`,
   priority: ActionPriority.MEDIUM,
   canRunInParallel: false,
   requiresProcessing: false,

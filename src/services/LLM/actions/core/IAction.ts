@@ -26,6 +26,7 @@ export interface IActionBlueprint {
   tag: string;
   class: ActionConstructor;
   description: string;
+  usageExplanation: string;
   parameters?: IActionParameter[];
   canRunInParallel?: boolean;
   priority?: number;

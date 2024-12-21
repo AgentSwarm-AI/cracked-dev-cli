@@ -6,6 +6,27 @@ export const relativePathLookupActionBlueprint: IActionBlueprint = {
   tag: "relative_path_lookup",
   class: RelativePathLookupAction,
   description: "Adjust and validate relative file paths",
+  usageExplanation: `The relative_path_lookup action helps resolve and validate relative paths. Here are common use cases:
+
+1. Find correct import path:
+<relative_path_lookup>
+  <source_path>src/services/MyService.ts</source_path>
+  <path>../utils/helper</path>
+</relative_path_lookup>
+
+2. Validate path with custom threshold:
+<relative_path_lookup>
+  <source_path>src/services/MyService.ts</source_path>
+  <path>../types/interfaces</path>
+  <threshold>0.8</threshold>
+</relative_path_lookup>
+
+Note:
+- source_path is where you're importing from
+- path is what you want to import
+- threshold controls fuzzy matching (0.0-1.0)
+- Higher threshold = stricter matching
+- Default threshold is 0.6`,
   priority: ActionPriority.HIGH,
   canRunInParallel: true,
   requiresProcessing: true,
