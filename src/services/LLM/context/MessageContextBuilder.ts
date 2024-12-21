@@ -16,44 +16,6 @@ export type MessageOperation = MessageFileOperation | MessageCommandOperation;
 export class MessageContextBuilder {
   constructor(private extractor: MessageContextExtractor) {}
 
-  private validateContent(content: string): void {
-    if (!content || content.trim() === "") {
-      throw new MessageContextError("Content cannot be empty");
-    }
-  }
-
-  private validateRole(role: string): void {
-    if (!["user", "assistant", "system"].includes(role)) {
-      throw new MessageContextError(`Invalid role: ${role}`);
-    }
-  }
-
-  private validateContextData(contextData: IMessageContextData): void {
-    if (!contextData) {
-      throw new MessageContextError("Context data cannot be null or undefined");
-    }
-    if (!contextData.conversationHistory) {
-      throw new MessageContextError(
-        "Conversation history cannot be null or undefined",
-      );
-    }
-    if (!contextData.fileOperations) {
-      throw new MessageContextError(
-        "File operations cannot be null or undefined",
-      );
-    }
-    if (!contextData.commandOperations) {
-      throw new MessageContextError(
-        "Command operations cannot be null or undefined",
-      );
-    }
-    if (!contextData.phaseInstructions) {
-      throw new MessageContextError(
-        "Phase instructions cannot be null or undefined",
-      );
-    }
-  }
-
   public buildMessageContext(
     role: MessageRole,
     content: string,
@@ -166,16 +128,6 @@ export class MessageContextBuilder {
         `Failed to build message context: ${error.message}`,
       );
     }
-  }
-
-  private isValidPhasePrompt(prompt: string): boolean {
-    const contentMatch = prompt.match(/<phase_prompt>(.*?)<\/phase_prompt>/s);
-    return !!contentMatch?.[1]?.trim();
-  }
-
-  private extractPhasePromptContent(prompt: string): string {
-    const contentMatch = prompt.match(/<phase_prompt>(.*?)<\/phase_prompt>/s);
-    return contentMatch?.[1]?.trim() ?? "";
   }
 
   public updateOperationResult(
@@ -350,5 +302,53 @@ export class MessageContextBuilder {
     contextData: IMessageContextData,
   ): MessageCommandOperation | undefined {
     return contextData.commandOperations.get(command);
+  }
+
+  private validateContent(content: string): void {
+    if (!content || content.trim() === "") {
+      throw new MessageContextError("Content cannot be empty");
+    }
+  }
+
+  private validateRole(role: string): void {
+    if (!["user", "assistant", "system"].includes(role)) {
+      throw new MessageContextError(`Invalid role: ${role}`);
+    }
+  }
+
+  private validateContextData(contextData: IMessageContextData): void {
+    if (!contextData) {
+      throw new MessageContextError("Context data cannot be null or undefined");
+    }
+    if (!contextData.conversationHistory) {
+      throw new MessageContextError(
+        "Conversation history cannot be null or undefined",
+      );
+    }
+    if (!contextData.fileOperations) {
+      throw new MessageContextError(
+        "File operations cannot be null or undefined",
+      );
+    }
+    if (!contextData.commandOperations) {
+      throw new MessageContextError(
+        "Command operations cannot be null or undefined",
+      );
+    }
+    if (!contextData.phaseInstructions) {
+      throw new MessageContextError(
+        "Phase instructions cannot be null or undefined",
+      );
+    }
+  }
+
+  private isValidPhasePrompt(prompt: string): boolean {
+    const contentMatch = prompt.match(/<phase_prompt>(.*?)<\/phase_prompt>/s);
+    return !!contentMatch?.[1]?.trim();
+  }
+
+  private extractPhasePromptContent(prompt: string): string {
+    const contentMatch = prompt.match(/<phase_prompt>(.*?)<\/phase_prompt>/s);
+    return contentMatch?.[1]?.trim() ?? "";
   }
 }
