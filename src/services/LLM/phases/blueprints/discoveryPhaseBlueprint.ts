@@ -79,6 +79,12 @@ REMEMBER: ONLY ONE ACTION PER REPLY!!!
   <!-- Use relative paths -->
 </read_file>
 
+<list_directory_files>
+  <path>path/here</path>
+  <recursive>false</recursive>
+  <!-- Use this action to list all files in a directory. Set recursive to true if you want to list files recursively. -->
+</list_directory_files>
+
 <execute_command>
 <!-- Prompt before removing files or using sudo -->
 <!-- Any command like "ls -la" or "yarn install" -->

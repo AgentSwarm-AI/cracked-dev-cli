@@ -8,6 +8,7 @@ import { fetchUrlActionBlueprint } from "./fetchUrlActionBlueprint";
 import { moveFileActionBlueprint } from "./moveFileActionBlueprint";
 import { readFileActionBlueprint } from "./readFileActionBlueprint";
 import { relativePathLookupActionBlueprint } from "./relativePathLookupActionBlueprint";
+import { listDirectoryFilesActionBlueprint } from "./listDirectoryFilesActionBlueprint";
 import {
   searchFileActionBlueprint,
   searchStringActionBlueprint,
@@ -27,6 +28,7 @@ export const actionsBlueprints = {
   move_file: moveFileActionBlueprint,
   fetch_url: fetchUrlActionBlueprint,
   copy_file: copyFileActionBlueprint,
+  list_file: listDirectoryFilesActionBlueprint,
 } as const;
 
 // Infer action types from blueprints

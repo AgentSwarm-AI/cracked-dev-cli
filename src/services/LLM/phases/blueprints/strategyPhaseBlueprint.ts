@@ -92,6 +92,12 @@ YOU CAN ONLY USE THIS ONE TIME! MAKE SURE YOU SUGGEST A write_file and then imme
   </content>
 </write_file>
 
+<list_directory_files>
+  <path>path/here</path>
+  <recursive>false</recursive>
+  <!-- Use this action to list all files in a directory. Set recursive to true if you want to list files recursively. -->
+</list_directory_files>
+
 REMEMBER: ONLY ONE ACTION PER REPLY!!!
 
 <end_phase>
