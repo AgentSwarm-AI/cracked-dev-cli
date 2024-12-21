@@ -20,28 +20,6 @@ export class ActionExecutor {
       // Get all implemented action types
       const implementedActions = getImplementedActions();
 
-      // Validate XML structure
-      for (const actionType of implementedActions) {
-        if (
-          actionText.includes(actionType) &&
-          !actionText.includes(`<${actionType}>`) &&
-          !actionText.includes(`</${actionType}>`)
-        ) {
-          const error = new Error(
-            `Found "${actionType}" without proper XML tag structure. Tags must be wrapped in < > brackets. For example: <${actionType}>content</${actionType}>`,
-          );
-          this.messageContextLogger.logActionResult(actionType, {
-            success: false,
-            error,
-          });
-          this.messageContextHistory.addMessage(
-            "system",
-            `Action ${actionType} failed: Invalid XML structure`,
-          );
-          return { success: false, error };
-        }
-      }
-
       // Extract actions using regex
       const actionMatch = /<(\w+)>([\s\S]*?)<\/\1>/g;
       const matches = Array.from(actionText.matchAll(actionMatch));
@@ -63,6 +41,18 @@ export class ActionExecutor {
 
       // Queue all actions
       for (const [fullMatch, actionType] of matches) {
+        // Skip if this action is inside another XML tag
+        const startIndex = actionText.indexOf(fullMatch);
+        const beforeText = actionText.substring(0, startIndex);
+        const hasOpenTag = /<\w+>/.test(beforeText);
+        const hasCloseTag = /<\/\w+>/.test(beforeText);
+
+        // If we find an opening tag before this action but no matching closing tag,
+        // it means we're inside another tag - skip this action
+        if (hasOpenTag && !hasCloseTag) {
+          continue;
+        }
+
         if (actionType !== "path" && actionType !== "content") {
           if (implementedActions.includes(actionType as ActionTag)) {
             this.actionQueue.enqueue(actionType, fullMatch);

@@ -25,7 +25,7 @@ export const discoveryPhaseBlueprint: IPhaseConfig = {
   - If unsure about file locations: use search_string or search_file
   - Run specific tests with execute_command for test fixes
   - Gather all necessary context before proceeding
-  - If git tree exploration is needed (eg. to find a file, find regressions, explore bugs), use git related tools.
+  - If git tree exploration is needed (eg. to find a file, find regressions, explore bugs), use git_diff or git_pr_diff (use action_explainer to learn how)
 
 - GENERAL RULES:
   - NO code writing in this phase - EXPLORATION ONLY
@@ -83,7 +83,6 @@ REMEMBER: ONLY ONE ACTION PER REPLY!!!
 <!-- Dont install extra dependencies unless allowed -->
 <!-- Use the project's package manager -->
 <!-- Use raw text only -->
-<!-- Avoid git commands here. Prefer git_diff and git_pr_diff. Exception: git command not available on this instruction-->
 </execute_command>
 
 <search_string>
@@ -98,49 +97,23 @@ REMEMBER: ONLY ONE ACTION PER REPLY!!!
   <term>filename pattern</term>
 </search_file>
 
-<fetch_url>
-  <url>https://url/should/be/here</url>
-</fetch_url>
-
-### Git Operations
-
-1. Git Diff Action
-   <!-- Compare commits -->
-   
-   a) Compare with previous commit:
-   <git_diff>
-     <fromCommit>HEAD^</fromCommit>
-     <toCommit>HEAD</toCommit>
-   </git_diff>
-   
-   b) Compare specific commits:
-   <git_diff>
-     <fromCommit>abc123</fromCommit>
-     <toCommit>def456</toCommit>
-   </git_diff>
-
-2. Git PR Diff Action
-   <!-- Compare branches -->
-   <git_pr_diff>
-     <baseBranch>main</baseBranch>
-     <compareBranch>feature-branch</compareBranch>
-   </git_pr_diff>
-   
-   <!--Compare with master/main-->
-   <git_pr_diff>
-     <baseBranch>master</baseBranch>
-     <compareBranch>HEAD</compareBranch>
-   </git_pr_diff>
-
-Note: 
-- git_diff requires both commits to be specified
-- git_pr_diff requires both branches to be specified
-- Use HEAD for current state, HEAD^ for previous commit
-
 <end_phase>
   <!-- Output this when the phase is complete and you gathered all info you need.-->
   <!-- MAKE SURE YOU REMEMBER TO DO THIS ONLY WHEN YOU FEEL YOU HAVE ENOUGH CONTEXT TO ACCOMPLISH YOUR GOALS! -->
 </end_phase>
+
+### Other Actions
+
+There are other actions you might request info about, using the action_explainer. 
+
+Just follow this format to request more info:
+
+<action_explainer>
+   <action>
+   <!-- Don't use the actions below directly, check instructions from explainer before using them -->
+   <!-- Available actions: git_diff, git_pr_diff, fetch_url -->
+   </action>
+</action_explainer>
 
 ### Useful Commands
 

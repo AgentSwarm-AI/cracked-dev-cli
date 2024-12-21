@@ -6,6 +6,25 @@ export const gitDiffActionBlueprint: IActionBlueprint = {
   tag: "git_diff",
   class: GitDiffAction,
   description: "Shows git diff between two commits",
+  usageExplanation: `The git_diff action compares changes between two commits. Here are common use cases:
+
+1. Compare with previous commit:
+<git_diff>
+  <fromCommit>HEAD^</fromCommit>
+  <toCommit>HEAD</toCommit>
+</git_diff>
+
+2. Compare specific commits:
+<git_diff>
+  <fromCommit>abc123</fromCommit>
+  <toCommit>def456</toCommit>
+</git_diff>
+
+Note: 
+- Use HEAD for current state
+- Use HEAD^ for previous commit
+- Use commit hashes for specific commits
+- The diff shows: added (+), removed (-), and modified lines`,
   priority: ActionPriority.HIGH,
   canRunInParallel: true,
   requiresProcessing: false,

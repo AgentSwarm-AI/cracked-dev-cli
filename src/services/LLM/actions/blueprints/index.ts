@@ -1,6 +1,7 @@
 import { IActionBlueprint } from "../core/IAction";
 
 // Import all blueprints
+import { actionExplainerBlueprint } from "./actionExplainerBlueprint";
 import { commandActionBlueprint } from "./commandActionBlueprint";
 import { copyFileActionBlueprint } from "./copyFileActionBlueprint";
 import { deleteFileActionBlueprint } from "./deleteFileActionBlueprint";
@@ -20,6 +21,7 @@ import { writeFileActionBlueprint } from "./writeFileActionBlueprint";
 
 // Create a map of all blueprints
 export const actionsBlueprints = {
+  [actionExplainerBlueprint.tag]: actionExplainerBlueprint,
   [commandActionBlueprint.tag]: commandActionBlueprint,
   [copyFileActionBlueprint.tag]: copyFileActionBlueprint,
   [deleteFileActionBlueprint.tag]: deleteFileActionBlueprint,
