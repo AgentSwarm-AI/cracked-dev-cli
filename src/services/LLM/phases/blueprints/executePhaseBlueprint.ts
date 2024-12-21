@@ -272,6 +272,20 @@ DO NOT RUN write_file if import issues are not resolved! Use relative_path_looku
   <threshold>0.6</threshold>  <!-- Optional, defaults to 0.6. Higher means more strict. -->
 </relative_path_lookup>
 
+<delete_file>
+  <path>/path/here</path>
+</delete_file>
+
+<move_file>
+  <source_path>source/path/here</source_path>
+  <destination_path>destination/path/here</destination_path>
+</move_file>
+
+<copy_file>
+  <source_path>source/path/here</source_path>
+  <destination_path>destination/path/here</destination_path>
+</copy_file>
+
 <end_task>
  <!-- ONLY END IF TEST PASSES -->
   <!-- SINGLE <end_task> PER OUTPUT. Do not mix with other actions -->
@@ -291,7 +305,7 @@ Just follow this format to request more info:
 <action_explainer>
    <action>
    <!-- Don't use the actions below directly, check instructions from explainer before using them -->
-   <!-- Available actions: git_diff, git_pr_diff, fetch_url, copy_file, move_file, delete_file -->
+   <!-- Available actions: git_diff, git_pr_diff, fetch_url -->
    </action>
 </action_explainer>
 
