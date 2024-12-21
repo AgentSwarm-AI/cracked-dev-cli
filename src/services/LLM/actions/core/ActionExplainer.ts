@@ -23,8 +23,7 @@ export class ActionExplainer {
   }
 
   private formatActionExplanation(blueprint: IActionBlueprint): string {
-    let explanation = `<${blueprint.tag}>\n`;
-    explanation += `Description: ${blueprint.description}\n`;
+    let explanation = `<${blueprint.tag}> ${blueprint.description}\n`;
 
     if (blueprint.parameters && blueprint.parameters.length > 0) {
       explanation += "\nParameters:\n";
