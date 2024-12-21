@@ -75,6 +75,20 @@ export class MessageContextStore {
     };
   }
 
+  public clear(): void {
+    this.contextData = {
+      phaseInstructions: new Map(),
+      fileOperations: new Map(),
+      commandOperations: new Map(),
+      conversationHistory: [],
+      systemInstructions: null,
+    };
+  }
+
+  public getTotalTokenCount(): number {
+    return this.messageContextTokenCount.getTotalTokenCount();
+  }
+
   private getUpdatedPhaseInstructions(
     data: Partial<IMessageContextData>,
   ): Map<string, any> {
@@ -101,19 +115,5 @@ export class MessageContextStore {
 
   private getUpdatedValue<T>(newValue: T | undefined, existingValue: T): T {
     return newValue !== undefined ? newValue : existingValue;
-  }
-
-  public clear(): void {
-    this.contextData = {
-      phaseInstructions: new Map(),
-      fileOperations: new Map(),
-      commandOperations: new Map(),
-      conversationHistory: [],
-      systemInstructions: null,
-    };
-  }
-
-  public getTotalTokenCount(): number {
-    return this.messageContextTokenCount.getTotalTokenCount();
   }
 }
