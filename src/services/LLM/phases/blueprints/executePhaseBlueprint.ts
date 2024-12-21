@@ -219,6 +219,7 @@ REMEMBER: ONLY ONE ACTION PER REPLY!!!
 EVERY OUTPUT YOU GIVE TO THE USER MUST HAVE A CORRESPONDING ACTION TAG. NO EXCEPTIONS.
 
 <read_file>
+   <!-- Only read individual files, not directories -->
   <path>path/here</path>
   <!-- NO NEED TO READ FILES AGAIN THAT ARE ALREADY ON THE CONVERSATION HISTORY!!! -->
   <!-- CRITICAL: DO NOT READ THE SAME FILES MULTIPLE TIMES, UNLESS THERES A CHANGE!!! -->
@@ -230,6 +231,7 @@ EVERY OUTPUT YOU GIVE TO THE USER MUST HAVE A CORRESPONDING ACTION TAG. NO EXCEP
 
 DO NOT RUN write_file if import issues are not resolved! Use relative_path_lookup first.
 <write_file>
+  <type>new/update</type>
   <path>/path/here</path>
   <content>
    <!-- CRITICAL: Most write_file tasks are ADDITIVES if you already have content in place. -->
@@ -240,20 +242,6 @@ DO NOT RUN write_file if import issues are not resolved! Use relative_path_looku
    <!-- If available, use path alias on imports -->
   </content>
 </write_file>
-
-<delete_file>
-  <path>/path/here</path>
-</delete_file>
-
-<move_file>
-  <source_path>source/path/here</source_path>
-  <destination_path>destination/path/here</destination_path>
-</move_file>
-
-<copy_file>
-  <source_path>source/path/here</source_path>
-  <destination_path>destination/path/here</destination_path>
-</copy_file>
 
 <execute_command>
 <!-- Prompt before removing files or using sudo -->
@@ -303,7 +291,7 @@ Just follow this format to request more info:
 <action_explainer>
    <action>
    <!-- Don't use the actions below directly, check instructions from explainer before using them -->
-   <!-- Available actions: git_diff, git_pr_diff, fetch_url -->
+   <!-- Available actions: git_diff, git_pr_diff, fetch_url, copy_file, move_file, delete_file -->
    </action>
 </action_explainer>
 

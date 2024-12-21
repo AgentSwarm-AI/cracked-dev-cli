@@ -16,8 +16,9 @@ export const discoveryPhaseBlueprint: IPhaseConfig = {
 ### Critical 
 - NEW CODE TASKS:
   - Don't output code on markdown.
-  - If explicitly asked to create a new file, no need to search for existing implementations.
+  - If explicitly asked to create a new file, no need to search for existing implementations. Skip to strategy_phase.
   - Immediately end_phase to strategy_phase if there's no need to explore.
+  - If you try to read a file multiple times that do not exist, assume we're trying to create a new file. Skip to strategy_phase.
 
 - MODIFICATION TASKS:
   - Start by stating clear intent
@@ -46,6 +47,7 @@ export const discoveryPhaseBlueprint: IPhaseConfig = {
   To achieve the goal of XYZ, I'll need to read the following files:
 
   <read_file>
+   <!-- Only read individual files, not directories -->
     <path>src/someRelatedFile.ts</path>
     <path>src/anotherFile.ts</path>
   </read_file>
@@ -69,6 +71,7 @@ export const discoveryPhaseBlueprint: IPhaseConfig = {
 REMEMBER: ONLY ONE ACTION PER REPLY!!!
 
 <read_file>
+   <!-- Only read individual files, not directories -->
   <path>path/here</path>
   <!-- CRITICAL: DO NOT READ THE SAME FILES MULTIPLE TIMES, UNLESS THERES A CHANGE!!! -->
   <!-- Critical: Make sure <read_file> tag format is correct! -->
