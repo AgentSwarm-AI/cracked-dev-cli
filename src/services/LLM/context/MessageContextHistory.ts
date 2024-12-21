@@ -18,24 +18,6 @@ export class MessageContextHistory {
     private messageContextBuilder: MessageContextBuilder,
   ) {}
 
-  private cleanContent(content: string): string {
-    // Remove phase prompts
-    content = content.replace(/<phase_prompt>.*?<\/phase_prompt>/gs, "").trim();
-
-    // Remove file operation messages
-    if (
-      content.includes("Content of") ||
-      content.includes("Written to") ||
-      content.includes("FILE CREATED AND EXISTS:") ||
-      content.includes("Command executed:") ||
-      content.includes("Command:")
-    ) {
-      return "";
-    }
-
-    return content;
-  }
-
   public mergeConversationHistory(): void {
     const history =
       this.messageContextStore.getContextData().conversationHistory;
@@ -96,15 +78,6 @@ export class MessageContextHistory {
     }
 
     return true;
-  }
-
-  private logMessage(message: IConversationHistoryMessage): void {
-    if (process.env.NODE_ENV === "test" || !this.isLoggingEnabled()) return;
-    this.messageContextLogger.logMessage(message);
-  }
-
-  private isLoggingEnabled(): boolean {
-    return this.messageContextLogger.getConversationLogPath() !== null;
   }
 
   public logActionResult(action: string, result: MessageIActionResult): void {
@@ -184,5 +157,32 @@ export class MessageContextHistory {
       ),
       this.messageContextStore.getContextData().systemInstructions,
     );
+  }
+
+  private cleanContent(content: string): string {
+    // Remove phase prompts
+    content = content.replace(/<phase_prompt>.*?<\/phase_prompt>/gs, "").trim();
+
+    // Remove file operation messages
+    if (
+      content.includes("Content of") ||
+      content.includes("Written to") ||
+      content.includes("FILE CREATED AND EXISTS:") ||
+      content.includes("Command executed:") ||
+      content.includes("Command:")
+    ) {
+      return "";
+    }
+
+    return content;
+  }
+
+  private logMessage(message: IConversationHistoryMessage): void {
+    if (process.env.NODE_ENV === "test" || !this.isLoggingEnabled()) return;
+    this.messageContextLogger.logMessage(message);
+  }
+
+  private isLoggingEnabled(): boolean {
+    return this.messageContextLogger.getConversationLogPath() !== null;
   }
 }
