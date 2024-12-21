@@ -61,13 +61,23 @@ export class MessageContextHistory {
     });
   }
 
-  public addMessage(role: string, content: string, log = true): boolean {
+  public addMessage(
+    role: string,
+    content: string,
+    log = true,
+    isFirstMessage = false,
+  ): boolean {
     if (!["user", "assistant", "system"].includes(role)) {
       throw new Error(`Invalid role: ${role}`);
     }
 
     if (content.trim() === "") {
       throw new Error("Content cannot be empty");
+    }
+
+    // Clean up logs if this is the first message
+    if (isFirstMessage && this.isLoggingEnabled()) {
+      this.messageContextLogger.cleanupLogFiles();
     }
 
     const updatedData = this.messageContextBuilder.buildMessageContext(
