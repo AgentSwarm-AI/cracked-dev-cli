@@ -9,6 +9,8 @@ export const listDirectoryFilesActionBlueprint: IActionBlueprint = {
   priority: ActionPriority.HIGH,
   canRunInParallel: true,
   requiresProcessing: false,
+  usageExplanation:
+    "<list_directory_files><path>./src</path></list_directory_files>",
   parameters: [
     {
       name: "path",
