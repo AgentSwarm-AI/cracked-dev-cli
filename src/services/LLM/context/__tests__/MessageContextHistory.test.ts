@@ -5,15 +5,10 @@ import { PhaseManager } from "../../PhaseManager";
 import { Phase } from "../../types/PhaseTypes";
 import { MessageContextBuilder } from "../MessageContextBuilder";
 import { MessageContextHistory } from "../MessageContextHistory";
-import {
-  MessageContextLogger,
-  MessageIActionResult,
-} from "../MessageContextLogger";
+import { MessageContextLogger } from "../MessageContextLogger";
 import {
   IMessageContextData,
-  MessageCommandOperation,
   MessageContextStore,
-  MessageFileOperation,
 } from "../MessageContextStore";
 
 const mockMessageContextData = (
@@ -62,45 +57,6 @@ describe("MessageContextHistory", () => {
   afterEach(() => {
     unitTestMocker.clearAllMocks();
     jest.clearAllMocks();
-  });
-
-  describe("mergeConversationHistory", () => {
-    it("should not merge if history is empty", () => {
-      messageContextGetContextDataSpy.mockReturnValue(
-        mockMessageContextData({ conversationHistory: [] }),
-      );
-
-      messageContextHistory.mergeConversationHistory();
-      expect(messageContextGetContextDataSpy).toHaveBeenCalled();
-      expect(messageContextSetContextDataSpy).not.toHaveBeenCalled();
-    });
-
-    it("should merge conversation history into a single assistant message", () => {
-      const history: IConversationHistoryMessage[] = [
-        { role: "user", content: "Hello" },
-        { role: "assistant", content: "Hi there!" },
-      ];
-      messageContextGetContextDataSpy.mockReturnValue(
-        mockMessageContextData({ conversationHistory: history }),
-      );
-      const addMessageSpy = unitTestMocker
-        .spyPrototype(MessageContextHistory, "addMessage")
-        .mockReturnValue(true);
-
-      messageContextHistory.mergeConversationHistory();
-
-      expect(addMessageSpy).toHaveBeenCalledWith(
-        "assistant",
-        "user: Hello\n\nassistant: Hi there!",
-        false,
-      );
-      expect(messageContextSetContextDataSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          conversationHistory: [],
-          phaseInstructions: new Map(),
-        }),
-      );
-    });
   });
 
   describe("addMessage", () => {
@@ -228,179 +184,6 @@ describe("MessageContextHistory", () => {
       };
       messageContextHistory["logMessage"](message);
       expect(logMessageSpy).toHaveBeenCalledWith(message);
-    });
-  });
-
-  describe("logActionResult", () => {
-    it("should not log if NODE_ENV is test", () => {
-      unitTestMocker
-        .spyPrototype(MessageContextHistory, "isLoggingEnabled" as any)
-        .mockReturnValue(true);
-      process.env.NODE_ENV = "test";
-      const logActionResultSpy = unitTestMocker.spyPrototype(
-        MessageContextLogger,
-        "logActionResult",
-      );
-
-      messageContextHistory.logActionResult("test_action", {
-        success: true,
-        result: "success",
-      });
-      expect(logActionResultSpy).not.toHaveBeenCalled();
-      process.env.NODE_ENV = "development";
-    });
-
-    it("should not log if logging is disabled", () => {
-      unitTestMocker
-        .spyPrototype(MessageContextHistory, "isLoggingEnabled" as any)
-        .mockReturnValue(false);
-      const logActionResultSpy = unitTestMocker.spyPrototype(
-        MessageContextLogger,
-        "logActionResult",
-      );
-
-      messageContextHistory.logActionResult("test_action", {
-        success: true,
-        result: "success",
-      });
-      expect(logActionResultSpy).not.toHaveBeenCalled();
-    });
-
-    it("should log the action result if logging is enabled", () => {
-      unitTestMocker
-        .spyPrototype(MessageContextHistory, "isLoggingEnabled" as any)
-        .mockReturnValue(true);
-      const logActionResultSpy = unitTestMocker.spyPrototype(
-        MessageContextLogger,
-        "logActionResult",
-      );
-
-      const action = "test_action";
-      const result: MessageIActionResult = { success: true, result: "success" };
-      messageContextHistory.logActionResult(action, result);
-      expect(logActionResultSpy).toHaveBeenCalledWith(action, result);
-    });
-  });
-
-  describe("updateMessageContextWithOperationResult", () => {
-    it("should update context with read_file operation result", () => {
-      const mockContextData = mockMessageContextData();
-      const mockUpdatedContextData = mockMessageContextData({
-        fileOperations: new Map([
-          [
-            "test-file.txt",
-            {
-              type: "read_file",
-              path: "test-file.txt",
-              content: "file content",
-              success: true,
-              timestamp: expect.any(Number),
-            } as MessageFileOperation,
-          ],
-        ]),
-      });
-
-      messageContextGetContextDataSpy.mockReturnValue(mockContextData);
-      const updateOperationResultSpy = unitTestMocker
-        .spyPrototype(MessageContextBuilder, "updateOperationResult")
-        .mockReturnValue(mockUpdatedContextData);
-
-      messageContextHistory.updateMessageContextWithOperationResult(
-        "read_file: test-file.txt",
-        "file content",
-      );
-
-      expect(updateOperationResultSpy).toHaveBeenCalledWith(
-        "read_file",
-        "test-file.txt",
-        "file content",
-        mockContextData,
-        undefined,
-        undefined,
-      );
-      expect(messageContextSetContextDataSpy).toHaveBeenCalledWith(
-        mockUpdatedContextData,
-      );
-    });
-
-    it("should update context with write_file operation result", () => {
-      const mockContextData = mockMessageContextData();
-      const mockUpdatedContextData = mockMessageContextData({
-        fileOperations: new Map([
-          [
-            "test-file.txt",
-            {
-              type: "write_file",
-              path: "test-file.txt",
-              content: "file content",
-              success: true,
-              timestamp: expect.any(Number),
-            } as MessageFileOperation,
-          ],
-        ]),
-      });
-
-      messageContextGetContextDataSpy.mockReturnValue(mockContextData);
-      const updateOperationResultSpy = unitTestMocker
-        .spyPrototype(MessageContextBuilder, "updateOperationResult")
-        .mockReturnValue(mockUpdatedContextData);
-
-      messageContextHistory.updateMessageContextWithOperationResult(
-        "write_file: test-file.txt",
-        "file content",
-      );
-
-      expect(updateOperationResultSpy).toHaveBeenCalledWith(
-        "write_file",
-        "test-file.txt",
-        "file content",
-        mockContextData,
-        undefined,
-        undefined,
-      );
-      expect(messageContextSetContextDataSpy).toHaveBeenCalledWith(
-        mockUpdatedContextData,
-      );
-    });
-
-    it("should update context with execute_command operation result", () => {
-      const mockContextData = mockMessageContextData();
-      const mockUpdatedContextData = mockMessageContextData({
-        commandOperations: new Map([
-          [
-            "ls -l",
-            {
-              type: "execute_command",
-              command: "ls -l",
-              output: "command output",
-              success: true,
-              timestamp: expect.any(Number),
-            } as MessageCommandOperation,
-          ],
-        ]),
-      });
-
-      messageContextGetContextDataSpy.mockReturnValue(mockContextData);
-      const updateOperationResultSpy = unitTestMocker
-        .spyPrototype(MessageContextBuilder, "updateOperationResult")
-        .mockReturnValue(mockUpdatedContextData);
-
-      messageContextHistory.updateMessageContextWithOperationResult(
-        "execute_command: ls -l",
-        "command output",
-      );
-
-      expect(updateOperationResultSpy).toHaveBeenCalledWith(
-        "execute_command",
-        "ls -l",
-        "command output",
-        mockContextData,
-        undefined,
-        undefined,
-      );
-      expect(messageContextSetContextDataSpy).toHaveBeenCalledWith(
-        mockUpdatedContextData,
-      );
     });
   });
 

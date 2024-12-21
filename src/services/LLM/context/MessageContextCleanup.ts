@@ -65,8 +65,6 @@ export class MessageContextCleaner {
         this.messageContextStore.getTotalTokenCount(),
       );
 
-      // Update history through the history service
-      await this.messageContextHistory.mergeConversationHistory();
       return true; // Cleanup was performed
     }
     return false; // No cleanup was performed

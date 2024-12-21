@@ -65,9 +65,6 @@ describe("MessageContextCleaner", () => {
     mocker
       .spyOn(messageContextTokenCount, "getTotalTokenCount")
       .mockReturnValue(500);
-    mocker
-      .spyOn(messageContextHistory, "mergeConversationHistory")
-      .mockResolvedValue();
   });
 
   afterEach(() => {
@@ -90,9 +87,6 @@ describe("MessageContextCleaner", () => {
       const result = await contextCleaner.cleanupContext();
 
       expect(result).toBe(false);
-      expect(
-        messageContextHistory.mergeConversationHistory,
-      ).not.toHaveBeenCalled();
     });
 
     it("should clean up context when token count exceeds limit", async () => {
@@ -126,7 +120,6 @@ describe("MessageContextCleaner", () => {
       const result = await contextCleaner.cleanupContext();
 
       expect(result).toBe(true);
-      expect(messageContextHistory.mergeConversationHistory).toHaveBeenCalled();
       expect(debugLogger.log).toHaveBeenCalledWith(
         "Context",
         "Context cleanup performed",
@@ -150,9 +143,6 @@ describe("MessageContextCleaner", () => {
       const result = await contextCleaner.cleanupContext();
 
       expect(result).toBe(false);
-      expect(
-        messageContextHistory.mergeConversationHistory,
-      ).not.toHaveBeenCalled();
     });
 
     it("should remove oldest messages until token count is within limit", async () => {
@@ -196,7 +186,6 @@ describe("MessageContextCleaner", () => {
       const result = await contextCleaner.cleanupContext();
 
       expect(result).toBe(true);
-      expect(messageContextHistory.mergeConversationHistory).toHaveBeenCalled();
       expect(debugLogger.log).toHaveBeenCalledWith(
         "Context",
         "Context cleanup performed",
