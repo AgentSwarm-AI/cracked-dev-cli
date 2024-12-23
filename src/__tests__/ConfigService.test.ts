@@ -54,6 +54,8 @@ describe("ConfigService", () => {
     it("should load a valid config file", () => {
       const mockConfig = {
         provider: "open-router",
+        projectLanguage: "typescript",
+        packageManager: "yarn",
         customInstructions: "Follow clean code principles",
         customInstructionsPath: "",
         interactive: true,
@@ -141,6 +143,29 @@ describe("ConfigService", () => {
       expect(config).toEqual(mockConfig);
     });
 
+    it("should validate project language and package manager", () => {
+      const mockInvalidConfig = {
+        provider: "open-router",
+        projectLanguage: "invalid-language",
+        packageManager: "invalid-manager",
+        customInstructions: "Follow clean code principles",
+        interactive: true,
+        stream: true,
+        debug: false,
+        options: "temperature=0",
+        openRouterApiKey: "test-key",
+      };
+
+      (fs.existsSync as jest.Mock).mockReturnValue(true);
+      (fs.readFileSync as jest.Mock).mockReturnValue(
+        JSON.stringify(mockInvalidConfig),
+      );
+
+      expect(() => configService.getConfig()).toThrow(
+        "Invalid configuration in crkdrc.json",
+      );
+    });
+
     it("should throw an error for an invalid config file", () => {
       const mockInvalidConfig = {
         model: 123, // Should be string
@@ -172,6 +197,57 @@ describe("ConfigService", () => {
       );
 
       expect(fs.existsSync).toHaveBeenCalledWith(mockConfigPath);
+    });
+
+    it("should accept any string for project language and package manager", () => {
+      const mockConfig = {
+        provider: "open-router",
+        projectLanguage: "ruby",
+        packageManager: "bundler",
+        customInstructions: "Follow clean code principles",
+        interactive: true,
+        stream: true,
+        debug: false,
+        options: "temperature=0",
+        openRouterApiKey: "test-key",
+        appUrl: "https://localhost:8080",
+        appName: "TestApp",
+        autoScaler: false,
+        autoScaleMaxTryPerModel: 2,
+        discoveryModel: "model1",
+        strategyModel: "model2",
+        executeModel: "model3",
+        includeAllFilesOnEnvToContext: false,
+        autoScaleAvailableModels: [
+          {
+            id: "model1",
+            description: "Test model 1",
+            maxWriteTries: 5,
+            maxGlobalTries: 10,
+          },
+        ],
+        directoryScanner: {
+          defaultIgnore: ["dist"],
+          maxDepth: 8,
+          allFiles: true,
+          directoryFirst: true,
+          excludeDirectories: false,
+        },
+        gitDiff: {
+          excludeLockFiles: true,
+          lockFiles: ["package-lock.json"],
+        },
+        referenceExamples: {},
+      };
+
+      (fs.existsSync as jest.Mock).mockReturnValue(true);
+      (fs.readFileSync as jest.Mock).mockReturnValue(
+        JSON.stringify(mockConfig),
+      );
+
+      const config = configService.getConfig();
+      expect(config.projectLanguage).toBe("ruby");
+      expect(config.packageManager).toBe("bundler");
     });
   });
 });

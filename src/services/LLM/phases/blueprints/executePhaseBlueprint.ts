@@ -23,11 +23,13 @@ export const executePhaseBlueprint: IPhaseConfig = {
      - Run type checks
      - Fix or report issues
   4. End task IMMEDIATELY when goal is achieved
+  5. If files were already written on the previous phase, just run tests and type checks to validate and see if there's a need to run more steps. If not, end_task.
 
 - VALIDATION GATES:
   1. Before write_file:
      - Verify imports with relative_path_lookup
      - Check file paths with execute_command
+     - See if its necessary to write the file again.
   2. After write_file:
      - Run unit tests
      - Run type checks
@@ -71,24 +73,9 @@ Let's start. Steps from strategy phase:
 - Objective 1: Do this
 - Objective 2: Do that
 - Objective 3: Do this other thing
+ 
+<!-- Then choose an action from the available actions below -->
 
-<!-- MAKE SURE YOU CLOSE TAGS PROPERLY! -->
-<write_file>
-  <type>new/update</type>
-  <path>/path/to/file.ts</path>
-  <content>
-    // Code here
-  </content>
-</write_file>
-
-
-<!-- or -->
-
-<!-- Dive into imports if you need more info! -->
-<!-- ONLY READ IF YOU DON'T HAVE IT ON THE CONVERSATION HISTORY! -->
-<read_file>
-  <path>/path/to/file.ts</path>
-</read_file>
 
 
 ## Important Notes
@@ -219,6 +206,7 @@ REMEMBER: ONLY ONE ACTION PER REPLY!!!
 EVERY OUTPUT YOU GIVE TO THE USER MUST HAVE A CORRESPONDING ACTION TAG. NO EXCEPTIONS.
 
 <read_file>
+   <!-- Only read individual files, not directories -->
   <path>path/here</path>
   <!-- NO NEED TO READ FILES AGAIN THAT ARE ALREADY ON THE CONVERSATION HISTORY!!! -->
   <!-- CRITICAL: DO NOT READ THE SAME FILES MULTIPLE TIMES, UNLESS THERES A CHANGE!!! -->
@@ -230,6 +218,7 @@ EVERY OUTPUT YOU GIVE TO THE USER MUST HAVE A CORRESPONDING ACTION TAG. NO EXCEP
 
 DO NOT RUN write_file if import issues are not resolved! Use relative_path_lookup first.
 <write_file>
+  <type>new/update</type>
   <path>/path/here</path>
   <content>
    <!-- CRITICAL: Most write_file tasks are ADDITIVES if you already have content in place. -->
@@ -240,20 +229,6 @@ DO NOT RUN write_file if import issues are not resolved! Use relative_path_looku
    <!-- If available, use path alias on imports -->
   </content>
 </write_file>
-
-<delete_file>
-  <path>/path/here</path>
-</delete_file>
-
-<move_file>
-  <source_path>source/path/here</source_path>
-  <destination_path>destination/path/here</destination_path>
-</move_file>
-
-<copy_file>
-  <source_path>source/path/here</source_path>
-  <destination_path>destination/path/here</destination_path>
-</copy_file>
 
 <list_directory_files>
   <path>path/here</path>
@@ -289,6 +264,20 @@ DO NOT RUN write_file if import issues are not resolved! Use relative_path_looku
   <path>../relative/path/to/fix</path>
   <threshold>0.6</threshold>  <!-- Optional, defaults to 0.6. Higher means more strict. -->
 </relative_path_lookup>
+
+<delete_file>
+  <path>/path/here</path>
+</delete_file>
+
+<move_file>
+  <source_path>source/path/here</source_path>
+  <destination_path>destination/path/here</destination_path>
+</move_file>
+
+<copy_file>
+  <source_path>source/path/here</source_path>
+  <destination_path>destination/path/here</destination_path>
+</copy_file>
 
 <end_task>
  <!-- ONLY END IF TEST PASSES -->

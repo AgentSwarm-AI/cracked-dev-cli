@@ -54,49 +54,24 @@ export class MessageContextStore {
   }
 
   public setContextData(data: Partial<IMessageContextData>): void {
-    // Keep only the latest phase instruction
-    let newPhaseInstructions = this.contextData.phaseInstructions;
-    if (data.phaseInstructions !== undefined) {
-      const instructions = Array.from(data.phaseInstructions.values())
-        .sort((a, b) => b.timestamp - a.timestamp)
-        .slice(0, 1); // Keep only the latest instruction
-
-      newPhaseInstructions = new Map(instructions.map((i) => [i.phase, i]));
-    }
-
-    // Clean up file operations - remove successful ones after 1 hour
-    const oneHourAgo = Date.now() - 3600000;
-    const cleanFileOps = new Map(
-      Array.from(this.contextData.fileOperations.entries()).filter(
-        ([_, op]) => !op.success || op.timestamp > oneHourAgo,
-      ),
-    );
-
-    // Clean up command operations similarly
-    const cleanCommandOps = new Map(
-      Array.from(this.contextData.commandOperations.entries()).filter(
-        ([_, op]) => !op.success || op.timestamp > oneHourAgo,
-      ),
-    );
-
     this.contextData = {
-      phaseInstructions: newPhaseInstructions,
-      fileOperations:
-        data.fileOperations !== undefined
-          ? new Map([...(data.fileOperations || [])])
-          : cleanFileOps,
-      commandOperations:
-        data.commandOperations !== undefined
-          ? new Map([...(data.commandOperations || [])])
-          : cleanCommandOps,
-      conversationHistory:
-        data.conversationHistory !== undefined
-          ? data.conversationHistory
-          : this.contextData.conversationHistory,
-      systemInstructions:
-        data.systemInstructions !== undefined
-          ? data.systemInstructions
-          : this.contextData.systemInstructions,
+      phaseInstructions: this.getUpdatedPhaseInstructions(data),
+      fileOperations: this.getUpdatedOperations(
+        data.fileOperations,
+        this.contextData.fileOperations,
+      ),
+      commandOperations: this.getUpdatedOperations(
+        data.commandOperations,
+        this.contextData.commandOperations,
+      ),
+      conversationHistory: this.getUpdatedValue(
+        data.conversationHistory,
+        this.contextData.conversationHistory,
+      ),
+      systemInstructions: this.getUpdatedValue(
+        data.systemInstructions,
+        this.contextData.systemInstructions,
+      ),
     };
   }
 
@@ -112,5 +87,33 @@ export class MessageContextStore {
 
   public getTotalTokenCount(): number {
     return this.messageContextTokenCount.getTotalTokenCount();
+  }
+
+  private getUpdatedPhaseInstructions(
+    data: Partial<IMessageContextData>,
+  ): Map<string, any> {
+    if (data.phaseInstructions === undefined) {
+      return this.contextData.phaseInstructions;
+    }
+
+    const instructions = Array.from(data.phaseInstructions.values())
+      .sort((a, b) => b.timestamp - a.timestamp)
+      .slice(0, 1); // Keep only the latest instruction
+
+    return new Map(instructions.map((i) => [i.phase, i]));
+  }
+
+  private getUpdatedOperations<T>(
+    newOperations: Map<string, T> | undefined,
+    existingOperations: Map<string, T>,
+  ): Map<string, T> {
+    if (newOperations === undefined) {
+      return existingOperations;
+    }
+    return new Map([...newOperations]);
+  }
+
+  private getUpdatedValue<T>(newValue: T | undefined, existingValue: T): T {
+    return newValue !== undefined ? newValue : existingValue;
   }
 }

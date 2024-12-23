@@ -123,6 +123,11 @@ export class LLMContextCreator {
     const runOneTestCmd = config.runOneTestCmd || "yarn test {testPath}";
     const runTypeCheckCmd = config.runTypeCheckCmd || "yarn type-check";
 
+    // Add project language and package manager info
+    const projectSetup = `# Project Setup
+Language: ${config.projectLanguage}
+Package Manager: ${config.packageManager}`;
+
     // Add flexible reference examples section
     const referenceExamplesSection = Object.entries(
       config.referenceExamples || {},
@@ -130,7 +135,9 @@ export class LLMContextCreator {
       .map(([key, path]) => `${key}: ${path}`)
       .join("\n");
 
-    return `# Project Dependencies (from ${info.dependencyFile})
+    return `${projectSetup}
+
+# Project Dependencies (from ${info.dependencyFile})
 Main Dependencies: ${info.mainDependencies.join(", ")}
 
 # Available Scripts
