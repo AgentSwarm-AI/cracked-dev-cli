@@ -12,6 +12,7 @@ import { gitDiffActionBlueprint } from "./gitDiffActionBlueprint";
 import { gitPRDiffActionBlueprint } from "./gitPRDiffActionBlueprint";
 import { moveFileActionBlueprint } from "./moveFileActionBlueprint";
 import { readFileActionBlueprint } from "./readFileActionBlueprint";
+import { readDirectoryActionBlueprint } from "./readDirectoryActionBlueprint";
 import { relativePathLookupActionBlueprint } from "./relativePathLookupActionBlueprint";
 import {
   searchFileActionBlueprint,
@@ -36,6 +37,7 @@ export const actionsBlueprints = {
   [searchFileActionBlueprint.tag]: searchFileActionBlueprint,
   [searchStringActionBlueprint.tag]: searchStringActionBlueprint,
   [writeFileActionBlueprint.tag]: writeFileActionBlueprint,
+  [readDirectoryActionBlueprint.tag]: readDirectoryActionBlueprint,
 } as const;
 
 // Type for action tags based on the blueprint map
