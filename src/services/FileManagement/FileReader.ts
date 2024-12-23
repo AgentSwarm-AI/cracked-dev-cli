@@ -24,6 +24,17 @@ export class FileReader {
     }
   }
 
+  public async readFile(
+    filePath: string,
+  ): Promise<{ success: boolean; data?: string; error?: Error }> {
+    try {
+      const content = await this.readFileContent(filePath);
+      return { success: true, data: content };
+    } catch (error) {
+      return { success: false, error };
+    }
+  }
+
   private async validateFilePath(filePath: string): Promise<void> {
     const stats = await stat(filePath);
     if (!stats.isFile()) {

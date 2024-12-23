@@ -82,6 +82,9 @@ export class ReadDirectoryAction extends BaseAction {
       }
 
       // Get array of file paths
+      if (typeof scanResult.data !== "string") {
+        throw new Error("scanResult.data is not a string");
+      }
       const filePaths = scanResult.data.split("\n").filter(Boolean);
 
       // Read content of each file
