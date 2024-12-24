@@ -103,8 +103,17 @@ export type Config = z.infer<typeof configSchema>;
 
 @autoInjectable()
 export class ConfigService {
-  private readonly CONFIG_PATH = path.resolve("crkdrc.json");
+  private CONFIG_PATH: string;
   private readonly GITIGNORE_PATH = path.resolve(".gitignore");
+
+  constructor(configPath?: string) {
+    if (configPath !== undefined && !configPath.trim()) {
+      throw new Error("Config path cannot be empty");
+    }
+    this.CONFIG_PATH = configPath
+      ? path.resolve(configPath)
+      : path.resolve("crkdrc.json");
+  }
 
   private ensureGitIgnore(): void {
     const gitignoreContent = fs.existsSync(this.GITIGNORE_PATH)

@@ -23,6 +23,10 @@ export class Run extends Command {
       description: "Initialize a default crkdrc.json configuration file",
       exclusive: ["interactive"],
     }),
+    config: Flags.string({
+      char: "c",
+      description: "Path to custom crkdrc.json configuration file",
+    }),
   };
 
   static args = {
@@ -32,15 +36,25 @@ export class Run extends Command {
     }),
   };
 
-  private configService: ConfigService;
-  private modelManager: ModelManager;
-  private streamHandler: StreamHandler;
-  private openRouterAPI: OpenRouterAPI;
-  private sessionManager: InteractiveSessionManager;
-  private rl: readline.Interface;
+  private configService!: ConfigService;
+  private modelManager!: ModelManager;
+  private streamHandler!: StreamHandler;
+  private openRouterAPI!: OpenRouterAPI;
+  private sessionManager!: InteractiveSessionManager;
+  private rl!: readline.Interface;
 
   constructor(argv: string[], config: any) {
     super(argv, config);
+  }
+
+  private async initializeServices(): Promise<void> {
+    const { flags } = await this.parse(Run);
+
+    // Initialize services with custom config path if provided
+    container.register(ConfigService, {
+      useValue: new ConfigService(flags.config),
+    });
+
     this.configService = container.resolve(ConfigService);
     this.modelManager = container.resolve(ModelManager);
     this.streamHandler = container.resolve(StreamHandler);
@@ -76,6 +90,7 @@ export class Run extends Command {
   }
 
   async run(): Promise<void> {
+    await this.initializeServices();
     const { args, flags } = await this.parse(Run);
 
     if (flags.init) {
