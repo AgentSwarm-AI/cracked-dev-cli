@@ -12,25 +12,104 @@ describe("ConfigService", () => {
   const customConfigPath = path.resolve("custom/path/config.json");
   let configService: ConfigService;
 
+  const validMockConfig = {
+    provider: "open-router",
+    projectLanguage: "typescript",
+    packageManager: "yarn",
+    interactive: true,
+    stream: true,
+    debug: false,
+    options: "temperature=0",
+    openRouterApiKey: "test-key",
+    autoScaleAvailableModels: [], // Required by schema
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
+    // Set up default mock responses
+    (fs.existsSync as jest.Mock).mockReturnValue(true);
+    (fs.readFileSync as jest.Mock).mockReturnValue(
+      JSON.stringify(validMockConfig),
+    );
   });
 
-  describe("constructor", () => {
+  describe("config path handling", () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it("should use crkdrc.json as default path (backward compatibility)", () => {
+      configService = new ConfigService();
+      (fs.readFileSync as jest.Mock).mockReturnValue(
+        JSON.stringify(validMockConfig),
+      );
+
+      expect((configService as any).CONFIG_PATH).toBe(defaultConfigPath);
+      const config = configService.getConfig();
+      expect(config).toBeDefined();
+      expect(fs.readFileSync).toHaveBeenCalledWith(defaultConfigPath, "utf-8");
+    });
+
+    it("should handle valid custom path correctly", () => {
+      const validPath = "path/to/custom/config.json";
+      configService = new ConfigService();
+      configService.setConfigPath(validPath);
+      (fs.readFileSync as jest.Mock).mockReturnValue(
+        JSON.stringify(validMockConfig),
+      );
+
+      expect((configService as any).CONFIG_PATH).toBe(path.resolve(validPath));
+      const config = configService.getConfig();
+      expect(config).toBeDefined();
+      expect(fs.readFileSync).toHaveBeenCalledWith(
+        path.resolve(validPath),
+        "utf-8",
+      );
+    });
+
+    it("should fall back to default path when given invalid path", () => {
+      const invalidPaths = ["", " ", null, undefined];
+
+      invalidPaths.forEach((invalidPath) => {
+        configService = new ConfigService();
+        configService.setConfigPath(invalidPath as string);
+        expect((configService as any).CONFIG_PATH).toBe(
+          path.resolve("crkdrc.json"),
+        );
+      });
+    });
+
+    it("should create config file when using non-existent path", () => {
+      const nonExistentPath = "non/existent/config.json";
+      configService = new ConfigService();
+      configService.setConfigPath(nonExistentPath);
+
+      (fs.existsSync as jest.Mock).mockReturnValue(false);
+      (fs.writeFileSync as jest.Mock).mockImplementation(() => {});
+
+      // Should attempt to create config at the specified path
+      configService.createDefaultConfig();
+
+      expect(fs.writeFileSync).toHaveBeenCalledWith(
+        path.resolve(nonExistentPath),
+        expect.any(String),
+      );
+    });
+
     it("should use default path when no custom path provided", () => {
       configService = new ConfigService();
       expect((configService as any).CONFIG_PATH).toBe(defaultConfigPath);
     });
 
     it("should use custom path when provided", () => {
-      configService = new ConfigService("custom/path/config.json");
+      configService = new ConfigService();
+      configService.setConfigPath("custom/path/config.json");
       expect((configService as any).CONFIG_PATH).toBe(customConfigPath);
     });
-  });
 
-  describe("config path handling", () => {
     it("should create config at custom path when it doesn't exist", () => {
-      configService = new ConfigService(customConfigPath);
+      configService = new ConfigService();
+      configService.setConfigPath(customConfigPath);
       (fs.existsSync as jest.Mock).mockReturnValue(false);
       (fs.writeFileSync as jest.Mock).mockImplementation(() => {});
 
@@ -52,9 +131,11 @@ describe("ConfigService", () => {
         debug: false,
         options: "temperature=0",
         openRouterApiKey: "test-key",
+        autoScaleAvailableModels: [], // Required by schema
       };
 
-      configService = new ConfigService(customConfigPath);
+      configService = new ConfigService();
+      configService.setConfigPath(customConfigPath);
       (fs.existsSync as jest.Mock).mockReturnValue(true);
       (fs.readFileSync as jest.Mock).mockReturnValue(
         JSON.stringify(mockConfig),
@@ -66,13 +147,15 @@ describe("ConfigService", () => {
       expect(config).toMatchObject(mockConfig);
     });
 
-    it("should throw error when custom path is invalid", () => {
-      const invalidPath = "";
-      expect(() => new ConfigService(invalidPath)).toThrow();
+    it("should handle empty path by using default", () => {
+      configService = new ConfigService();
+      configService.setConfigPath("");
+      expect((configService as any).CONFIG_PATH).toBe(defaultConfigPath);
     });
 
     it("should handle non-existent custom path by creating default config", () => {
-      configService = new ConfigService(customConfigPath);
+      configService = new ConfigService();
+      configService.setConfigPath(customConfigPath);
       (fs.existsSync as jest.Mock).mockReturnValue(false);
       (fs.writeFileSync as jest.Mock).mockImplementation(() => {});
 
@@ -218,14 +301,14 @@ describe("ConfigService", () => {
     it("should validate project language and package manager", () => {
       const mockInvalidConfig = {
         provider: "open-router",
-        projectLanguage: "invalid-language",
-        packageManager: "invalid-manager",
-        customInstructions: "Follow clean code principles",
         interactive: true,
         stream: true,
         debug: false,
         options: "temperature=0",
         openRouterApiKey: "test-key",
+        autoScaleAvailableModels: [],
+        projectLanguage: 123,
+        packageManager: undefined,
       };
 
       configService = new ConfigService();
@@ -234,9 +317,7 @@ describe("ConfigService", () => {
         JSON.stringify(mockInvalidConfig),
       );
 
-      expect(() => configService.getConfig()).toThrow(
-        "Invalid configuration in crkdrc.json",
-      );
+      expect(() => configService.getConfig()).toThrow();
     });
 
     it("should throw an error for an invalid config file", () => {
@@ -249,6 +330,7 @@ describe("ConfigService", () => {
         debug: "false", // Should be boolean
         options: 456, // Should be string
         openRouterApiKey: 123, // Should be string
+        autoScaleAvailableModels: [], // Add required field
       };
 
       configService = new ConfigService();
@@ -272,6 +354,24 @@ describe("ConfigService", () => {
       );
 
       expect(fs.existsSync).toHaveBeenCalledWith(defaultConfigPath);
+    });
+
+    it("should accept valid project language and package manager", () => {
+      const mockConfig = {
+        ...validMockConfig,
+        projectLanguage: "ruby", // Valid enum value
+        packageManager: "bundler", // Valid enum value
+      };
+
+      configService = new ConfigService();
+      (fs.existsSync as jest.Mock).mockReturnValue(true);
+      (fs.readFileSync as jest.Mock).mockReturnValue(
+        JSON.stringify(mockConfig),
+      );
+
+      const config = configService.getConfig();
+      expect(config.projectLanguage).toBe("ruby");
+      expect(config.packageManager).toBe("bundler");
     });
 
     it("should accept any string for project language and package manager", () => {

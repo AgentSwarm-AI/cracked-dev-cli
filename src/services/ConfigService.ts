@@ -111,8 +111,10 @@ export class ConfigService {
   }
 
   public setConfigPath(configPath?: string): void {
-    if (configPath) {
-      this.CONFIG_PATH = path.resolve(configPath);
+    if (configPath && configPath.trim()) {
+      this.CONFIG_PATH = path.resolve(configPath.trim());
+    } else {
+      this.CONFIG_PATH = path.resolve("crkdrc.json");
     }
   }
 
