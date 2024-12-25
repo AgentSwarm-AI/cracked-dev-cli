@@ -8,6 +8,7 @@ import { StreamHandler } from "@services/streaming/StreamHandler";
 import * as readline from "readline";
 import { container } from "tsyringe";
 import { ConfigService } from "../services/ConfigService";
+import * as path from "path";
 
 export class Run extends Command {
   static description = "AI agent for performing operations on local projects";
@@ -25,7 +26,8 @@ export class Run extends Command {
     }),
     config: Flags.string({
       char: "c",
-      description: "Path to custom crkdrc.json configuration file",
+      description: "Path to custom configuration file (default: crkdrc.json)",
+      default: path.resolve("crkdrc.json"),
     }),
   };
 
@@ -50,16 +52,14 @@ export class Run extends Command {
   private async initializeServices(): Promise<void> {
     const { flags } = await this.parse(Run);
 
-    // Initialize services with custom config path if provided
-    container.register(ConfigService, {
-      useValue: new ConfigService(flags.config),
-    });
-
     this.configService = container.resolve(ConfigService);
+    this.configService.setConfigPath(flags.config);
+
     this.modelManager = container.resolve(ModelManager);
     this.streamHandler = container.resolve(StreamHandler);
     this.openRouterAPI = container.resolve(OpenRouterAPI);
     this.sessionManager = container.resolve(InteractiveSessionManager);
+
     this.rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout,

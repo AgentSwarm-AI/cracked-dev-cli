@@ -1,7 +1,7 @@
 import chalk from "chalk";
 import * as fs from "fs";
 import * as path from "path";
-import { autoInjectable } from "tsyringe";
+import { singleton } from "tsyringe";
 import { z } from "zod";
 
 const configSchema = z.object({
@@ -101,18 +101,19 @@ const configSchema = z.object({
 
 export type Config = z.infer<typeof configSchema>;
 
-@autoInjectable()
+@singleton()
 export class ConfigService {
   private CONFIG_PATH: string;
   private readonly GITIGNORE_PATH = path.resolve(".gitignore");
 
-  constructor(configPath?: string) {
-    if (configPath !== undefined && !configPath.trim()) {
-      throw new Error("Config path cannot be empty");
+  constructor() {
+    this.CONFIG_PATH = path.resolve("crkdrc.json");
+  }
+
+  public setConfigPath(configPath?: string): void {
+    if (configPath) {
+      this.CONFIG_PATH = path.resolve(configPath);
     }
-    this.CONFIG_PATH = configPath
-      ? path.resolve(configPath)
-      : path.resolve("crkdrc.json");
   }
 
   private ensureGitIgnore(): void {
