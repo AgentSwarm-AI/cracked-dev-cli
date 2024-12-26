@@ -17,7 +17,8 @@ const configSchema = z.object({
   appName: z.string().optional().default("MyApp"),
   autoScaler: z.boolean().optional(),
   autoScaleMaxTryPerModel: z.number().optional(),
-  includeAllFilesOnEnvToContext: z.boolean().optional(),
+  includeAllFilesOnEnvToContext: z.boolean().optional().default(true),
+  truncateFilesOnEnvAfterLinesLimit: z.number().optional().default(1000),
   // Phase-specific model configurations
   discoveryModel: z.string().optional().default("google/gemini-flash-1.5-8b"),
   strategyModel: z.string().optional().default("openai/o1-mini"),
@@ -145,7 +146,8 @@ export class ConfigService {
         discoveryModel: "google/gemini-flash-1.5-8b",
         strategyModel: "qwen/qwq-32b-preview",
         executeModel: "anthropic/claude-3.5-sonnet:beta",
-        includeAllFilesOnEnvToContext: false,
+        includeAllFilesOnEnvToContext: true,
+        truncateFilesOnEnvAfterLinesLimit: 1000,
         autoScaleAvailableModels: [
           {
             id: "qwen/qwen-2.5-coder-32b-instruct",

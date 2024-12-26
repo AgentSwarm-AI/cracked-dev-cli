@@ -72,6 +72,7 @@ describe("ConfigService", () => {
         strategyModel: "qwen/qwq-32b-preview",
         executeModel: "anthropic/claude-3.5-sonnet:beta",
         includeAllFilesOnEnvToContext: false,
+        truncateFilesOnEnvAfterLinesLimit: 1000,
         autoScaleAvailableModels: [
           {
             id: "qwen/qwen-2.5-coder-32b-instruct",
@@ -218,6 +219,7 @@ describe("ConfigService", () => {
         strategyModel: "model2",
         executeModel: "model3",
         includeAllFilesOnEnvToContext: false,
+        truncateFilesOnEnvAfterLinesLimit: 1000,
         autoScaleAvailableModels: [
           {
             id: "model1",
@@ -248,6 +250,56 @@ describe("ConfigService", () => {
       const config = configService.getConfig();
       expect(config.projectLanguage).toBe("ruby");
       expect(config.packageManager).toBe("bundler");
+    });
+  });
+
+  describe("environment context configuration", () => {
+    it("should use default values for environment context settings", () => {
+      const minimalConfig = {
+        provider: "open-router",
+        interactive: true,
+        stream: true,
+        debug: false,
+        options: "temperature=0",
+        openRouterApiKey: "test-key",
+        autoScaleAvailableModels: [],
+      };
+
+      (fs.existsSync as jest.Mock).mockReturnValue(true);
+      (fs.readFileSync as jest.Mock).mockReturnValue(
+        JSON.stringify(minimalConfig),
+      );
+
+      const config = configService.getConfig();
+      expect(config.includeAllFilesOnEnvToContext).toBe(true);
+      expect(config.truncateFilesOnEnvAfterLinesLimit).toBe(1000);
+    });
+
+    it("should allow custom values for environment context settings", () => {
+      const validMockConfig = {
+        provider: "open-router",
+        interactive: true,
+        stream: true,
+        debug: false,
+        options: "temperature=0",
+        openRouterApiKey: "test-key",
+        autoScaleAvailableModels: [],
+      };
+
+      const customConfig = {
+        ...validMockConfig,
+        includeAllFilesOnEnvToContext: false,
+        truncateFilesOnEnvAfterLinesLimit: 500,
+      };
+
+      (fs.existsSync as jest.Mock).mockReturnValue(true);
+      (fs.readFileSync as jest.Mock).mockReturnValue(
+        JSON.stringify(customConfig),
+      );
+
+      const config = configService.getConfig();
+      expect(config.includeAllFilesOnEnvToContext).toBe(false);
+      expect(config.truncateFilesOnEnvAfterLinesLimit).toBe(500);
     });
   });
 });

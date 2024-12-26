@@ -28,6 +28,7 @@ describe("PhaseManager", () => {
     autoScaler: false,
     autoScaleMaxTryPerModel: 2,
     includeAllFilesOnEnvToContext: false,
+    truncateFilesOnEnvAfterLinesLimit: 1000,
     autoScaleAvailableModels: [
       {
         id: "model1",
@@ -123,6 +124,7 @@ describe("PhaseManager", () => {
         autoScaler: false,
         autoScaleMaxTryPerModel: 2,
         includeAllFilesOnEnvToContext: false,
+        truncateFilesOnEnvAfterLinesLimit: 1000,
         autoScaleAvailableModels: [
           {
             id: "model1",
@@ -180,6 +182,7 @@ describe("PhaseManager", () => {
         autoScaler: false,
         autoScaleMaxTryPerModel: 2,
         includeAllFilesOnEnvToContext: false,
+        truncateFilesOnEnvAfterLinesLimit: 1000,
         autoScaleAvailableModels: [
           {
             id: "model1",

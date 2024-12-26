@@ -428,4 +428,50 @@ describe("LLMContextCreator", () => {
       expect(result).toContain("project info");
     });
   });
+
+  describe("file content truncation", () => {
+    it("should truncate file content when it exceeds the limit", async () => {
+      const longContent = Array(1500).fill("line").join("\n");
+      mocker.mockPrototype(DirectoryScanner, "scan", {
+        success: true,
+        data: longContent,
+      });
+
+      mocker.mockPrototype(ConfigService, "getConfig", {
+        includeAllFilesOnEnvToContext: true,
+        truncateFilesOnEnvAfterLinesLimit: 1000,
+        customInstructions: "test",
+      });
+
+      const context = await contextCreator.create(
+        "test message",
+        "/root",
+        true,
+      );
+      expect(context).toContain("[Content truncated...]");
+      expect(context.split("\n").length).toBeLessThan(1500);
+    });
+
+    it("should not truncate file content when under the limit", async () => {
+      const shortContent = Array(500).fill("line").join("\n");
+      mocker.mockPrototype(DirectoryScanner, "scan", {
+        success: true,
+        data: shortContent,
+      });
+
+      mocker.mockPrototype(ConfigService, "getConfig", {
+        includeAllFilesOnEnvToContext: true,
+        truncateFilesOnEnvAfterLinesLimit: 1000,
+        customInstructions: "test",
+      });
+
+      const context = await contextCreator.create(
+        "test message",
+        "/root",
+        true,
+      );
+      expect(context).not.toContain("[Content truncated...]");
+      expect(context.split("\n").length).toBeLessThan(1000);
+    });
+  });
 });
