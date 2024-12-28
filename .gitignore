@@ -1,16 +1,1 @@
-node_modules
-dist
-coverage
-.DS_Store
-*.log
-
-.npmrc
-
-.env
-
-.vscode/settings.json
 crkdrc.json
-
-
-conversationHistory.json
-logs

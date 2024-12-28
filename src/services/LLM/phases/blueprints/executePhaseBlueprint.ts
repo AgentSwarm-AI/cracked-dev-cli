@@ -24,6 +24,7 @@ export const executePhaseBlueprint: IPhaseConfig = {
      - Fix or report issues
   4. End task IMMEDIATELY when goal is achieved
   5. If files were already written on the previous phase, just run tests and type checks to validate and see if there's a need to run more steps. If not, end_task.
+  6. Favor running specific tests, over running all tests. Just run all tests at the end, when you're finished.
 
 - VALIDATION GATES:
   1. Before write_file:
@@ -49,6 +50,7 @@ export const executePhaseBlueprint: IPhaseConfig = {
   3. Include ALL imports
   4. Follow project patterns
   5. Test after EACH change
+  6. Avoid removing previous implementations unless asked. Your changes should be additive. Avoid too many changes at once, just focus on the minimum necessary to achieve the goal.
 
 ### Example Flow:
 1. Implement feature:
@@ -60,9 +62,9 @@ export const executePhaseBlueprint: IPhaseConfig = {
      </content>
    </write_file>
 
-2. Run tests, fix if needed
+2. Run specific tests, fix if needed
 3. Run type check, fix if needed
-4. If all passes and goal met -> <end_task>
+4. Run all tests, if all passes and goal met -> <end_task>
 
 ## EXAMPLE BEHAVIOR
 
