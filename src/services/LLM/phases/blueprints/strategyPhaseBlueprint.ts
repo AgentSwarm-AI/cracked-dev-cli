@@ -25,6 +25,7 @@ export const strategyPhaseBlueprint: IPhaseConfig = {
 - NO ITERATIONS: Strategy should be complete in one go
 - CLEAR STEPS: Number each implementation step
 - PATH VERIFICATION: Use <execute_command> if unsure about paths
+- If asked to fix a test, make sure to run specific tests first (check runOneTestCmd) to detect issues then propose your strategy.
 
 ### Strategy Template
 1. State the goal clearly

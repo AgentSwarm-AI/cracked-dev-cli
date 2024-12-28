@@ -24,8 +24,8 @@ export const executePhaseBlueprint: IPhaseConfig = {
      - Fix or report issues
   4. End task IMMEDIATELY when goal is achieved
   5. If files were already written on the previous phase, just run tests and type checks to validate and see if there's a need to run more steps. If not, end_task.
-  6. Favor running specific tests, over running all tests. Just run all tests at the end, when you're finished.
-
+  6. Favor running specific tests, over running all tests (runOneTestCmd). Just run all tests (runAllTestsCmd) at the end, when you're finished.
+ 
 - VALIDATION GATES:
   1. Before write_file:
      - Verify imports with relative_path_lookup
