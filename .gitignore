@@ -12,9 +12,3 @@ coverage
 crkdrc.json
 
 conversationHistory.json
-
-# TypeScript build artifacts
-*.d.ts
-*.map
-*.js.map
-*.d.ts.map
