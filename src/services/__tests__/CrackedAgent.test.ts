@@ -93,6 +93,7 @@ describe("CrackedAgent", () => {
         clearContext: false,
         autoScaler: false,
         instructionsPath: "path/to/instructions",
+        timeout: 0,
       };
 
       await crackedAgent.execute("Mock message", options);
@@ -113,6 +114,7 @@ describe("CrackedAgent", () => {
         clearContext: false,
         autoScaler: false,
         instructions: "Custom instructions",
+        timeout: 0,
       };
 
       await crackedAgent.execute("Mock message", options);
@@ -130,6 +132,7 @@ describe("CrackedAgent", () => {
         debug: false,
         clearContext: false,
         autoScaler: false,
+        timeout: 0,
       };
 
       await crackedAgent.execute("Mock message", options);
@@ -146,6 +149,7 @@ describe("CrackedAgent", () => {
         debug: false,
         clearContext: true,
         autoScaler: false,
+        timeout: 0,
       };
 
       await crackedAgent.execute("Mock message", options);
@@ -160,6 +164,7 @@ describe("CrackedAgent", () => {
         debug: false,
         clearContext: false,
         autoScaler: false,
+        timeout: 0,
       };
 
       await crackedAgent.execute("Mock message", options);
@@ -174,6 +179,7 @@ describe("CrackedAgent", () => {
         debug: false,
         clearContext: false,
         autoScaler: false,
+        timeout: 0,
       };
 
       await crackedAgent.execute("Mock message", options);
@@ -189,6 +195,7 @@ describe("CrackedAgent", () => {
         debug: true,
         clearContext: false,
         autoScaler: false,
+        timeout: 0,
       };
 
       await crackedAgent.execute("Mock message", options);
@@ -203,6 +210,7 @@ describe("CrackedAgent", () => {
         debug: false,
         clearContext: false,
         autoScaler: false,
+        timeout: 0,
       };
 
       await crackedAgent.execute("Mock message", options);
@@ -217,6 +225,7 @@ describe("CrackedAgent", () => {
         debug: false,
         clearContext: false,
         autoScaler: false,
+        timeout: 0,
       };
 
       await crackedAgent.execute("Mock message", options);
@@ -234,6 +243,7 @@ describe("CrackedAgent", () => {
         clearContext: false,
         autoScaler: false,
         root: "/custom/root",
+        timeout: 0,
       };
 
       await crackedAgent.execute("Mock message", options);
@@ -253,6 +263,7 @@ describe("CrackedAgent", () => {
         clearContext: false,
         autoScaler: false,
         options: { key: "value" },
+        timeout: 0,
       };
 
       await crackedAgent.execute("Mock message", options);
@@ -271,6 +282,7 @@ describe("CrackedAgent", () => {
         debug: false,
         clearContext: false,
         autoScaler: false,
+        timeout: 0,
       };
 
       await crackedAgent.execute("", options);
@@ -289,6 +301,7 @@ describe("CrackedAgent", () => {
         debug: false,
         clearContext: false,
         autoScaler: false,
+        timeout: 0,
       };
 
       await crackedAgent.execute(undefined as unknown as string, options);
@@ -308,6 +321,7 @@ describe("CrackedAgent", () => {
         clearContext: false,
         autoScaler: false,
         instructionsPath: "",
+        timeout: 0,
       };
 
       await crackedAgent.execute("Mock message", options);
@@ -326,6 +340,7 @@ describe("CrackedAgent", () => {
         clearContext: false,
         autoScaler: false,
         instructionsPath: undefined as unknown as string,
+        timeout: 0,
       };
 
       await crackedAgent.execute("Mock message", options);
@@ -344,6 +359,7 @@ describe("CrackedAgent", () => {
         clearContext: false,
         autoScaler: false,
         instructions: "",
+        timeout: 0,
       };
 
       await crackedAgent.execute("Mock message", options);
@@ -362,6 +378,7 @@ describe("CrackedAgent", () => {
         clearContext: false,
         autoScaler: false,
         instructions: undefined as unknown as string,
+        timeout: 0,
       };
 
       await crackedAgent.execute("Mock message", options);
@@ -380,6 +397,7 @@ describe("CrackedAgent", () => {
         clearContext: false,
         autoScaler: false,
         options: {},
+        timeout: 0,
       };
 
       await crackedAgent.execute("Mock message", options);

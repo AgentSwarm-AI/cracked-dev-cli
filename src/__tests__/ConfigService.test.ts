@@ -129,6 +129,7 @@ describe("ConfigService", () => {
           ],
         },
         referenceExamples: {}, // Added referenceExamples
+        timeout: 0,
       };
 
       (fs.existsSync as jest.Mock).mockReturnValue(true);

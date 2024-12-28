@@ -1,5 +1,9 @@
 import { Args, Command, Flags } from "@oclif/core";
-import { CrackedAgent, CrackedAgentOptions } from "@services/CrackedAgent";
+import {
+  CrackedAgent,
+  CrackedAgentOptions,
+  ExecutionResult,
+} from "@services/CrackedAgent";
 import { LLMProviderType } from "@services/LLM/LLMProvider";
 import { ModelManager } from "@services/LLM/ModelManager";
 import { OpenRouterAPI } from "@services/LLMProviders/OpenRouter/OpenRouterAPI";
@@ -16,6 +20,7 @@ export class Run extends Command {
     "$ run 'Add error handling'",
     "$ run --interactive # Start interactive mode",
     "$ run --init # Initialize configuration",
+    "$ run 'Add tests' --timeout 300 # Set timeout to 5 minutes",
   ];
 
   static flags = {
@@ -23,8 +28,11 @@ export class Run extends Command {
       description: "Initialize a default crkdrc.json configuration file",
       exclusive: ["interactive"],
     }),
+    timeout: Flags.integer({
+      description: "Set timeout for the operation in seconds",
+      exclusive: ["init"],
+    }),
   };
-
   static args = {
     message: Args.string({
       description: "Message describing the operation to perform",
@@ -110,6 +118,7 @@ export class Run extends Command {
         ...config,
         options: this.parseOptions(config.options || ""),
         provider: config.provider as LLMProviderType,
+        timeout: (flags.timeout ?? config.timeout ?? 0) * 1000, // Convert seconds to milliseconds
       };
 
       // Validate provider
@@ -132,7 +141,29 @@ export class Run extends Command {
         console.log("Press Enter to start the stream...");
         this.rl.once("line", async () => {
           try {
-            const result = await agent.execute(args.message!, options);
+            const executePromise = agent.execute(
+              args.message!,
+              options,
+            ) as Promise<ExecutionResult>;
+
+            const timeoutPromise =
+              options.timeout > 0
+                ? new Promise<never>((_, reject) => {
+                    setTimeout(() => {
+                      console.error(
+                        "\nOperation timed out in",
+                        options.timeout / 1000,
+                        "seconds",
+                      );
+                      process.exit(0);
+                    }, options.timeout);
+                  })
+                : null;
+
+            const result = timeoutPromise
+              ? await Promise.race([executePromise, timeoutPromise])
+              : await executePromise;
+
             if (!options.stream && result) {
               this.log(result.response);
               if (result.actions?.length) {
