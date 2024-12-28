@@ -1,5 +1,5 @@
 node_modules
-dist
+dist/
 coverage
 .DS_Store
 *.log
@@ -11,5 +11,10 @@ coverage
 .vscode/settings.json
 crkdrc.json
 
-
 conversationHistory.json
+
+# TypeScript build artifacts
+*.d.ts
+*.map
+*.js.map
+*.d.ts.map
