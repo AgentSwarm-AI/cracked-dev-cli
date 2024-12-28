@@ -42,8 +42,10 @@ export class MessageContextLogger {
     );
     this.isLogging = false;
     this.logLock = Promise.resolve();
-    this.ensureLogDirectoryExists();
-    this.ensureHistoryFileExists();
+    if (this.isLoggingEnabled()) {
+      this.ensureLogDirectoryExists();
+      this.ensureHistoryFileExists();
+    }
   }
 
   private getLogDirectory(): string {
@@ -89,6 +91,7 @@ export class MessageContextLogger {
   }
 
   async cleanupLogFiles(): Promise<void> {
+    if (!this.isLoggingEnabled()) return;
     try {
       await this.acquireLogLock();
       this.ensureLogDirectoryExists();

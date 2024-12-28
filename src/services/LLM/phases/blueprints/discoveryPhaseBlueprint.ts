@@ -38,6 +38,8 @@ Your end goal on this phase is to gather all information that's relevant to achi
   - Confirm sufficient information before ending phase.
   - Use end_phase once enough context is gathered.
   - Ensure actions have proper tag structures.
+  - When fixing tests, ALWAYS run specific test first (runOneTestCmd) before running all tests.
+  - Running all tests should be the last step, not the first.
 
 ### Key Objectives
 
