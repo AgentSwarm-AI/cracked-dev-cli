@@ -22,6 +22,7 @@ Plan a final solution from discovery findings. Instruct next agent clearly.
 - After strategy, do end_phase execution_phase
 - Only one write_file action
 - If unsure about paths, use <execute_command>
+- Full code only, don't skip any lines with comments
 
 ### Strategy Template
 1. State goal

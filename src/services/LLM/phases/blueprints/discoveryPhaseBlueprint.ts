@@ -14,11 +14,17 @@ export const discoveryPhaseBlueprint: IPhaseConfig = {
 
 Gather relevant information for the current task. Avoid unnecessary detours.
 
+### Critical Instructions
+- If it's a test related task, run specific test first (runOneTestCmd).
+- NEVER run all tests (runAllTestsCmd) in discovery phase.
+- For test tasks: MUST run specific test before moving to strategy phase.
+
 ### Tasks
 
 - **New Code:** Skip code output if creating new files; move on if no exploration needed.
 - **Modification:** Read relevant files (max 5). If unsure, use search. Use tests/type checks as needed. If asked to fix a test, read related file too.
-- **Ending:** Once enough context is found, use <end_phase> to proceed. If not, some of the allowed actions to explore.
+- **Test Tasks:** Run specific test first, read test file and related implementation file.
+- **Ending:** Once enough context is found, use <end_phase> to proceed.
 
 ### Allowed Actions
 Only one action per reply. Use tags properly:
@@ -51,8 +57,7 @@ Only one action per reply. Use tags properly:
 <end_phase>strategy_phase</end_phase>
 
 ### Commands
-- Run all tests: ${args.runAllTestsCmd || "yarn test"}
-- Run one test: ${args.runOneTestCmd || "yarn test {relativeTestPath}"}
+- Run specific test: ${args.runOneTestCmd || "yarn test {relativeTestPath}"}
 - Run type check: ${args.runTypeCheckCmd || "yarn tsc"}
 
 ## Environment
