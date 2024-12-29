@@ -21,8 +21,9 @@ Plan a final solution from discovery findings. Instruct next agent clearly.
 - No re-exploration; rely on discovery only
 - After strategy, do end_phase execution_phase
 - Only one write_file action
-- If unsure about paths, use <execute_command>
+- If unsure about paths, use execute_command
 - Full code only, don't skip any lines with comments
+- VERY IMPORTANT:Include code snippets ONLY within write_file tags. Do not use Markdown formatting such as triple backticks. Only use plain text or write_file tags to encapsulate code.
 
 ### Strategy Template
 1. State goal
@@ -30,7 +31,7 @@ Plan a final solution from discovery findings. Instruct next agent clearly.
 3. Implementation steps
 4. Edge cases
 5. Testing needs
-6. <end_phase>
+6. end_phase
 
 <write_file>
   <type>new/update</type>

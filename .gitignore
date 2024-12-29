@@ -1,6 +1,6 @@
 node_modules
 dist/
-coverage
+coverage/
 .DS_Store
 *.log
 
@@ -12,3 +12,5 @@ coverage
 crkdrc.json
 
 conversationHistory.json
+
+logs/

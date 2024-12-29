@@ -21,6 +21,8 @@ export const executePhaseBlueprint: IPhaseConfig = {
 - Run tests ONLY after write_file
 - Run all tests ONLY before <end_task>
 - Avoid installing new deps. Use project patterns.
+- VERY IMPORTANT:Include code snippets ONLY within <write_file> tags. Do not use Markdown formatting such as triple backticks. Only use plain text or <write_file> tags to encapsulate code.
+
 
 ## Flow
 IF previous action was write_file:
