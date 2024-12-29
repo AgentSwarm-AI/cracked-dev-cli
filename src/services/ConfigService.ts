@@ -97,6 +97,7 @@ const configSchema = z.object({
   referenceExamples: z.record(z.string(), z.string()).optional().default({}),
   projectLanguage: z.string().default("typescript"),
   packageManager: z.string().default("yarn"),
+  timeoutSeconds: z.number().optional().default(0), // Add timeout property
 });
 
 export type Config = z.infer<typeof configSchema>;
@@ -221,6 +222,7 @@ export class ConfigService {
           myService: "src/services/MyService.ts",
           anotherKey: "path/to/some/other/example.ts",
         },
+        timeoutSeconds: 0, // Add default timeout
       };
       fs.writeFileSync(
         this.CONFIG_PATH,

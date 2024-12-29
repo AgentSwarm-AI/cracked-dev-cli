@@ -283,6 +283,7 @@ describe("ConfigService", () => {
           ],
         },
         referenceExamples: {}, // Added referenceExamples
+        timeoutSeconds: 0,
       };
 
       configService = new ConfigService();

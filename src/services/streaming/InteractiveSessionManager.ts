@@ -20,6 +20,7 @@ export class InteractiveSessionManager {
     this.rl = rl;
     this.agent = agent;
     this.options = options;
+    this.openRouterAPI.updateTimeout(this.options.timeout);
   }
 
   private setupKeypressHandling() {
@@ -90,18 +91,33 @@ export class InteractiveSessionManager {
 
   public async start() {
     if (!this.rl) return;
+    let timeoutId: NodeJS.Timeout | null = null;
+
+    const handleTimeout = () => {
+      console.error(
+        `Operation timed out after ${this.options.timeout / 1000} seconds`,
+      );
+      this.cleanup();
+      process.exit(1);
+    };
 
     console.log(
       'Interactive mode started. Type "exit" or press Ctrl+C to quit.',
     );
+
     this.setupKeypressHandling();
     this.rl.prompt();
 
     this.lineHandler = async (input: string) => {
+      if (timeoutId) clearTimeout(timeoutId);
       await this.handleInput(input);
+      if (this.options.timeout > 0) {
+        timeoutId = setTimeout(handleTimeout, this.options.timeout);
+      }
     };
 
     this.closeHandler = () => {
+      if (timeoutId) clearTimeout(timeoutId);
       this.cleanup();
       process.exit(0);
     };

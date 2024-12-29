@@ -12,6 +12,7 @@ import { PhaseManager } from "./LLM/PhaseManager";
 
 export interface CrackedAgentOptions {
   root?: string;
+  timeout: number;
   instructionsPath?: string;
   instructions?: string;
   provider?: LLMProviderType;
@@ -98,6 +99,7 @@ export class CrackedAgent {
       clearContext: false,
       autoScaler: false,
       ...options,
+      timeout: 0,
     };
 
     this.debugLogger.setDebug(finalOptions.debug);

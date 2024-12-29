@@ -1,14 +1,18 @@
 import { Args, Command, Flags } from "@oclif/core";
-import { CrackedAgent, CrackedAgentOptions } from "@services/CrackedAgent";
+import {
+  CrackedAgent,
+  CrackedAgentOptions,
+  ExecutionResult,
+} from "@services/CrackedAgent";
 import { LLMProviderType } from "@services/LLM/LLMProvider";
 import { ModelManager } from "@services/LLM/ModelManager";
 import { OpenRouterAPI } from "@services/LLMProviders/OpenRouter/OpenRouterAPI";
 import { InteractiveSessionManager } from "@services/streaming/InteractiveSessionManager";
 import { StreamHandler } from "@services/streaming/StreamHandler";
+import * as path from "path";
 import * as readline from "readline";
 import { container } from "tsyringe";
 import { ConfigService } from "../services/ConfigService";
-import * as path from "path";
 
 export class Run extends Command {
   static description = "AI agent for performing operations on local projects";
@@ -17,6 +21,7 @@ export class Run extends Command {
     "$ run 'Add error handling'",
     "$ run --interactive # Start interactive mode",
     "$ run --init # Initialize configuration",
+    "$ run 'Add tests' --timeout 300 # Set timeout to 5 minutes",
   ];
 
   static flags = {
@@ -29,8 +34,11 @@ export class Run extends Command {
       description: "Path to custom configuration file (default: crkdrc.json)",
       default: path.resolve("crkdrc.json"),
     }),
+    timeout: Flags.integer({
+      description: "Set timeout for the operation in seconds",
+      exclusive: ["init"],
+    }),
   };
-
   static args = {
     message: Args.string({
       description: "Message describing the operation to perform",
@@ -125,6 +133,7 @@ export class Run extends Command {
         ...config,
         options: this.parseOptions(config.options || ""),
         provider: config.provider as LLMProviderType,
+        timeout: (flags.timeout ?? config.timeoutSeconds ?? 0) * 1000, // Convert seconds to milliseconds
       };
 
       // Validate provider
@@ -147,22 +156,40 @@ export class Run extends Command {
         console.log("Press Enter to start the stream...");
         this.rl.once("line", async () => {
           try {
-            const result = await agent.execute(args.message!, options);
-            if (!options.stream && result) {
-              this.log(result.response);
-              if (result.actions?.length) {
-                this.log("\nExecuted Actions:");
-                result.actions.forEach(({ action, result }) => {
-                  this.log(`\nAction: ${action}`);
-                  this.log(`Result: ${JSON.stringify(result, null, 2)}`);
-                });
+            const executePromise = agent.execute(
+              args.message!,
+              options,
+            ) as Promise<ExecutionResult>;
+
+            if (options.timeout > 0) {
+              const timeoutPromise = new Promise<never>((_, reject) => {
+                setTimeout(() => {
+                  reject(
+                    new Error(
+                      `Operation timed out after ${options.timeout / 1000} seconds`,
+                    ),
+                  );
+                }, options.timeout);
+              });
+
+              try {
+                await Promise.race([executePromise, timeoutPromise]);
+              } catch (error) {
+                this.sessionManager.cleanup();
+                if (error.message.includes("timed out")) {
+                  console.error("\n" + error.message);
+                  process.exit(1);
+                }
+                throw error;
               }
+            } else {
+              await executePromise;
             }
-            this.sessionManager.cleanup();
+
             process.exit(0);
           } catch (error) {
-            this.sessionManager.cleanup();
-            this.error((error as Error).message);
+            console.error("Error:", error);
+            process.exit(1);
           }
         });
       }
