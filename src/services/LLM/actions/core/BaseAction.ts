@@ -58,6 +58,11 @@ export abstract class BaseAction implements IAction {
 
       // Log result for debugging
       if (result.success) {
+        // if base action is read_file, skip
+        if (this.getBlueprint().tag === "read_file") {
+          return result;
+        }
+
         this.logSuccess(`Action executed successfully`);
       } else {
         this.logError(`Action execution failed: ${result.error?.message}`);

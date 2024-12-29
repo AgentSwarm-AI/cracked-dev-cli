@@ -47,6 +47,8 @@ export class ProjectInfo {
         return this.gatherRustInfo(projectRoot, foundDependencyFile);
       case "go.mod":
         return this.gatherGoInfo(projectRoot, foundDependencyFile);
+      case "composer.json":
+        return this.gatherPhpInfo(projectRoot, foundDependencyFile);
       default:
         return {
           mainDependencies: [],
@@ -93,10 +95,42 @@ export class ProjectInfo {
           .map((line) => line.trim())
           .filter((line) => line && !line.startsWith("#"))
           .map((line) => line.split("==")[0]);
+      } else if (dependencyFile === "pyproject.toml") {
+        const lines = content.split("\n");
+        let inDepsSection = false;
+        lines.forEach((line) => {
+          if (line.trim().startsWith("[tool.poetry.dependencies]")) {
+            inDepsSection = true;
+          } else if (line.trim().startsWith("[")) {
+            inDepsSection = false;
+          } else if (inDepsSection && line.includes("=")) {
+            const dep = line.split("=")[0].trim();
+            dependencies.push(dep);
+          }
+        });
       }
 
       return {
         mainDependencies: dependencies,
+        scripts: {},
+        dependencyFile,
+      };
+    } catch {
+      return { mainDependencies: [], scripts: {}, dependencyFile };
+    }
+  }
+
+  private async gatherPhpInfo(
+    projectRoot: string,
+    dependencyFile: string,
+  ): Promise<IProjectInfo> {
+    try {
+      const composerPath = path.join(projectRoot, dependencyFile);
+      const content = await fs.promises.readFile(composerPath, "utf-8");
+      const composerJson = JSON.parse(content);
+
+      return {
+        mainDependencies: Object.keys(composerJson.require || {}),
         scripts: {},
         dependencyFile,
       };

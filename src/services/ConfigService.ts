@@ -1,7 +1,7 @@
 import chalk from "chalk";
 import * as fs from "fs";
 import * as path from "path";
-import { autoInjectable } from "tsyringe";
+import { singleton } from "tsyringe";
 import { z } from "zod";
 
 const configSchema = z.object({
@@ -97,14 +97,55 @@ const configSchema = z.object({
   referenceExamples: z.record(z.string(), z.string()).optional().default({}),
   projectLanguage: z.string().default("typescript"),
   packageManager: z.string().default("yarn"),
+  timeoutSeconds: z.number().optional().default(0), // Add timeout property
 });
 
 export type Config = z.infer<typeof configSchema>;
 
-@autoInjectable()
+@singleton()
 export class ConfigService {
-  private readonly CONFIG_PATH = path.resolve("crkdrc.json");
+  private CONFIG_PATH: string;
   private readonly GITIGNORE_PATH = path.resolve(".gitignore");
+
+  constructor() {
+    this.CONFIG_PATH = path.resolve("crkdrc.json");
+  }
+
+  private validateConfigPath(resolvedPath: string): void {
+    // Allow default path to not exist
+    if (resolvedPath === path.resolve("crkdrc.json")) {
+      return;
+    }
+
+    // For custom paths, require the file to exist
+    if (!fs.existsSync(resolvedPath)) {
+      throw new Error(`Config path does not exist: ${resolvedPath}`);
+    }
+
+    try {
+      const stats = fs.statSync(resolvedPath);
+      if (!stats.isFile()) {
+        throw new Error(`Path exists but is not a file: ${resolvedPath}`);
+      }
+      fs.accessSync(resolvedPath, fs.constants.R_OK | fs.constants.W_OK);
+    } catch (error) {
+      if (error instanceof Error) {
+        throw new Error(`Invalid config path: ${error.message}`);
+      }
+      throw error;
+    }
+  }
+
+  public setConfigPath(configPath?: string): void {
+    if (!configPath || !configPath.trim()) {
+      this.CONFIG_PATH = path.resolve("crkdrc.json");
+      return;
+    }
+
+    const resolvedPath = path.resolve(configPath.trim());
+    this.validateConfigPath(resolvedPath);
+    this.CONFIG_PATH = resolvedPath;
+  }
 
   private ensureGitIgnore(): void {
     const gitignoreContent = fs.existsSync(this.GITIGNORE_PATH)
@@ -117,7 +158,10 @@ export class ConfigService {
           ? `${gitignoreContent}crkdrc.json\n`
           : `${gitignoreContent}\ncrkdrc.json\n`;
 
-      fs.writeFileSync(this.GITIGNORE_PATH, updatedContent);
+      fs.writeFileSync(
+        this.GITIGNORE_PATH,
+        updatedContent.replace(/\n/g, "\\n"),
+      );
     }
   }
 
@@ -209,6 +253,7 @@ export class ConfigService {
           myService: "src/services/MyService.ts",
           anotherKey: "path/to/some/other/example.ts",
         },
+        timeoutSeconds: 0, // Add default timeout
       };
       fs.writeFileSync(
         this.CONFIG_PATH,

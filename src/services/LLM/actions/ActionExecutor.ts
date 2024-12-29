@@ -97,11 +97,6 @@ export class ActionExecutor {
 
         // Get blueprint for logging
         const blueprint = getBlueprint(action.type as ActionTag);
-        if (blueprint) {
-          console.log(
-            `⚡ ${blueprint.description || `Executing ${action.type}`}...`,
-          );
-        }
 
         // Execute action
         lastResult = await actionInstance.execute(action.content);

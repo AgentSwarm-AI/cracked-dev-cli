@@ -243,6 +243,13 @@ describe("OpenRouterAPI", () => {
     });
   });
   describe("Streaming", () => {
+    // beforeEach(() => {
+    //   jest.useFakeTimers();
+    // });
+
+    // afterEach(() => {
+    //   jest.useRealTimers();
+    // });
     it("should handle streaming messages correctly", async () => {
       const mockStreamData = [
         'data: {"choices": [{"delta": {"content": "Hel"}}]}\n',
@@ -314,6 +321,35 @@ describe("OpenRouterAPI", () => {
       });
 
       expect(callback).not.toHaveBeenCalled();
+    });
+
+    it("should not timeout when timeout is 0", async () => {
+      const mockStreamData = [
+        'data: {"choices": [{"delta": {"content": "Hel"}}]}\n',
+        'data: {"choices": [{"delta": {"content": "lo"}}]}\n',
+        'data: {"choices": [{"delta": {"content": "!"}}]}\n',
+        "data: [DONE]\n",
+      ];
+
+      const mockStream = new Readable({
+        read() {
+          mockStreamData.forEach((chunk) => {
+            this.push(Buffer.from(chunk));
+          });
+          this.push(null);
+        },
+      });
+
+      postSpy.mockResolvedValue({ data: mockStream });
+      openRouterAPI.updateTimeout(0); // No timeout
+
+      const callback = jest.fn();
+      await openRouterAPI.streamMessage("gpt-4", "Hi", callback);
+
+      expect(callback).toHaveBeenCalledTimes(3);
+      expect(callback).toHaveBeenNthCalledWith(1, "Hel");
+      expect(callback).toHaveBeenNthCalledWith(2, "lo");
+      expect(callback).toHaveBeenNthCalledWith(3, "!");
     });
 
     it("should handle aborted stream", async () => {

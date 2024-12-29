@@ -1,3 +1,4 @@
+import { ConfigService } from "@services/ConfigService";
 import { IConversationHistoryMessage } from "@services/LLM/ILLMProvider";
 import { autoInjectable, singleton } from "tsyringe";
 import { PhaseManager } from "../PhaseManager";
@@ -13,6 +14,7 @@ export class MessageContextHistory {
     private messageContextLogger: MessageContextLogger,
     private phaseManager: PhaseManager,
     private messageContextBuilder: MessageContextBuilder,
+    private configService: ConfigService,
   ) {}
 
   public addMessage(
@@ -107,6 +109,10 @@ export class MessageContextHistory {
   }
 
   private isLoggingEnabled(): boolean {
-    return this.messageContextLogger.getConversationLogPath() !== null;
+    const config = this.configService.getConfig();
+    return (
+      this.messageContextLogger.getConversationLogPath() !== null &&
+      config.enableConversationLog === true
+    );
   }
 }
