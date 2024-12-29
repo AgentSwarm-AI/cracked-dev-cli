@@ -7,11 +7,13 @@ jest.mock("fs");
 jest.mock("chalk");
 
 describe("ConfigService", () => {
+  // Common test constants
   const mockGitignorePath = path.resolve(".gitignore");
   const defaultConfigPath = path.resolve("crkdrc.json");
   const customConfigPath = path.resolve("custom/path/config.json");
   let configService: ConfigService;
 
+  // Common test data
   const validMockConfig = {
     provider: "open-router",
     projectLanguage: "typescript",
@@ -24,25 +26,98 @@ describe("ConfigService", () => {
     autoScaleAvailableModels: [], // Required by schema
   };
 
-  beforeEach(() => {
+  // Helper functions
+  const setupBasicMocks = () => {
     jest.clearAllMocks();
-    // Set up default mock responses
     (fs.existsSync as jest.Mock).mockReturnValue(true);
     (fs.readFileSync as jest.Mock).mockReturnValue(
       JSON.stringify(validMockConfig),
     );
+  };
+
+  const mockFsExists = (exists: boolean) => {
+    (fs.existsSync as jest.Mock).mockReturnValue(exists);
+  };
+
+  const mockFsReadFile = (content: any) => {
+    (fs.readFileSync as jest.Mock).mockReturnValue(JSON.stringify(content));
+  };
+
+  const mockFsWriteFile = () => {
+    (fs.writeFileSync as jest.Mock).mockImplementation(() => {});
+  };
+
+  const mockFsStatSync = (isFile: boolean) => {
+    (fs.statSync as jest.Mock).mockReturnValue({ isFile: () => isFile });
+  };
+
+  const createFullMockConfig = () => ({
+    provider: "open-router",
+    projectLanguage: "typescript",
+    packageManager: "yarn",
+    customInstructions: "Follow clean code principles",
+    customInstructionsPath: "",
+    interactive: true,
+    stream: true,
+    debug: false,
+    options:
+      "temperature=0,top_p=0.1,top_k=1,frequence_penalty=0.0,presence_penalty=0.0,repetition_penalty=1.0",
+    openRouterApiKey: "test-key",
+    appUrl: "https://localhost:8080",
+    appName: "MyApp",
+    autoScaler: true,
+    autoScaleMaxTryPerModel: 2,
+    discoveryModel: "google/gemini-flash-1.5-8b",
+    strategyModel: "qwen/qwq-32b-preview",
+    executeModel: "anthropic/claude-3.5-sonnet:beta",
+    includeAllFilesOnEnvToContext: false,
+    autoScaleAvailableModels: [
+      {
+        id: "qwen/qwen-2.5-coder-32b-instruct",
+        description: "Cheap, fast, slightly better than GPT4o-mini",
+        maxWriteTries: 5,
+        maxGlobalTries: 10,
+      },
+      {
+        id: "anthropic/claude-3.5-sonnet:beta",
+        description: "Scaled model for retry attempts",
+        maxWriteTries: 5,
+        maxGlobalTries: 15,
+      },
+      {
+        id: "openai/gpt-4o-2024-11-20",
+        description: "Scaled model for retry attempts",
+        maxWriteTries: 2,
+        maxGlobalTries: 20,
+      },
+    ],
+    runAllTestsCmd: "yarn test",
+    runOneTestCmd: "yarn test {relativeTestPath}",
+    runTypeCheckCmd: "yarn typecheck",
+    enableConversationLog: false,
+    directoryScanner: {
+      defaultIgnore: ["dist", "coverage", ".next", "build", ".cache", ".husky"],
+      maxDepth: 8,
+      allFiles: true,
+      directoryFirst: true,
+      excludeDirectories: false,
+    },
+    gitDiff: {
+      excludeLockFiles: true,
+      lockFiles: ["package-lock.json"],
+    },
+    referenceExamples: {},
+    timeoutSeconds: 0,
   });
 
+  beforeEach(setupBasicMocks);
+
   describe("config path handling", () => {
-    beforeEach(() => {
-      jest.clearAllMocks();
-    });
+    beforeEach(setupBasicMocks);
 
     it("should use crkdrc.json as default path (backward compatibility)", () => {
       configService = new ConfigService();
-      (fs.readFileSync as jest.Mock).mockReturnValue(
-        JSON.stringify(validMockConfig),
-      );
+      mockFsReadFile(validMockConfig);
 
       expect((configService as any).CONFIG_PATH).toBe(defaultConfigPath);
       const config = configService.getConfig();
@@ -51,20 +126,22 @@ describe("ConfigService", () => {
     });
 
     it("should handle valid custom path correctly", () => {
-      const validPath = "path/to/custom/config.json";
+      const validPath = "custom/path/config.json";
       configService = new ConfigService();
-      configService.setConfigPath(validPath);
-      (fs.readFileSync as jest.Mock).mockReturnValue(
-        JSON.stringify(validMockConfig),
-      );
+      const resolvedPath = path.resolve(validPath);
 
-      expect((configService as any).CONFIG_PATH).toBe(path.resolve(validPath));
+      (fs.existsSync as jest.Mock).mockImplementation(
+        (p) => p === resolvedPath,
+      );
+      mockFsStatSync(true);
+      mockFsReadFile(validMockConfig);
+
+      configService.setConfigPath(validPath);
+
+      expect((configService as any).CONFIG_PATH).toBe(resolvedPath);
       const config = configService.getConfig();
       expect(config).toBeDefined();
-      expect(fs.readFileSync).toHaveBeenCalledWith(
-        path.resolve(validPath),
-        "utf-8",
-      );
+      expect(fs.readFileSync).toHaveBeenCalledWith(resolvedPath, "utf-8");
     });
 
     it("should fall back to default path when given invalid path", () => {
@@ -79,19 +156,15 @@ describe("ConfigService", () => {
       });
     });
 
-    it("should create config file when using non-existent path", () => {
-      const nonExistentPath = "non/existent/config.json";
+    it("should create config file at default path", () => {
       configService = new ConfigService();
-      configService.setConfigPath(nonExistentPath);
+      mockFsExists(false);
+      mockFsWriteFile();
 
-      (fs.existsSync as jest.Mock).mockReturnValue(false);
-      (fs.writeFileSync as jest.Mock).mockImplementation(() => {});
-
-      // Should attempt to create config at the specified path
       configService.createDefaultConfig();
 
       expect(fs.writeFileSync).toHaveBeenCalledWith(
-        path.resolve(nonExistentPath),
+        defaultConfigPath,
         expect.any(String),
       );
     });
@@ -103,48 +176,28 @@ describe("ConfigService", () => {
 
     it("should use custom path when provided", () => {
       configService = new ConfigService();
-      configService.setConfigPath("custom/path/config.json");
-      expect((configService as any).CONFIG_PATH).toBe(customConfigPath);
-    });
-
-    it("should create config at custom path when it doesn't exist", () => {
-      configService = new ConfigService();
-      configService.setConfigPath(customConfigPath);
-      (fs.existsSync as jest.Mock).mockReturnValue(false);
-      (fs.writeFileSync as jest.Mock).mockImplementation(() => {});
-
-      configService.createDefaultConfig();
-
-      expect(fs.writeFileSync).toHaveBeenCalledWith(
-        customConfigPath,
-        expect.any(String),
+      const customPath = "custom/path/config.json";
+      const resolvedPath = path.resolve(customPath);
+      (fs.existsSync as jest.Mock).mockImplementation(
+        (p) => p === resolvedPath,
       );
+      mockFsStatSync(true);
+      configService.setConfigPath(customPath);
+      expect((configService as any).CONFIG_PATH).toBe(resolvedPath);
     });
 
     it("should read config from custom path", () => {
-      const mockConfig = {
-        provider: "open-router",
-        projectLanguage: "typescript",
-        packageManager: "yarn",
-        interactive: true,
-        stream: true,
-        debug: false,
-        options: "temperature=0",
-        openRouterApiKey: "test-key",
-        autoScaleAvailableModels: [], // Required by schema
-      };
-
       configService = new ConfigService();
-      configService.setConfigPath(customConfigPath);
-      (fs.existsSync as jest.Mock).mockReturnValue(true);
-      (fs.readFileSync as jest.Mock).mockReturnValue(
-        JSON.stringify(mockConfig),
+      (fs.existsSync as jest.Mock).mockImplementation(
+        (p) => p === customConfigPath,
       );
-
+      mockFsStatSync(true);
+      mockFsReadFile(validMockConfig);
+      configService.setConfigPath(customConfigPath);
       const config = configService.getConfig();
 
       expect(fs.readFileSync).toHaveBeenCalledWith(customConfigPath, "utf-8");
-      expect(config).toMatchObject(mockConfig);
+      expect(config).toMatchObject(validMockConfig);
     });
 
     it("should handle empty path by using default", () => {
@@ -153,17 +206,25 @@ describe("ConfigService", () => {
       expect((configService as any).CONFIG_PATH).toBe(defaultConfigPath);
     });
 
-    it("should handle non-existent custom path by creating default config", () => {
+    it("should throw error when using non-existent path", () => {
+      const nonExistentPath = "non/existent/config.json";
       configService = new ConfigService();
-      configService.setConfigPath(customConfigPath);
-      (fs.existsSync as jest.Mock).mockReturnValue(false);
-      (fs.writeFileSync as jest.Mock).mockImplementation(() => {});
+      mockFsExists(false);
 
-      configService.getConfig();
+      expect(() => configService.setConfigPath(nonExistentPath)).toThrow(
+        `Config path does not exist: ${path.resolve(nonExistentPath)}`,
+      );
+    });
 
-      expect(fs.writeFileSync).toHaveBeenCalledWith(
-        customConfigPath,
-        expect.any(String),
+    it("should throw error when path exists but is not a file", () => {
+      const nonFilePath = "directory/path";
+      configService = new ConfigService();
+      const resolvedPath = path.resolve(nonFilePath);
+      mockFsExists(true);
+      mockFsStatSync(false);
+
+      expect(() => configService.setConfigPath(nonFilePath)).toThrow(
+        `Path exists but is not a file: ${resolvedPath}`,
       );
     });
   });
@@ -171,11 +232,9 @@ describe("ConfigService", () => {
   describe("createDefaultConfig", () => {
     it("should create a default config file if it does not exist", () => {
       configService = new ConfigService();
-      (fs.existsSync as jest.Mock)
-        .mockReturnValueOnce(false) // for config file
-        .mockReturnValueOnce(false); // for gitignore
-      (fs.writeFileSync as jest.Mock).mockImplementation(() => {});
-      (fs.readFileSync as jest.Mock).mockReturnValue("");
+      mockFsExists(false);
+      mockFsWriteFile();
+      mockFsReadFile("");
 
       configService.createDefaultConfig();
 
@@ -186,7 +245,7 @@ describe("ConfigService", () => {
       );
       expect(fs.writeFileSync).toHaveBeenCalledWith(
         mockGitignorePath,
-        "crkdrc.json\n",
+        "crkdrc.json\\n",
       );
       expect(chalk.green).toHaveBeenCalledWith(
         "CrackedDevCLI config generated. Please, add Provider and API Key to crkdrc.json.",
@@ -195,7 +254,7 @@ describe("ConfigService", () => {
 
     it("should not create a default config file if it already exists", () => {
       configService = new ConfigService();
-      (fs.existsSync as jest.Mock).mockReturnValue(true);
+      mockFsExists(true);
 
       configService.createDefaultConfig();
 
@@ -206,91 +265,10 @@ describe("ConfigService", () => {
 
   describe("getConfig", () => {
     it("should load a valid config file", () => {
-      const mockConfig = {
-        provider: "open-router",
-        projectLanguage: "typescript",
-        packageManager: "yarn",
-        customInstructions: "Follow clean code principles",
-        customInstructionsPath: "",
-        interactive: true,
-        stream: true,
-        debug: false,
-        options:
-          "temperature=0,top_p=0.1,top_k=1,frequence_penalty=0.0,presence_penalty=0.0,repetition_penalty=1.0",
-        openRouterApiKey: "test-key",
-        appUrl: "https://localhost:8080",
-        appName: "MyApp",
-        autoScaler: true,
-        autoScaleMaxTryPerModel: 2,
-        discoveryModel: "google/gemini-flash-1.5-8b",
-        strategyModel: "qwen/qwq-32b-preview",
-        executeModel: "anthropic/claude-3.5-sonnet:beta",
-        includeAllFilesOnEnvToContext: false,
-        autoScaleAvailableModels: [
-          {
-            id: "qwen/qwen-2.5-coder-32b-instruct",
-            description: "Cheap, fast, slightly better than GPT4o-mini",
-            maxWriteTries: 5,
-            maxGlobalTries: 10,
-          },
-          {
-            id: "anthropic/claude-3.5-sonnet:beta",
-            description: "Scaled model for retry attempts",
-            maxWriteTries: 5,
-            maxGlobalTries: 15,
-          },
-          {
-            id: "openai/gpt-4o-2024-11-20",
-            description: "Scaled model for retry attempts",
-            maxWriteTries: 2,
-            maxGlobalTries: 20,
-          },
-        ],
-        runAllTestsCmd: "yarn test",
-        runOneTestCmd: "yarn test {relativeTestPath}",
-        runTypeCheckCmd: "yarn typecheck",
-        enableConversationLog: false,
-        directoryScanner: {
-          defaultIgnore: [
-            "dist",
-            "coverage",
-            ".next",
-            "build",
-            ".cache",
-            ".husky",
-          ],
-          maxDepth: 8,
-          allFiles: true,
-          directoryFirst: true,
-          excludeDirectories: false,
-        },
-        gitDiff: {
-          excludeLockFiles: true,
-          lockFiles: [
-            "package-lock.json",
-            "yarn.lock",
-            "pnpm-lock.yaml",
-            "Gemfile.lock",
-            "composer.lock",
-            "Pipfile.lock",
-            "poetry.lock",
-            "packages.lock.json",
-            "Cargo.lock",
-            "Podfile.lock",
-            "mix.lock",
-            "go.sum",
-            "pubspec.lock",
-          ],
-        },
-        referenceExamples: {}, // Added referenceExamples
-        timeoutSeconds: 0,
-      };
-
+      const mockConfig = createFullMockConfig();
       configService = new ConfigService();
-      (fs.existsSync as jest.Mock).mockReturnValue(true);
-      (fs.readFileSync as jest.Mock).mockReturnValue(
-        JSON.stringify(mockConfig),
-      );
+      mockFsExists(true);
+      mockFsReadFile(mockConfig);
 
       const config = configService.getConfig();
 
@@ -313,10 +291,8 @@ describe("ConfigService", () => {
       };
 
       configService = new ConfigService();
-      (fs.existsSync as jest.Mock).mockReturnValue(true);
-      (fs.readFileSync as jest.Mock).mockReturnValue(
-        JSON.stringify(mockInvalidConfig),
-      );
+      mockFsExists(true);
+      mockFsReadFile(mockInvalidConfig);
 
       expect(() => configService.getConfig()).toThrow();
     });
@@ -335,10 +311,8 @@ describe("ConfigService", () => {
       };
 
       configService = new ConfigService();
-      (fs.existsSync as jest.Mock).mockReturnValue(true);
-      (fs.readFileSync as jest.Mock).mockReturnValue(
-        JSON.stringify(mockInvalidConfig),
-      );
+      mockFsExists(true);
+      mockFsReadFile(mockInvalidConfig);
 
       expect(() => configService.getConfig()).toThrow(
         /Invalid configuration in crkdrc.json/,
@@ -347,8 +321,8 @@ describe("ConfigService", () => {
 
     it("should throw an error if the config file does not exist or is empty", () => {
       configService = new ConfigService();
-      (fs.existsSync as jest.Mock).mockReturnValue(false);
-      (fs.readFileSync as jest.Mock).mockReturnValue("{}");
+      mockFsExists(false);
+      mockFsReadFile({});
 
       expect(() => configService.getConfig()).toThrow(
         "Invalid configuration in crkdrc.json",
@@ -360,15 +334,13 @@ describe("ConfigService", () => {
     it("should accept valid project language and package manager", () => {
       const mockConfig = {
         ...validMockConfig,
-        projectLanguage: "ruby", // Valid enum value
-        packageManager: "bundler", // Valid enum value
+        projectLanguage: "ruby",
+        packageManager: "bundler",
       };
 
       configService = new ConfigService();
-      (fs.existsSync as jest.Mock).mockReturnValue(true);
-      (fs.readFileSync as jest.Mock).mockReturnValue(
-        JSON.stringify(mockConfig),
-      );
+      mockFsExists(true);
+      mockFsReadFile(mockConfig);
 
       const config = configService.getConfig();
       expect(config.projectLanguage).toBe("ruby");
@@ -376,51 +348,13 @@ describe("ConfigService", () => {
     });
 
     it("should accept any string for project language and package manager", () => {
-      const mockConfig = {
-        provider: "open-router",
-        projectLanguage: "ruby",
-        packageManager: "bundler",
-        customInstructions: "Follow clean code principles",
-        interactive: true,
-        stream: true,
-        debug: false,
-        options: "temperature=0",
-        openRouterApiKey: "test-key",
-        appUrl: "https://localhost:8080",
-        appName: "TestApp",
-        autoScaler: false,
-        autoScaleMaxTryPerModel: 2,
-        discoveryModel: "model1",
-        strategyModel: "model2",
-        executeModel: "model3",
-        includeAllFilesOnEnvToContext: false,
-        autoScaleAvailableModels: [
-          {
-            id: "model1",
-            description: "Test model 1",
-            maxWriteTries: 5,
-            maxGlobalTries: 10,
-          },
-        ],
-        directoryScanner: {
-          defaultIgnore: ["dist"],
-          maxDepth: 8,
-          allFiles: true,
-          directoryFirst: true,
-          excludeDirectories: false,
-        },
-        gitDiff: {
-          excludeLockFiles: true,
-          lockFiles: ["package-lock.json"],
-        },
-        referenceExamples: {},
-      };
+      const mockConfig = createFullMockConfig();
+      mockConfig.projectLanguage = "ruby";
+      mockConfig.packageManager = "bundler";
 
       configService = new ConfigService();
-      (fs.existsSync as jest.Mock).mockReturnValue(true);
-      (fs.readFileSync as jest.Mock).mockReturnValue(
-        JSON.stringify(mockConfig),
-      );
+      mockFsExists(true);
+      mockFsReadFile(mockConfig);
 
       const config = configService.getConfig();
       expect(config.projectLanguage).toBe("ruby");

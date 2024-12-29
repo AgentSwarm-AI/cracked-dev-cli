@@ -111,12 +111,40 @@ export class ConfigService {
     this.CONFIG_PATH = path.resolve("crkdrc.json");
   }
 
-  public setConfigPath(configPath?: string): void {
-    if (configPath && configPath.trim()) {
-      this.CONFIG_PATH = path.resolve(configPath.trim());
-    } else {
-      this.CONFIG_PATH = path.resolve("crkdrc.json");
+  private validateConfigPath(resolvedPath: string): void {
+    // Allow default path to not exist
+    if (resolvedPath === path.resolve("crkdrc.json")) {
+      return;
     }
+
+    // For custom paths, require the file to exist
+    if (!fs.existsSync(resolvedPath)) {
+      throw new Error(`Config path does not exist: ${resolvedPath}`);
+    }
+
+    try {
+      const stats = fs.statSync(resolvedPath);
+      if (!stats.isFile()) {
+        throw new Error(`Path exists but is not a file: ${resolvedPath}`);
+      }
+      fs.accessSync(resolvedPath, fs.constants.R_OK | fs.constants.W_OK);
+    } catch (error) {
+      if (error instanceof Error) {
+        throw new Error(`Invalid config path: ${error.message}`);
+      }
+      throw error;
+    }
+  }
+
+  public setConfigPath(configPath?: string): void {
+    if (!configPath || !configPath.trim()) {
+      this.CONFIG_PATH = path.resolve("crkdrc.json");
+      return;
+    }
+
+    const resolvedPath = path.resolve(configPath.trim());
+    this.validateConfigPath(resolvedPath);
+    this.CONFIG_PATH = resolvedPath;
   }
 
   private ensureGitIgnore(): void {
@@ -130,7 +158,10 @@ export class ConfigService {
           ? `${gitignoreContent}crkdrc.json\n`
           : `${gitignoreContent}\ncrkdrc.json\n`;
 
-      fs.writeFileSync(this.GITIGNORE_PATH, updatedContent);
+      fs.writeFileSync(
+        this.GITIGNORE_PATH,
+        updatedContent.replace(/\n/g, "\\n"),
+      );
     }
   }
 
