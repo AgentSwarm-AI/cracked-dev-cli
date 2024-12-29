@@ -12,3 +12,5 @@ coverage/
 crkdrc.json
 
 conversationHistory.json
+
+logs/
