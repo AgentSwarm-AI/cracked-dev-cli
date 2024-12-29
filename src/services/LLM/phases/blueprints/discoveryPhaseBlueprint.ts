@@ -16,8 +16,14 @@ Gather relevant information for the current task. Avoid unnecessary detours.
 
 ### Critical Instructions
 - If it's a test related task, run specific test first (runOneTestCmd).
-- NEVER run all tests (runAllTestsCmd) in discovery phase.
+- NEVER run all tests (runAllTestCmd) in discovery phase.
 - For test tasks: MUST run specific test before moving to strategy phase.
+
+### Reference Examples
+Use read_file on any file below IF related to the task:
+${Object.entries(config.referenceExamples)
+  .map(([key, path]) => `- ${key}: ${path}`)
+  .join("\n")}
 
 ### Tasks
 

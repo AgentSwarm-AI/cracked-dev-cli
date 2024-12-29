@@ -14,36 +14,24 @@ export const executePhaseBlueprint: IPhaseConfig = {
 ## Execute Phase
 
 ## Critical Instructions
- - Run specific test (runOneTestCmd) after each code change
- - Run all tests (runAllTestsCmd) ONLY before <end_task>
- - For test tasks: go back to discovery if tests weren't run there
- - Read files only if absolutely necessary (getting more context if stuck, etc)
- - Full code only, don't skip any lines with comments
+- Follow project patterns as much as possible.
+- Iteratively add your changes. Do not change many things at once.
+- ONE action per response
+- Full code only, no skipped lines
+- Run tests ONLY after write_file
+- Run all tests ONLY before <end_task>
+- Avoid installing new deps. Use project patterns.
 
 ## Flow
-1. Follow strategy steps in order
-2. ONE action per response
-3. Make code change (<write_file>)
-4. After change:
-   - Run specific test & type check
-   - If fail: fix or report issue
-   - If pass: continue to next change
-5. Before ending:
-   - Run all tests
-   - If pass, <end_task>
+IF previous action was write_file:
+  1. Run test for that file (runOneTestCmd)
+  2. Run type check
+  3. Make new changes if needed
 
-## Code Changes
-- ONE at a time. Full code. Minimal approach
-- NO reading files unless absolutely necessary
-- Confirm imports/paths if unsure (use relative_path_lookup)
-- Use existing imports, no new deps
-
-## Example
-1. <write_file> <!-- Full code, raw text. --> </write_file>
-2. Run specific test (runOneTestCmd)
-3. Type check (runTypeCheckCmd)
-4. If pass: next change or <end_task>
-   If fail: fix and repeat
+IF previous action was NOT write_file:
+  1. Make code changes (write_file)
+  2. Run test for the file
+  3. Run type check
 
 ## Commands
 - Run specific test: ${args.runOneTestCmd || "yarn test {relativeTestPath}"}
@@ -51,17 +39,22 @@ export const executePhaseBlueprint: IPhaseConfig = {
 - Type check: ${args.runTypeCheckCmd || "yarn type-check"}
 
 ## Available Actions
-<read_file>
-  <path>path/here</path>
-</read_file>
-
 <write_file>
   <type>new/update</type>
   <path>/path/here</path>
   <content>
-   <!-- Full code, raw text. -->
+    <!-- Full code, raw text -->
   </content>
 </write_file>
+
+<read_file>
+  <path>path/here</path>
+</read_file>
+
+<execute_command>
+  <!-- Any command -->
+</execute_command>
+
 
 <execute_command>
   <!-- Any command like "ls -la" or "yarn install" -->
@@ -99,15 +92,17 @@ export const executePhaseBlueprint: IPhaseConfig = {
   <destination_path>destination/path/here</destination_path>  
 </copy_file>
 
-<end_task>
-  Summarize and finalize.
-</end_task>
 
 <action_explainer>
   <action>
     <!-- git_diff, git_pr_diff, fetch_url -->
   </action>
 </action_explainer>
+
+
+<end_task>
+  <!-- Summarize and finalize -->
+</end_task>
 
 ${args.projectInfo ? `\n## Project Context\n${args.projectInfo}` : ""}
 </phase_prompt>
