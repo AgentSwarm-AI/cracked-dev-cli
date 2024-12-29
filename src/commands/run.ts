@@ -149,16 +149,24 @@ export class Run extends Command {
             if (options.timeout > 0) {
               const timeoutPromise = new Promise<never>((_, reject) => {
                 setTimeout(() => {
-                  console.error(
-                    "\nOperation timed out in",
-                    options.timeout / 1000,
-                    "seconds",
+                  reject(
+                    new Error(
+                      `Operation timed out after ${options.timeout / 1000} seconds`,
+                    ),
                   );
-                  process.exit(0);
                 }, options.timeout);
               });
 
-              await Promise.race([executePromise, timeoutPromise]);
+              try {
+                await Promise.race([executePromise, timeoutPromise]);
+              } catch (error) {
+                this.sessionManager.cleanup();
+                if (error.message.includes("timed out")) {
+                  console.error("\n" + error.message);
+                  process.exit(1);
+                }
+                throw error;
+              }
             } else {
               await executePromise;
             }
