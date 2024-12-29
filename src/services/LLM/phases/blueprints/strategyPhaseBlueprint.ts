@@ -47,6 +47,17 @@ YOU CAN ONLY USE THIS ONE TIME! Suggest write_file then immediately end_phase.
   <content>
     <!-- Full code. -->
   </content>
+</write_file>
+
+<list_directory_files>
+ <!-- One or more paths -->
+  <path>path/here</path>
+  <path>path/here/2</path>
+  <recursive>false</recursive>
+  <!-- Use this action to list all files in a directory. Set recursive to true if you want to list files recursively. -->
+</list_directory_files>
+
+REMEMBER: ONLY ONE ACTION PER REPLY!!!
 </write_file> 
 
 <end_phase>

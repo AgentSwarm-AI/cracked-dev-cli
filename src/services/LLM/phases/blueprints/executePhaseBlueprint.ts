@@ -49,6 +49,14 @@ IF previous action was NOT write_file:
   </content>
 </write_file>
 
+<list_directory_files>
+ <!-- One or more paths -->
+  <path>path/here</path>
+  <path>path/here/2</path>
+  <recursive>false</recursive>
+  <!-- Use this action to list all files in a directory. Set recursive to true if you want to list files recursively. -->
+</list_directory_files>
+
 <read_file>
   <path>path/here</path>
 </read_file>
@@ -95,6 +103,7 @@ IF previous action was NOT write_file:
 </copy_file>
 
 <read_directory>
+  <!-- This reads all files in a directory. -->
   <!-- One or more paths -->
   <path>directory/path</path>
   <path>directory/path/2</path>
