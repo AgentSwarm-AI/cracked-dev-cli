@@ -88,10 +88,17 @@ export class ListDirectoryFilesAction extends BaseAction {
         );
       }
 
-      const content =
-        typeof result.data === "string"
-          ? result.data
-          : JSON.stringify(result.data, null, 2);
+      let content: string;
+      try {
+        content =
+          typeof result.data === "string"
+            ? result.data
+            : JSON.stringify(result.data, null, 2);
+      } catch (error) {
+        return this.createErrorResult(
+          `Failed to process directory contents for path: ${dirPath}. ${error.message}`,
+        );
+      }
 
       allResults.push(content);
     }
