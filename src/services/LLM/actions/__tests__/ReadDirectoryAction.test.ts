@@ -1,8 +1,8 @@
-import { ReadDirectoryAction } from "../ReadDirectoryAction";
-import { ActionTagsExtractor } from "../ActionTagsExtractor";
+import { ConfigService } from "@services/ConfigService";
 import { DirectoryScanner } from "@services/FileManagement/DirectoryScanner";
 import { FileReader } from "@services/FileManagement/FileReader";
-import { ConfigService } from "@services/ConfigService";
+import { ActionTagsExtractor } from "../ActionTagsExtractor";
+import { ReadDirectoryAction } from "../ReadDirectoryAction";
 
 jest.mock("@services/FileManagement/DirectoryScanner");
 jest.mock("@services/FileManagement/FileReader");
@@ -67,24 +67,25 @@ describe("ReadDirectoryAction", () => {
   });
 
   describe("parameter validation", () => {
-    it("should fail when no directory is provided", async () => {
+    it("should fail when no path is provided", async () => {
       mockActionTagsExtractor.extractTag.mockReturnValue(null);
       const actionContent = "<read_directory></read_directory>";
       const result = await readDirectoryAction.execute(actionContent);
       expect(result.success).toBe(false);
-      expect(result.error?.message).toContain("No directory provided");
+      expect(result.error?.message).toContain(
+        "Must include at least one <path> tag",
+      );
     });
 
-    it("should fail when directory is empty", async () => {
-      const actionContent =
-        "<read_directory><directory></directory></read_directory>";
+    it("should fail when path is empty", async () => {
+      const actionContent = "<read_directory><path></path></read_directory>";
 
       mockActionTagsExtractor.extractTag.mockReturnValue("");
 
       const result = await readDirectoryAction.execute(actionContent);
 
       expect(result.success).toBe(false);
-      expect(result.error?.message).toContain("No directory provided");
+      expect(result.error?.message).toContain("Invalid paths found");
     });
   });
 
@@ -97,8 +98,8 @@ describe("ReadDirectoryAction", () => {
         { path: "/test/directory/file2.txt", content: "Content of file2" },
       ];
 
-      // Add this line to mock extractTag
-      mockActionTagsExtractor.extractTag.mockReturnValue(directory);
+      // Mock extractTag to return array of paths
+      mockActionTagsExtractor.extractTag.mockReturnValue([directory]);
 
       mockDirectoryScanner.scan.mockResolvedValue({
         success: true,
@@ -113,7 +114,7 @@ describe("ReadDirectoryAction", () => {
         return { success: false, error: new Error("File not found") };
       });
 
-      const content = `<read_directory><directory>${directory}</directory></read_directory>`;
+      const content = `<read_directory><path>${directory}</path></read_directory>`;
 
       const result = await readDirectoryAction.execute(content);
 
@@ -126,31 +127,29 @@ describe("ReadDirectoryAction", () => {
     it("should handle scanner failure", async () => {
       const directory = "/test/directory";
 
-      // Add this line to mock extractTag
-      mockActionTagsExtractor.extractTag.mockReturnValue(directory);
+      // Mock extractTag to return array of paths
+      mockActionTagsExtractor.extractTag.mockReturnValue([directory]);
 
       mockDirectoryScanner.scan.mockResolvedValue({
         success: false,
         error: new Error("Scan failed"),
       });
 
-      const content = `<read_directory><directory>${directory}</directory></read_directory>`;
+      const content = `<read_directory><path>${directory}</path></read_directory>`;
 
       const result = await readDirectoryAction.execute(content);
 
       expect(mockDirectoryScanner.scan).toHaveBeenCalledWith(directory);
       expect(result.success).toBe(false);
-      expect(result.error?.message).toBe(
-        "Failed to scan directory: Scan failed",
-      );
+      expect(result.error?.message).toContain("Failed to scan directory");
     });
 
     it("should handle file read failure gracefully", async () => {
       const directory = "/test/directory";
       const filePaths = "/test/directory/file1.txt\n/test/directory/file2.txt";
 
-      // Mock extractTag to return the directory
-      mockActionTagsExtractor.extractTag.mockReturnValue(directory);
+      // Mock extractTag to return array of paths
+      mockActionTagsExtractor.extractTag.mockReturnValue([directory]);
 
       mockDirectoryScanner.scan.mockResolvedValue({
         success: true,
@@ -165,7 +164,7 @@ describe("ReadDirectoryAction", () => {
         }
       });
 
-      const content = `<read_directory><directory>${directory}</directory></read_directory>`;
+      const content = `<read_directory><path>${directory}</path></read_directory>`;
 
       const result = await readDirectoryAction.execute(content);
 

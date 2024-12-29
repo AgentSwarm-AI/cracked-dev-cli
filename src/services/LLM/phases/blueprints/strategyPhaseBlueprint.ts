@@ -25,7 +25,7 @@ Plan a final solution from discovery findings. Instruct next agent clearly.
 - Full code only, don't skip any lines with comments
 - VERY IMPORTANT:Include code snippets ONLY within write_file tags. Do not use Markdown formatting such as triple backticks. Only use plain text or write_file tags to encapsulate code.
 
-### Strategy Template
+### Example
 1. State goal
 2. Dependencies
 3. Implementation steps
@@ -33,17 +33,8 @@ Plan a final solution from discovery findings. Instruct next agent clearly.
 5. Testing needs
 6. end_phase
 
-<write_file>
-  <type>new/update</type>
-  <path>/correct/path/here</path>
-  <content>
-    <!-- Provide full code or additions. -->
-  </content>
-</write_file>
+Then start some initial changes by using write_file and finally end_phase.
 
-<end_phase>
-  execution_phase
-</end_phase>
 
 ## Allowed Available Actions
 <!-- One action per reply. -->
@@ -56,9 +47,7 @@ YOU CAN ONLY USE THIS ONE TIME! Suggest write_file then immediately end_phase.
   <content>
     <!-- Full code. -->
   </content>
-</write_file>
-
-REMEMBER: ONLY ONE ACTION PER REPLY!!!
+</write_file> 
 
 <end_phase>
   <!-- Use this when strategy is complete. -->
@@ -76,7 +65,9 @@ REMEMBER: ONLY ONE ACTION PER REPLY!!!
 </execute_command>
 
 <read_directory>
+  <!-- One or more paths -->
   <path>directory/path</path>
+  <path>directory/path/2</path>
 </read_directory>
 
 ### Other Actions

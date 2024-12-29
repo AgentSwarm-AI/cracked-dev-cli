@@ -95,7 +95,9 @@ IF previous action was NOT write_file:
 </copy_file>
 
 <read_directory>
+  <!-- One or more paths -->
   <path>directory/path</path>
+  <path>directory/path/2</path>
 </read_directory>
 
 <action_explainer>

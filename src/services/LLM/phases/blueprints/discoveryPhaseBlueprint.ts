@@ -51,7 +51,9 @@ Only one action per reply. Use tags properly:
 </search_file>
 
 <read_directory>
+  <!-- One or more paths -->
   <path>directory/path</path>
+  <path>directory/path/2</path>
 </read_directory>
 
 <end_phase>strategy_phase</end_phase>
