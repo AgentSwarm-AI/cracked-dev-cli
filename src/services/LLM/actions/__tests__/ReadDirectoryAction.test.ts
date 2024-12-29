@@ -124,6 +124,55 @@ describe("ReadDirectoryAction", () => {
       expect(result.data).toEqual(fileContents);
     });
 
+    it("should read multiple directories and combine results", async () => {
+      const directories = ["/test/dir1", "/test/dir2"];
+      const filePathsDir1 = "/test/dir1/file1.txt\n/test/dir1/file2.txt";
+      const filePathsDir2 = "/test/dir2/file3.txt\n/test/dir2/file4.txt";
+      const fileContents = [
+        { path: "/test/dir1/file1.txt", content: "Content of file1" },
+        { path: "/test/dir1/file2.txt", content: "Content of file2" },
+        { path: "/test/dir2/file3.txt", content: "Content of file3" },
+        { path: "/test/dir2/file4.txt", content: "Content of file4" },
+      ];
+
+      // Mock extractTag to return array of paths
+      mockActionTagsExtractor.extractTag.mockReturnValue(directories);
+
+      // Mock directory scanner to return different files for each directory
+      mockDirectoryScanner.scan.mockImplementation(async (dir: string) => ({
+        success: true,
+        data: dir === "/test/dir1" ? filePathsDir1 : filePathsDir2,
+      }));
+
+      // Mock file reader to return content based on file path
+      mockFileReader.readFile.mockImplementation(async (filePath: string) => {
+        const file = fileContents.find((f) => f.path === filePath);
+        if (file) {
+          return { success: true, data: file.content };
+        }
+        return { success: false, error: new Error("File not found") };
+      });
+
+      const content = `<read_directory>
+        <path>${directories[0]}</path>
+        <path>${directories[1]}</path>
+      </read_directory>`;
+
+      const result = await readDirectoryAction.execute(content);
+
+      // Verify scanner was called for each directory
+      expect(mockDirectoryScanner.scan).toHaveBeenCalledTimes(2);
+      expect(mockDirectoryScanner.scan).toHaveBeenCalledWith(directories[0]);
+      expect(mockDirectoryScanner.scan).toHaveBeenCalledWith(directories[1]);
+
+      // Verify file reader was called for each file
+      expect(mockFileReader.readFile).toHaveBeenCalledTimes(4);
+
+      // Verify combined results
+      expect(result.success).toBe(true);
+      expect(result.data).toEqual(fileContents);
+    });
+
     it("should handle scanner failure", async () => {
       const directory = "/test/directory";
 
