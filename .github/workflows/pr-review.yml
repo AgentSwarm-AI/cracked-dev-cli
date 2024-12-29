@@ -21,7 +21,7 @@ jobs:
           open_router_key: ${{ secrets.OPEN_ROUTER_KEY }} # Must be set in repository secrets
 
           # Optional inputs with defaults
-          model_id: "google/gemini-2.0-flash-thinking-exp:free" # Default model
+          model_id: "deepseek/deepseek-chat" # Default model
           max_tokens: "4096" # Default max tokens
           review_label: "ai-review"
           custom_prompt: |
