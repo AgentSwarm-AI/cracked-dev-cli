@@ -21,7 +21,7 @@ jobs:
           open_router_key: ${{ secrets.OPEN_ROUTER_KEY }} # Must be set in repository secrets
 
           # Optional inputs with defaults
-          model_id: "anthropic/claude-3.5-sonnet:beta" # Default model
+          model_id: "deepseek/deepseek-chat" # Default model
           max_tokens: "2048" # Default max tokens
           review_label: "ai-review"
           custom_prompt: |
@@ -36,30 +36,53 @@ jobs:
             3. **Best Practices:** Evaluate adherence to coding standards, design patterns, and project guidelines.
             4. **Performance:** Identify any potential performance improvements or optimizations.
             5. **Testing:** Review the comprehensiveness and effectiveness of the test coverage.
+            6. **Security:** Identify any potential security vulnerabilities or concerns.
+            7. **Bugs Found:** List any bugs identified in the PR.
 
             **Review Structure:**
             1. **Overall Summary**
-               - **Score:** Provide an overall score out of 5 stars.
-               - **Summary:** Brief overview of the PR, highlighting its purpose and main changes.
+              - **Score:** Provide an overall score out of 5 stars.
+              - **Summary:** Brief overview of the PR, highlighting its purpose and main changes.
 
             2. **Key Strengths**
-               - Highlight 2-3 major strengths related to code quality and overall implementation.
+              - Highlight 2-3 major strengths related to code quality and overall implementation.
 
             3. **Areas for Improvement**
-               - Identify 2-3 significant areas that need enhancement.
-               - Provide actionable suggestions for each identified issue.
+              - Identify 2-3 significant areas that need enhancement.
+              - Provide actionable suggestions for each identified issue.
 
-            4. **Performance Considerations** (if applicable)
-               - Mention any high-level performance optimizations or concerns.
+            4. **Bugs Found**
+              - Present any bugs identified in the PR in a table format.
+              - **Table Columns:**
+                - **Bug Name**
+                - **Affected Files**
+                - **Description**
+                - **Confidence** (High 🟢, Medium 🟡, Low 🔴)
+              - **Formatting Instructions:**
+                - The **Bug Name** should be a clickable link that navigates to the corresponding bug details in the **Bug Details** section.
+                - Use Markdown anchor links for navigation.
 
-            5. **Best Practices**
-               - Recommendations on adhering to coding standards, design patterns, or other best practices relevant to the project.
+            5. **Bug Details**
+              - For each bug listed in the **Bugs Found** table, provide a detailed description.
+              - **Formatting Instructions:**
+                - Use Markdown headers with IDs corresponding to the links in the **Bugs Found** table.
+                - Example:
+                  ```markdown
+                  ### Bug: [Null Pointer](#null-pointer)
+                  ```
+                - Ensure each bug detail starts with a unique header that matches the anchor link.
 
-            6. **Testing**
-               - Evaluate the adequacy of test coverage and suggest areas for additional tests if necessary.
+            6. **Performance Considerations** (if applicable)
+              - Mention any high-level performance optimizations or concerns.
 
-            7. **Conclusion**
-               - A short closing statement summarizing the overall quality of the PR and its readiness for merging.
+            7. **Best Practices**
+              - Recommendations on adhering to coding standards, design patterns, or other best practices relevant to the project.
+
+            8. **Testing**
+              - Evaluate the adequacy of test coverage and suggest areas for additional tests if necessary.
+
+            9. **Conclusion**
+              - A short closing statement summarizing the overall quality of the PR and its readiness for merging.
 
             **Scoring Criteria:**
             - ⭐⭐⭐⭐⭐ (5/5): Exceptional quality, no major issues, and well-optimized.
@@ -73,8 +96,10 @@ jobs:
             - Limit each section to the most critical points (2-3 items per section).
             - Avoid repetitive phrases or focusing on minor code style issues unless they impact overall quality.
             - Use bullet points and clear headings for readability.
+            - For the **Bugs Found** section, render the bugs in a Markdown table with the specified columns.
+            - In the **Bug Details** section, ensure each bug has a corresponding detailed explanation.
 
-            ** Notes:**
+            **Notes:**
             - If you have nothing to say about a particular section, you can omit it from the review.
             - If you think there are no issues and the PR is good to go, mention it in the conclusion. No need to add unnecessary feedback.
 
@@ -105,6 +130,35 @@ jobs:
 
             - **Testing Coverage:**  
               *Suggestion:* Add additional unit tests to cover critical functionalities and edge cases.
+
+            ---
+
+            **🐛 Bugs Found**
+
+            | Bug Name                 | Affected Files            | Description                                     | Confidence |
+            |--------------------------|---------------------------|-------------------------------------------------|------------|
+            | [Null Pointer](#null-pointer) | `src/utils.js`            | Potential null reference in `calculate()`       | High 🟢    |
+            | [Memory Leak](#memory-leak)     | `src/processor.js`        | Unreleased memory in loop handling              | Medium 🟡  |
+            | [UI Glitch](#ui-glitch)        | `src/components/UI.js`    | Misalignment of buttons on smaller screens     | Low 🔴     |
+
+            ---
+
+            ### Bug Details
+
+            #### Null Pointer
+            - **Affected Files:** `src/utils.js`
+            - **Description:** Potential null reference in the `calculate()` function could lead to runtime errors if not properly handled.
+            - **Confidence:** High 🟢
+
+            #### Memory Leak
+            - **Affected Files:** `src/processor.js`
+            - **Description:** Unreleased memory in the loop handling could degrade performance over time.
+            - **Confidence:** Medium 🟡
+
+            #### UI Glitch
+            - **Affected Files:** `src/components/UI.js`
+            - **Description:** Misalignment of buttons on smaller screens affects user experience.
+            - **Confidence:** Low 🔴
 
             ---
 
