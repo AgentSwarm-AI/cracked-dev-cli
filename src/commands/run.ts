@@ -146,39 +146,27 @@ export class Run extends Command {
               options,
             ) as Promise<ExecutionResult>;
 
-            const timeoutPromise =
-              options.timeout > 0
-                ? new Promise<never>((_, reject) => {
-                    setTimeout(() => {
-                      console.error(
-                        "\nOperation timed out in",
-                        options.timeout / 1000,
-                        "seconds",
-                      );
-                      process.exit(0);
-                    }, options.timeout);
-                  })
-                : null;
+            if (options.timeout > 0) {
+              const timeoutPromise = new Promise<never>((_, reject) => {
+                setTimeout(() => {
+                  console.error(
+                    "\nOperation timed out in",
+                    options.timeout / 1000,
+                    "seconds",
+                  );
+                  process.exit(0);
+                }, options.timeout);
+              });
 
-            const result = timeoutPromise
-              ? await Promise.race([executePromise, timeoutPromise])
-              : await executePromise;
-
-            if (!options.stream && result) {
-              this.log(result.response);
-              if (result.actions?.length) {
-                this.log("\nExecuted Actions:");
-                result.actions.forEach(({ action, result }) => {
-                  this.log(`\nAction: ${action}`);
-                  this.log(`Result: ${JSON.stringify(result, null, 2)}`);
-                });
-              }
+              await Promise.race([executePromise, timeoutPromise]);
+            } else {
+              await executePromise;
             }
-            this.sessionManager.cleanup();
+
             process.exit(0);
           } catch (error) {
-            this.sessionManager.cleanup();
-            this.error((error as Error).message);
+            console.error("Error:", error);
+            process.exit(1);
           }
         });
       }

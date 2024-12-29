@@ -105,9 +105,6 @@ export class InteractiveSessionManager {
       'Interactive mode started. Type "exit" or press Ctrl+C to quit.',
     );
 
-    if (this.options.timeout > 0) {
-      timeoutId = setTimeout(handleTimeout, this.options.timeout);
-    }
     this.setupKeypressHandling();
     this.rl.prompt();
 
