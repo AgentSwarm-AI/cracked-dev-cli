@@ -94,6 +94,9 @@ IF previous action was NOT write_file:
   <destination_path>destination/path/here</destination_path>  
 </copy_file>
 
+<read_directory>
+  <path>directory/path</path>
+</read_directory>
 
 <action_explainer>
   <action>

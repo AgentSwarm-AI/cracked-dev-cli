@@ -50,6 +50,10 @@ Only one action per reply. Use tags properly:
   <term>...</term>
 </search_file>
 
+<read_directory>
+  <path>directory/path</path>
+</read_directory>
+
 <end_phase>strategy_phase</end_phase>
 
 <action_explainer>

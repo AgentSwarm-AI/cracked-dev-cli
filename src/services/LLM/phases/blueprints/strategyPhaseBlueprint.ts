@@ -75,6 +75,10 @@ REMEMBER: ONLY ONE ACTION PER REPLY!!!
   ...
 </execute_command>
 
+<read_directory>
+  <path>directory/path</path>
+</read_directory>
+
 ### Other Actions
 <action_explainer>
   <action>
