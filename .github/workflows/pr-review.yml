@@ -22,7 +22,7 @@ jobs:
 
           # Optional inputs with defaults
           model_id: "deepseek/deepseek-chat" # Default model
-          max_tokens: "2048" # Default max tokens
+          max_tokens: "4096" # Default max tokens
           review_label: "ai-review"
           custom_prompt: |
             ### **AI PR Review Instructions**
