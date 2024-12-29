@@ -20,7 +20,7 @@ Gather relevant information for the current task. Avoid unnecessary detours.
 - For test tasks: MUST run specific test before moving to strategy phase.
 
 ### Reference Examples
-Use read_file on any file below IF related to the task:
+Only read_file on files below IF NECESSARY. If unrelated to the task, just ignore this.
 ${Object.entries(config.referenceExamples)
   .map(([key, path]) => `- ${key}: ${path}`)
   .join("\n")}
