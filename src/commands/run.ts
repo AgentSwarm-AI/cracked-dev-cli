@@ -118,7 +118,7 @@ export class Run extends Command {
         ...config,
         options: this.parseOptions(config.options || ""),
         provider: config.provider as LLMProviderType,
-        timeout: (flags.timeout ?? config.timeout ?? 0) * 1000, // Convert seconds to milliseconds
+        timeout: (flags.timeout ?? config.timeoutSeconds ?? 0) * 1000, // Convert seconds to milliseconds
       };
 
       // Validate provider
