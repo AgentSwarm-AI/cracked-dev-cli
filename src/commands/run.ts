@@ -9,6 +9,7 @@ import { ModelManager } from "@services/LLM/ModelManager";
 import { OpenRouterAPI } from "@services/LLMProviders/OpenRouter/OpenRouterAPI";
 import { InteractiveSessionManager } from "@services/streaming/InteractiveSessionManager";
 import { StreamHandler } from "@services/streaming/StreamHandler";
+import * as path from "path";
 import * as readline from "readline";
 import { container } from "tsyringe";
 import { ConfigService } from "../services/ConfigService";
@@ -28,6 +29,11 @@ export class Run extends Command {
       description: "Initialize a default crkdrc.json configuration file",
       exclusive: ["interactive"],
     }),
+    config: Flags.string({
+      char: "c",
+      description: "Path to custom configuration file (default: crkdrc.json)",
+      default: path.resolve("crkdrc.json"),
+    }),
     timeout: Flags.integer({
       description: "Set timeout for the operation in seconds",
       exclusive: ["init"],
@@ -40,20 +46,28 @@ export class Run extends Command {
     }),
   };
 
-  private configService: ConfigService;
-  private modelManager: ModelManager;
-  private streamHandler: StreamHandler;
-  private openRouterAPI: OpenRouterAPI;
-  private sessionManager: InteractiveSessionManager;
-  private rl: readline.Interface;
+  private configService!: ConfigService;
+  private modelManager!: ModelManager;
+  private streamHandler!: StreamHandler;
+  private openRouterAPI!: OpenRouterAPI;
+  private sessionManager!: InteractiveSessionManager;
+  private rl!: readline.Interface;
 
   constructor(argv: string[], config: any) {
     super(argv, config);
+  }
+
+  private async initializeServices(): Promise<void> {
+    const { flags } = await this.parse(Run);
+
     this.configService = container.resolve(ConfigService);
+    this.configService.setConfigPath(flags.config);
+
     this.modelManager = container.resolve(ModelManager);
     this.streamHandler = container.resolve(StreamHandler);
     this.openRouterAPI = container.resolve(OpenRouterAPI);
     this.sessionManager = container.resolve(InteractiveSessionManager);
+
     this.rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout,
@@ -84,6 +98,7 @@ export class Run extends Command {
   }
 
   async run(): Promise<void> {
+    await this.initializeServices();
     const { args, flags } = await this.parse(Run);
 
     if (flags.init) {
