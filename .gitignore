@@ -1,5 +1,5 @@
 node_modules
-dist
+dist/
 coverage
 .DS_Store
 *.log
@@ -11,6 +11,4 @@ coverage
 .vscode/settings.json
 crkdrc.json
 
-
 conversationHistory.json
-logs
