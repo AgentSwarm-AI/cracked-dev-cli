@@ -85,6 +85,17 @@ Ok, all tests and checks passed. Let me summarize the changes and end the task.
 
 [end_task]
 
+## What if you get stuck?
+
+- If there are too many issues with a file and you feel hopeless, try rolling back changes and starting over. 
+  <execute_command>
+    git checkout -- <file_name_here>
+  </execute_command>
+
+- If stuck with import issues, try relative_path_lookup to find the file you need.
+
+- Ask the user for help.
+
 ## Commands
 - Run specific test: ${args.runOneTestCmd || "yarn jest {relativeTestPath}"}
 - Run all tests: ${args.runAllTestsCmd || "yarn jest"}
