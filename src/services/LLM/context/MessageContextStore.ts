@@ -64,9 +64,11 @@ export class MessageContextStore {
         data.commandOperations,
         this.contextData.commandOperations,
       ),
-      conversationHistory: this.getUpdatedValue(
-        data.conversationHistory,
-        this.contextData.conversationHistory,
+      conversationHistory: this.deduplicateMessages(
+        this.getUpdatedValue(
+          data.conversationHistory,
+          this.contextData.conversationHistory,
+        ),
       ),
       systemInstructions: this.getUpdatedValue(
         data.systemInstructions,
@@ -115,5 +117,19 @@ export class MessageContextStore {
 
   private getUpdatedValue<T>(newValue: T | undefined, existingValue: T): T {
     return newValue !== undefined ? newValue : existingValue;
+  }
+
+  private deduplicateMessages(
+    messages: IConversationHistoryMessage[],
+  ): IConversationHistoryMessage[] {
+    const seen = new Set<string>();
+    return messages.filter((message) => {
+      const key = `${message.role}:${message.content}`;
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
   }
 }

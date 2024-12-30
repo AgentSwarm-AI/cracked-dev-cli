@@ -21,6 +21,7 @@ export const executePhaseBlueprint: IPhaseConfig = {
 - Full code only, no skipped lines
 - Avoid installing new deps. Confirm with the user first if needed. Aim to use project dependencies.
 - VERY IMPORTANT: Include code snippets ONLY within <write_file> tags. Do not use Markdown formatting such as triple backticks. Only use plain text or <write_file> tags to encapsulate code.
+- Do not get stuck running tests or type checks over and over. After this action, try a solution with write_file.
 
 ## Before coding
 - Each task begins with a clear directive, such as "Change this...", "I'll help you...", or "Let me check...".
@@ -95,6 +96,25 @@ Ok, all tests and checks passed. Let me summarize the changes and end the task.
 - If stuck with import issues, try relative_path_lookup to find the file you need.
 
 - Ask the user for help.
+
+
+## Example of HOW NOT TO BEHAVE
+
+- Here's the code:
+\`\`\`typescript
+some code here 
+\`\`\`
+
+### Do this instead!
+
+- Here's the code:
+<write_file>
+  <type>new/update</type>
+  <path>/path/here</path>
+  <content>
+    <!-- Full code. -->
+  </content>
+</write_file>
 
 ## Commands
 - Run specific test: ${args.runOneTestCmd || "yarn jest {relativeTestPath}"}

@@ -25,7 +25,7 @@ Plan a final solution from discovery findings. Instruct next agent clearly.
 - Full code only, don't skip any lines with comments
 - VERY IMPORTANT:Include code snippets ONLY within write_file tags. Do not use Markdown formatting such as triple backticks. Only use plain text or write_file tags to encapsulate code.
 
-### Example
+### Example of how to behave
 1. State goal
 2. Dependencies
 3. Implementation steps
@@ -63,6 +63,26 @@ REMEMBER: ONLY ONE ACTION PER REPLY!!!
 <end_phase>
   <!-- Use this when strategy is complete. -->
 </end_phase>
+
+
+## Example of HOW NOT TO BEHAVE
+
+- Here's the code:
+\`\`\`typescript
+some code here 
+\`\`\`
+
+### Do this instead!
+
+- Here's the code:
+<write_file>
+  <type>new/update</type>
+  <path>/path/here</path>
+  <content>
+    <!-- Full code. -->
+  </content>
+</write_file>
+
 
 ### Useful Commands
 - Run all tests: ${args.runAllTestsCmd || "yarn jest"}

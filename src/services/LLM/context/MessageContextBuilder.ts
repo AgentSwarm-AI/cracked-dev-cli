@@ -62,15 +62,26 @@ export class MessageContextBuilder {
       const updatedFileOperations = new Map(contextData.fileOperations);
       const updatedCommandOperations = new Map(contextData.commandOperations);
 
+      const seenMessages = new Set<string>();
       const filteredHistory = contextData.conversationHistory.filter((msg) => {
         const msgContent = msg.content.trim();
         const withoutPhasePrompt = msgContent
           .replace(/<phase_prompt>.*?<\/phase_prompt>/s, "")
           .trim();
-        return (
-          withoutPhasePrompt.length > 0 ||
-          !msgContent.includes("<phase_prompt>")
-        );
+
+        if (
+          withoutPhasePrompt.length === 0 &&
+          msgContent.includes("<phase_prompt>")
+        ) {
+          return false;
+        }
+
+        const messageKey = `${msg.role}:${msgContent}`;
+        if (seenMessages.has(messageKey)) {
+          return false;
+        }
+        seenMessages.add(messageKey);
+        return true;
       });
 
       const updatedConversationHistory = [...filteredHistory];
@@ -82,7 +93,11 @@ export class MessageContextBuilder {
         contentWithoutPhasePrompt.length > 0 ||
         !content.includes("<phase_prompt>")
       ) {
-        updatedConversationHistory.push({ role, content });
+        const newMessageKey = `${role}:${content}`;
+        if (!seenMessages.has(newMessageKey)) {
+          updatedConversationHistory.push({ role, content });
+          seenMessages.add(newMessageKey);
+        }
       }
 
       operations.forEach(

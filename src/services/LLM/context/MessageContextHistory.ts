@@ -5,6 +5,7 @@ import { PhaseManager } from "../PhaseManager";
 import { MessageContextBuilder } from "./MessageContextBuilder";
 import { MessageContextLogger } from "./MessageContextLogger";
 import { MessageContextStore } from "./MessageContextStore";
+import { MessageContextTokenCount } from "./MessageContextTokenCount";
 
 @singleton()
 @autoInjectable()
@@ -15,6 +16,7 @@ export class MessageContextHistory {
     private phaseManager: PhaseManager,
     private messageContextBuilder: MessageContextBuilder,
     private configService: ConfigService,
+    private messageContextTokenCount: MessageContextTokenCount,
   ) {}
 
   public addMessage(
@@ -27,8 +29,9 @@ export class MessageContextHistory {
       throw new Error(`Invalid role: ${role}`);
     }
 
-    if (content.trim() === "") {
-      throw new Error("Content cannot be empty");
+    const cleanedContent = this.cleanContent(content);
+    if (cleanedContent.trim() === "") {
+      return false; // Skip empty messages after cleaning
     }
 
     // Clean up logs if this is the first message
@@ -36,11 +39,22 @@ export class MessageContextHistory {
       this.messageContextLogger.cleanupLogFiles();
     }
 
+    // Check for duplicate message using cleaned content
+    const contextData = this.messageContextStore.getContextData();
+    const isDuplicate = contextData.conversationHistory.some(
+      (msg) =>
+        msg.role === role && this.cleanContent(msg.content) === cleanedContent,
+    );
+
+    if (isDuplicate) {
+      return false; // Skip duplicate messages
+    }
+
     const updatedData = this.messageContextBuilder.buildMessageContext(
       role as "user" | "assistant" | "system",
       content,
       this.phaseManager.getCurrentPhase(),
-      this.messageContextStore.getContextData(),
+      contextData,
     );
     this.messageContextStore.setContextData(updatedData);
 
@@ -50,6 +64,9 @@ export class MessageContextHistory {
         content,
       });
     }
+
+    this.updateLogFile();
+    this.messageContextTokenCount.logContextUsage();
 
     return true;
   }

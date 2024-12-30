@@ -66,10 +66,29 @@ describe("MessageContextHistory", () => {
       ).toThrowError("Invalid role: invalid");
     });
 
-    it("should throw an error if content is empty", () => {
-      expect(() => messageContextHistory.addMessage("user", "  ")).toThrowError(
-        "Content cannot be empty",
+    it("should return false if content is empty", () => {
+      const result = messageContextHistory.addMessage("user", "  ");
+      expect(result).toBe(false);
+    });
+
+    it("should return false if content is empty after cleaning", () => {
+      const result = messageContextHistory.addMessage(
+        "user",
+        "<phase_prompt>some prompt</phase_prompt>",
       );
+      expect(result).toBe(false);
+    });
+
+    it("should return false for duplicate messages", () => {
+      const content = "Hello world";
+
+      // Add first message
+      const firstResult = messageContextHistory.addMessage("user", content);
+      expect(firstResult).toBe(true);
+
+      // Try to add the same message again
+      const secondResult = messageContextHistory.addMessage("user", content);
+      expect(secondResult).toBe(false);
     });
 
     it("should build message context and store it", () => {

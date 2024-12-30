@@ -1,6 +1,8 @@
+import { DebugLogger } from "@/services/logging/DebugLogger";
 import { IConversationHistoryMessage } from "@services/LLM/ILLMProvider";
 import { encode } from "gpt-tokenizer";
 import { delay, inject, singleton } from "tsyringe";
+import { ModelInfo } from "../ModelInfo";
 import { MessageContextStore } from "./MessageContextStore";
 
 @singleton()
@@ -8,6 +10,9 @@ export class MessageContextTokenCount {
   constructor(
     @inject(delay(() => MessageContextStore))
     private messageContextStore: MessageContextStore,
+    @inject(delay(() => ModelInfo))
+    private modelInfo: ModelInfo,
+    private debugLogger: DebugLogger,
   ) {}
 
   public estimateTokenCount(messages: IConversationHistoryMessage[]): number {
@@ -41,5 +46,10 @@ export class MessageContextTokenCount {
   // Alias for getTotalTokenCount for backward compatibility
   public getTokenCount(): number {
     return this.getTotalTokenCount();
+  }
+
+  public async logContextUsage(): Promise<void> {
+    const usedTokens = this.getTotalTokenCount();
+    await this.modelInfo.logCurrentModelUsage(usedTokens);
   }
 }
