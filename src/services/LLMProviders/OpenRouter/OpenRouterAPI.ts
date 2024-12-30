@@ -51,6 +51,7 @@ export class OpenRouterAPI implements ILLMProvider {
   private stream: any;
   private aborted: boolean = false;
   private timeout: number = 0;
+  private currentMessage: string = "";
 
   constructor(
     private htmlEntityDecoder: HtmlEntityDecoder,
@@ -379,6 +380,8 @@ export class OpenRouterAPI implements ILLMProvider {
     const messages = this.getConversationContext();
     const currentModel = this.modelManager.getCurrentModel() || model;
 
+    // Store the current message
+    this.currentMessage = message;
     let assistantMessage = "";
     this.streamBuffer = "";
 
@@ -526,11 +529,13 @@ export class OpenRouterAPI implements ILLMProvider {
     }
     this.streamBuffer = "";
     this.aborted = false;
+    // Don't clear currentMessage here since we need it for tests and abort handling
   }
 
   cancelStream() {
     this.aborted = true;
     if (this.stream) {
+      this.messageContextHistory.setAbortedMessage(this.currentMessage);
       this.stream.removeAllListeners();
       this.stream.destroy();
       this.stream = null;

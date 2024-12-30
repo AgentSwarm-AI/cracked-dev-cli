@@ -334,4 +334,97 @@ describe("MessageContextHistory", () => {
       );
     });
   });
+
+  describe("aborted message handling", () => {
+    it("should store and retrieve aborted message", () => {
+      // Set up
+      const message = "test message";
+
+      // Execute
+      messageContextHistory.setAbortedMessage(message);
+
+      // Verify - using a new message to check if aborted message is combined
+      const mockData = mockMessageContextData({
+        conversationHistory: [
+          { role: "user", content: "test message new message" },
+        ],
+      });
+      messageContextGetContextDataSpy.mockReturnValue(mockMessageContextData());
+      const buildMessageContextSpy = unitTestMocker
+        .spyPrototype(MessageContextBuilder, "buildMessageContext")
+        .mockReturnValue(mockData);
+
+      messageContextHistory.addMessage("user", "new message");
+
+      // Verify the combined message was passed to buildMessageContext
+      expect(buildMessageContextSpy).toHaveBeenCalledWith(
+        "user",
+        "test message new message",
+        expect.any(String),
+        expect.any(Object),
+      );
+    });
+
+    it("should clear aborted message after using it", () => {
+      // Set up
+      messageContextHistory.setAbortedMessage("test message");
+
+      const mockData1 = mockMessageContextData({
+        conversationHistory: [
+          { role: "user", content: "test message new message" },
+        ],
+      });
+      messageContextGetContextDataSpy.mockReturnValue(mockMessageContextData());
+      const buildMessageContextSpy = unitTestMocker
+        .spyPrototype(MessageContextBuilder, "buildMessageContext")
+        .mockReturnValue(mockData1);
+
+      // Execute - first message combines with aborted message
+      messageContextHistory.addMessage("user", "new message");
+
+      // Reset mock to verify second message
+      jest.clearAllMocks();
+      messageContextGetContextDataSpy.mockReturnValue(mockMessageContextData());
+
+      const mockData2 = mockMessageContextData({
+        conversationHistory: [{ role: "user", content: "second message" }],
+      });
+      buildMessageContextSpy.mockReturnValue(mockData2);
+
+      // Second message should not combine with anything
+      messageContextHistory.addMessage("user", "second message");
+
+      // Verify the second message was not combined
+      expect(buildMessageContextSpy).toHaveBeenCalledWith(
+        "user",
+        "second message",
+        expect.any(String),
+        expect.any(Object),
+      );
+    });
+
+    it("should only combine aborted message with user messages", () => {
+      // Set up
+      messageContextHistory.setAbortedMessage("test message");
+
+      const mockData = mockMessageContextData({
+        conversationHistory: [{ role: "assistant", content: "response" }],
+      });
+      messageContextGetContextDataSpy.mockReturnValue(mockMessageContextData());
+      const buildMessageContextSpy = unitTestMocker
+        .spyPrototype(MessageContextBuilder, "buildMessageContext")
+        .mockReturnValue(mockData);
+
+      // Execute - assistant message should not combine with aborted message
+      messageContextHistory.addMessage("assistant", "response");
+
+      // Verify
+      expect(buildMessageContextSpy).toHaveBeenCalledWith(
+        "assistant",
+        "response",
+        expect.any(String),
+        expect.any(Object),
+      );
+    });
+  });
 });

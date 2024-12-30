@@ -564,4 +564,77 @@ describe("OpenRouterAPI", () => {
       });
     });
   });
+
+  describe("cancelStream", () => {
+    it("should store current message in MessageContextHistory when aborting", () => {
+      // Set up
+      const stream = {
+        removeAllListeners: jest.fn(),
+        destroy: jest.fn(),
+      };
+      (openRouterAPI as any).stream = stream;
+      (openRouterAPI as any).currentMessage = "test message";
+
+      const setAbortedMessageSpy = jest.spyOn(
+        MessageContextHistory.prototype,
+        "setAbortedMessage",
+      );
+
+      // Execute
+      openRouterAPI.cancelStream();
+
+      // Verify
+      expect(setAbortedMessageSpy).toHaveBeenCalledWith("test message");
+      expect(stream.removeAllListeners).toHaveBeenCalled();
+      expect(stream.destroy).toHaveBeenCalled();
+      expect((openRouterAPI as any).stream).toBeNull();
+      expect((openRouterAPI as any).aborted).toBe(true);
+    });
+
+    it("should not call setAbortedMessage if no stream exists", () => {
+      // Set up
+      (openRouterAPI as any).stream = null;
+      (openRouterAPI as any).currentMessage = "test message";
+
+      const setAbortedMessageSpy = jest.spyOn(
+        MessageContextHistory.prototype,
+        "setAbortedMessage",
+      );
+
+      // Execute
+      openRouterAPI.cancelStream();
+
+      // Verify
+      expect(setAbortedMessageSpy).not.toHaveBeenCalled();
+      expect((openRouterAPI as any).aborted).toBe(true);
+    });
+  });
+
+  describe("streamMessage", () => {
+    it("should store the current message", async () => {
+      // Set up
+      const message = "test message";
+      const callback = jest.fn();
+
+      // Mock the necessary methods to prevent actual API calls
+      jest.spyOn(openRouterAPI as any, "makeRequest").mockResolvedValue({
+        data: new Readable({
+          read() {
+            this.push(
+              Buffer.from(
+                'data: {"choices": [{"delta": {"content": "response"}}]}\n',
+              ),
+            );
+            this.push(null);
+          },
+        }),
+      });
+
+      // Execute
+      await openRouterAPI.streamMessage("test-model", message, callback);
+
+      // Verify
+      expect((openRouterAPI as any).currentMessage).toBe(message);
+    });
+  });
 });

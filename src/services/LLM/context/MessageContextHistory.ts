@@ -10,6 +10,8 @@ import { MessageContextTokenCount } from "./MessageContextTokenCount";
 @singleton()
 @autoInjectable()
 export class MessageContextHistory {
+  private abortedMessage: string | null = null;
+
   constructor(
     private messageContextStore: MessageContextStore,
     private messageContextLogger: MessageContextLogger,
@@ -19,6 +21,10 @@ export class MessageContextHistory {
     private messageContextTokenCount: MessageContextTokenCount,
   ) {}
 
+  public setAbortedMessage(message: string): void {
+    this.abortedMessage = message;
+  }
+
   public addMessage(
     role: string,
     content: string,
@@ -27,6 +33,12 @@ export class MessageContextHistory {
   ): boolean {
     if (!["user", "assistant", "system"].includes(role)) {
       throw new Error(`Invalid role: ${role}`);
+    }
+
+    // If there's an aborted message and this is a new user message, combine them
+    if (this.abortedMessage && role === "user") {
+      content = `${this.abortedMessage} ${content}`;
+      this.abortedMessage = null;
     }
 
     const cleanedContent = this.cleanContent(content);
