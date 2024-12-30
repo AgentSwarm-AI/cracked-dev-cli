@@ -1,6 +1,6 @@
 {
   "name": "cracked-dev-cli",
-  "version": "1.2.12",
+  "version": "1.2.13",
   "description": "AI-powered CLI tool for software development",
   "license": "MIT",
   "type": "module",
