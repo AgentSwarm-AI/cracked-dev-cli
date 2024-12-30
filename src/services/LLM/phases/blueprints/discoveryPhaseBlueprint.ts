@@ -112,8 +112,9 @@ REMEMBER: ONLY ONE ACTION PER REPLY!!!
 <end_phase>strategy_phase</end_phase>
 
 ### Commands
-- Run specific test: ${args.runOneTestCmd || "yarn test {relativeTestPath}"}
-- Run type check: ${args.runTypeCheckCmd || "yarn tsc"}
+- Run specific test: ${args.runOneTestCmd || "yarn jest {relativeTestPath}"}
+- Run type check (all files): ${args.runAllFilesTypeCheckCmd || "yarn tsc"}
+- Run type check (single file): ${args.runOneFileTypeCheckCmd || "yarn tsc {filePath}"}
 
 ## Environment
 ${args.projectInfo || ""}

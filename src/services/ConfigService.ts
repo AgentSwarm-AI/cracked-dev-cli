@@ -35,7 +35,8 @@ const configSchema = z.object({
   ),
   runAllTestsCmd: z.string().optional(),
   runOneTestCmd: z.string().optional(),
-  runTypeCheckCmd: z.string().optional(),
+  runAllFilesTypeCheckCmd: z.string().optional(),
+  runOneFileTypeCheckCmd: z.string().optional(),
   enableConversationLog: z.boolean().optional(),
   logDirectory: z.string().optional(),
   directoryScanner: z
@@ -210,9 +211,10 @@ export class ConfigService {
             maxGlobalTries: 20,
           },
         ],
-        runAllTestsCmd: "yarn test",
-        runOneTestCmd: "yarn test {relativeTestPath}",
-        runTypeCheckCmd: "yarn typecheck",
+        runAllTestsCmd: "yarn jest",
+        runOneTestCmd: "yarn jest {relativeTestPath}",
+        runAllFilesTypeCheckCmd: "yarn eslint --fix",
+        runOneFileTypeCheckCmd: "yarn eslint --fix {relativeFilePath}",
         enableConversationLog: false,
         logDirectory: "logs",
         directoryScanner: {

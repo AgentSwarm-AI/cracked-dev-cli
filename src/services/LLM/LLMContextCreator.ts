@@ -119,9 +119,12 @@ export class LLMContextCreator {
       return "";
     }
 
-    const runAllTestsCmd = config.runAllTestsCmd || "yarn test";
-    const runOneTestCmd = config.runOneTestCmd || "yarn test {testPath}";
-    const runTypeCheckCmd = config.runTypeCheckCmd || "yarn type-check";
+    const runAllTestsCmd = config.runAllTestsCmd || "yarn jest";
+    const runOneTestCmd = config.runOneTestCmd || "yarn jest {testPath}";
+    const runAllFilesTypeCheckCmd =
+      config.runAllFilesTypeCheckCmd || "yarn type-check";
+    const runOneFileTypeCheckCmd =
+      config.runOneFileTypeCheckCmd || "yarn type-check {filePath}";
 
     // Add project language and package manager info
     const projectSetup = `# Project Setup
@@ -148,7 +151,7 @@ ${Object.entries(info.scripts)
 # Test Commands
 Run All Tests: ${runAllTestsCmd}
 Run Single Test: ${runOneTestCmd}
-Run Type Check: ${runTypeCheckCmd}
+Run Type Check: ${runAllFilesTypeCheckCmd}
 
 # Reference Examples
 ${referenceExamplesSection}`;
@@ -197,7 +200,8 @@ ${additionalInstructions ? `${additionalInstructions}` : ""}
       projectInfo: context.projectInfo,
       runAllTestsCmd: config.runAllTestsCmd,
       runOneTestCmd: config.runOneTestCmd,
-      runTypeCheckCmd: config.runTypeCheckCmd,
+      runAllFilesTypeCheckCmd: config.runAllFilesTypeCheckCmd,
+      runOneFileTypeCheckCmd: config.runOneFileTypeCheckCmd,
     };
 
     const initialInstructions = await this.formatInitialInstructions(

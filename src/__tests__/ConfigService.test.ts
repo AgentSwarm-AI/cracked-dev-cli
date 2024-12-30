@@ -93,7 +93,8 @@ describe("ConfigService", () => {
     ],
     runAllTestsCmd: "yarn test",
     runOneTestCmd: "yarn test {relativeTestPath}",
-    runTypeCheckCmd: "yarn typecheck",
+    runAllFilesTypeCheckCmd: "yarn typecheck",
+    runOneFileTypeCheckCmd: "yarn typecheck {relativeFilePath}",
     enableConversationLog: false,
     directoryScanner: {
       defaultIgnore: ["dist", "coverage", ".next", "build", ".cache", ".husky"],

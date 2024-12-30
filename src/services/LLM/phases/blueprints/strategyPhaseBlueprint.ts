@@ -65,9 +65,10 @@ REMEMBER: ONLY ONE ACTION PER REPLY!!!
 </end_phase>
 
 ### Useful Commands
-- Run all tests: ${args.runAllTestsCmd || "yarn test"}
-- Run a specific test: ${args.runOneTestCmd || "yarn test {relativeTestPath}"}
-- Run type check: ${args.runTypeCheckCmd || "yarn type-check"}
+- Run all tests: ${args.runAllTestsCmd || "yarn jest"}
+- Run a specific test: ${args.runOneTestCmd || "yarn jest {relativeTestPath}"}
+- Run type check (all files): ${args.runAllFilesTypeCheckCmd || "yarn tsc"}
+- Run type check (single file): ${args.runOneFileTypeCheckCmd || "yarn tsc {filePath}"}
 
 # Available Actions
 

@@ -61,9 +61,10 @@ export class ConfigServiceTestHelper {
         maxGlobalTries: 20,
       },
     ],
-    runAllTestsCmd: "yarn test",
-    runOneTestCmd: "yarn test {relativeTestPath}",
-    runTypeCheckCmd: "yarn typecheck",
+    runAllTestsCmd: "yarn jest",
+    runOneTestCmd: "yarn jest {relativeTestPath}",
+    runAllFilesTypeCheckCmd: "yarn typecheck",
+    runOneFileTypeCheckCmd: "yarn typecheck {filePath}",
     enableConversationLog: false,
     directoryScanner: {
       defaultIgnore: ["dist", "coverage", ".next", "build", ".cache", ".husky"],

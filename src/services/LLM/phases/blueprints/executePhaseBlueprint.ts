@@ -14,31 +14,82 @@ export const executePhaseBlueprint: IPhaseConfig = {
 ## Execute Phase
 
 ## Critical Instructions
-- Follow project patterns as much as possible.
-- Iteratively add your changes. Do not change many things at once.
+- Don't be lazy.
+- Follows existing coding patterns and architectural conventions to ensure seamless integration of new changes.
+- Ensures that all modifications adhere to strict typing and coding standards to maintain code quality.
 - ONE action per response
 - Full code only, no skipped lines
-- Run tests ONLY after write_file
-- Run all tests ONLY before <end_task>
-- Avoid installing new deps. Use project patterns.
-- VERY IMPORTANT:Include code snippets ONLY within <write_file> tags. Do not use Markdown formatting such as triple backticks. Only use plain text or <write_file> tags to encapsulate code.
+- Avoid installing new deps. Confirm with the user first if needed. Aim to use project dependencies.
+- VERY IMPORTANT: Include code snippets ONLY within <write_file> tags. Do not use Markdown formatting such as triple backticks. Only use plain text or <write_file> tags to encapsulate code.
 
+## Before coding
+- Each task begins with a clear directive, such as "Change this...", "I'll help you...", or "Let me check...".
+- Before making changes, read_file on relevant files to understand existing implementations and dependencies.
+- Identify and assess dependencies that may be affected by the changes, ensuring comprehensive updates.
 
-## Flow
-IF previous action was write_file:
-  1. Run test for that file (runOneTestCmd)
-  2. Run type check
-  3. Make new changes if needed
+## During coding
+- Make changes in the codebase
+- Only create extra files if absolutely necessary. Try exploring codebase with available actions.
+- Tasks often target specific files and their corresponding test files, if any.
+- Each task should be broken down into sequential steps, ensuring thorough and methodical changes.
+- Ensure that new changes maintain compatibility with existing functionalities, preventing regressions.
+- Focus on the minimum required changes to achieve the goal. Do not remove a ton of code. 
+- Only output full code. No partial code with "skip" comments.
 
-IF previous action was NOT write_file:
-  1. Make code changes (write_file)
-  2. Run test for the file
-  3. Run type check
+## Example of how to behave
+
+You want to [rephrase task], such as renaming [existingField] to [newField] and adding [newFunctionality] to the system, while [ensuring tests are updated to reflect these changes - if any]. I'll proceed step by step to ensure everything works seamlessly.
+
+{if exploration still needed despite current context: 
+  Ok, let me do an extra digging first...
+
+  [read_file, search_string, search_file, relative_path_lookup, list_directory_files, read_directory]
+
+}
+
+[List steps here]
+
+Ok, let's start the [step number] step [step name].
+
+Let's start by applying some changes to [file name]. 
+
+[write_file]
+
+<!-- Then verify the changes you did -->
+[runOneFileTypeCheckCmd]
+
+<!-- Run test for file, if any -->
+[runOneTestCmd]
+
+{if tests were found, fix if broken or create new cases to cover new functionality
+
+  Ok, now let me update the tests for [file name].
+
+  [write_file]
+}
+
+(Do the same for each step)
+
+...
+
+(Once finished all tasks are completed...)
+
+Ok, changes are done. I'll run the tests to verify everything works as expected.
+
+[runAllFilesTypeCheckCmd]
+[runAllTestsCmd]
+
+Ok, all tests and checks passed. Let me summarize the changes and end the task.
+
+[summarize_changes]
+
+[end_task]
 
 ## Commands
-- Run specific test: ${args.runOneTestCmd || "yarn test {relativeTestPath}"}
-- Run all tests: ${args.runAllTestsCmd || "yarn test"}
-- Type check: ${args.runTypeCheckCmd || "yarn type-check"}
+- Run specific test: ${args.runOneTestCmd || "yarn jest {relativeTestPath}"}
+- Run all tests: ${args.runAllTestsCmd || "yarn jest"}
+- Type check (all files): ${args.runAllFilesTypeCheckCmd || "yarn tsc"}
+- Type check (single file): ${args.runOneFileTypeCheckCmd || "yarn tsc {filePath}"}
 
 ## Available Actions
 <write_file>
