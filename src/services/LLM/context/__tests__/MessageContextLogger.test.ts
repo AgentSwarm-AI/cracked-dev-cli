@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { UnitTestMocker } from "@/jest/mocks/UnitTestMocker";
 import { DebugLogger } from "@/services/logging/DebugLogger";
+import { ConfigService } from "@services/ConfigService";
 import { IConversationHistoryMessage } from "@services/LLM/ILLMProvider";
 import fs from "fs";
 import { container } from "tsyringe";
@@ -29,6 +30,9 @@ describe("MessageContextLogger", () => {
   let unitTestMocker: UnitTestMocker;
   let messageContextLogger: MessageContextLogger;
   let messageContextStore: MessageContextStore;
+  let messageContextBuilder: MessageContextBuilder;
+  let configService: ConfigService;
+  let debugLogger: DebugLogger;
 
   let logMessageSpy: jest.SpyInstance;
   let fsWriteFileSyncSpy: jest.SpyInstance;
@@ -48,11 +52,29 @@ describe("MessageContextLogger", () => {
 
   beforeAll(() => {
     unitTestMocker = new UnitTestMocker();
-    messageContextStore = container.resolve(MessageContextStore);
-    messageContextLogger = container.resolve(MessageContextLogger);
   });
 
   beforeEach(() => {
+    // Create instances with mocked dependencies
+    messageContextStore = container.resolve(MessageContextStore);
+    messageContextBuilder = container.resolve(MessageContextBuilder);
+    configService = container.resolve(ConfigService);
+    debugLogger = container.resolve(DebugLogger);
+
+    // Mock ConfigService to enable logging
+    unitTestMocker.mockPrototypeWith(ConfigService, "getConfig", () => ({
+      enableConversationLog: true,
+      logDirectory: "logs",
+    }));
+
+    // Create MessageContextLogger instance with mocked dependencies
+    messageContextLogger = new MessageContextLogger(
+      debugLogger,
+      configService,
+      messageContextBuilder,
+      messageContextStore,
+    );
+
     // Reset lock state
     Object.defineProperty(messageContextLogger, "isLogging", {
       get: () => false,

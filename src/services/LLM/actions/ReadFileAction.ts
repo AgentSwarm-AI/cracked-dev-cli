@@ -74,7 +74,7 @@ export class ReadFileAction extends BaseAction {
 
   private async handleSingleFile(filePath: string): Promise<IActionResult> {
     const result = await this.fileOperations.read(filePath);
-    return this.convertFileResult(result);
+    return this.convertFileResult(result, filePath);
   }
 
   private async handleMultipleFiles(
@@ -89,15 +89,18 @@ export class ReadFileAction extends BaseAction {
       );
     }
 
-    this.logSuccess("Action completed successfully. Please wait...\n");
+    this.logSuccess(`Read files: ${filePaths.join(", ")}\n`);
     console.log("-".repeat(50));
 
     return this.createSuccessResult(result.data);
   }
 
-  private convertFileResult(result: IFileOperationResult): IActionResult {
+  private convertFileResult(
+    result: IFileOperationResult,
+    filePath?: string,
+  ): IActionResult {
     if (result?.success) {
-      this.logSuccess("Action completed successfully. Please wait...\n");
+      this.logSuccess(`Read file: ${filePath}\n`);
     } else {
       this.logError(result?.error?.message || "Unknown error");
     }

@@ -49,6 +49,7 @@ describe("PhaseManager", () => {
       lockFiles: ["package-lock.json"],
     },
     referenceExamples: {},
+    timeoutSeconds: 0,
   };
 
   beforeAll(() => {
@@ -145,6 +146,7 @@ describe("PhaseManager", () => {
           lockFiles: ["package-lock.json"],
         },
         referenceExamples: {},
+        timeoutSeconds: 0,
       };
 
       jest.spyOn(configService, "getConfig").mockReturnValue(customConfig);
@@ -203,6 +205,7 @@ describe("PhaseManager", () => {
           lockFiles: ["package-lock.json"],
         },
         referenceExamples: {},
+        timeoutSeconds: 0,
       };
 
       jest.spyOn(configService, "getConfig").mockReturnValue(emptyConfig);
