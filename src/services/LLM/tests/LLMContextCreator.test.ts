@@ -83,7 +83,10 @@ describe("LLMContextCreator", () => {
     });
 
     mocker.mockPrototype(ConfigService, "getConfig", {
-      includeAllFilesOnEnvToContext: true,
+      contextPaths: {
+        includeFilesAndDirectories: false,
+        includeDirectoriesOnly: true,
+      },
       customInstructions: "Default custom instructions",
     });
 
@@ -308,7 +311,10 @@ describe("LLMContextCreator", () => {
 
     it("should not include environment details when config flag is false", async () => {
       mocker.mockPrototype(ConfigService, "getConfig", {
-        includeAllFilesOnEnvToContext: false,
+        contextPaths: {
+          includeFilesAndDirectories: false,
+          includeDirectoriesOnly: true,
+        },
         customInstructions: "Default custom instructions",
       });
 
@@ -438,7 +444,10 @@ describe("LLMContextCreator", () => {
       });
 
       mocker.mockPrototype(ConfigService, "getConfig", {
-        includeAllFilesOnEnvToContext: true,
+        contextPaths: {
+          includeFilesAndDirectories: false,
+          includeDirectoriesOnly: true,
+        },
         truncateFilesOnEnvAfterLinesLimit: 1000,
         customInstructions: "test",
       });
@@ -460,7 +469,10 @@ describe("LLMContextCreator", () => {
       });
 
       mocker.mockPrototype(ConfigService, "getConfig", {
-        includeAllFilesOnEnvToContext: true,
+        contextPaths: {
+          includeFilesAndDirectories: false,
+          includeDirectoriesOnly: true,
+        },
         truncateFilesOnEnvAfterLinesLimit: 1000,
         customInstructions: "test",
       });

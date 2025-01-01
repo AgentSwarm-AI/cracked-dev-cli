@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import fs from "fs";
+import fs, { truncate } from "fs";
 import path from "path";
 import { ConfigService } from "../services/ConfigService";
 
@@ -23,7 +23,32 @@ describe("ConfigService", () => {
     debug: false,
     options: "temperature=0",
     openRouterApiKey: "test-key",
-    autoScaleAvailableModels: [], // Required by schema
+    appUrl: "https://localhost:8080",
+    appName: "MyApp",
+    autoScaler: true,
+    autoScaleMaxTryPerModel: 2,
+    contextPaths: {
+      includeFilesAndDirectories: false,
+      includeDirectoriesOnly: true,
+    },
+    truncateFilesOnEnvAfterLinesLimit: 1000,
+    discoveryModel: "google/gemini-flash-1.5-8b",
+    strategyModel: "openai/o1-mini",
+    executeModel: "anthropic/claude-3.5-sonnet:beta",
+    autoScaleAvailableModels: [],
+    directoryScanner: {
+      defaultIgnore: ["dist", "coverage", ".next", "build", ".cache", ".husky"],
+      maxDepth: 8,
+      allFiles: true,
+      directoryFirst: true,
+      excludeDirectories: false,
+    },
+    gitDiff: {
+      excludeLockFiles: true,
+      lockFiles: ["package-lock.json"],
+    },
+    referenceExamples: {},
+    timeoutSeconds: 0,
   };
 
   // Helper functions
@@ -70,8 +95,11 @@ describe("ConfigService", () => {
     discoveryModel: "google/gemini-flash-1.5-8b",
     strategyModel: "qwen/qwq-32b-preview",
     executeModel: "anthropic/claude-3.5-sonnet:beta",
-    includeAllFilesOnEnvToContext: false,
-        truncateFilesOnEnvAfterLinesLimit: 1000,
+    contextPaths: {
+      includeFilesAndDirectories: false,
+      includeDirectoriesOnly: true,
+    },
+    truncateFilesOnEnvAfterLinesLimit: 1000,
     autoScaleAvailableModels: [
       {
         id: "qwen/qwen-2.5-coder-32b-instruct",
@@ -373,6 +401,11 @@ describe("ConfigService", () => {
         options: "temperature=0",
         openRouterApiKey: "test-key",
         autoScaleAvailableModels: [],
+        contextPaths: {
+          includeFilesAndDirectories: false,
+          includeDirectoriesOnly: true,
+        },
+        truncateFilesOnEnvAfterLinesLimit: 1000,
       };
 
       (fs.existsSync as jest.Mock).mockReturnValue(true);
@@ -381,7 +414,8 @@ describe("ConfigService", () => {
       );
 
       const config = configService.getConfig();
-      expect(config.includeAllFilesOnEnvToContext).toBe(true);
+      expect(config.contextPaths.includeFilesAndDirectories).toBe(false);
+      expect(config.contextPaths.includeDirectoriesOnly).toBe(true);
       expect(config.truncateFilesOnEnvAfterLinesLimit).toBe(1000);
     });
 
@@ -398,8 +432,11 @@ describe("ConfigService", () => {
 
       const customConfig = {
         ...validMockConfig,
-        includeAllFilesOnEnvToContext: false,
-        truncateFilesOnEnvAfterLinesLimit: 500,
+        contextPaths:{
+          includeFilesAndDirectories: true,
+          includeDirectoriesOnly: false,
+        },
+        truncateFilesOnEnvAfterLinesLimit: 500,      
       };
 
       (fs.existsSync as jest.Mock).mockReturnValue(true);
@@ -408,7 +445,8 @@ describe("ConfigService", () => {
       );
 
       const config = configService.getConfig();
-      expect(config.includeAllFilesOnEnvToContext).toBe(false);
+      expect(config.contextPaths.includeDirectoriesOnly).toBe(false);
+      expect(config.contextPaths.includeFilesAndDirectories).toBe(true);
       expect(config.truncateFilesOnEnvAfterLinesLimit).toBe(500);
     });
   });

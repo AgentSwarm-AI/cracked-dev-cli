@@ -27,7 +27,10 @@ describe("PhaseManager", () => {
     executeModel: "model3",
     autoScaler: false,
     autoScaleMaxTryPerModel: 2,
-    includeAllFilesOnEnvToContext: false,
+    contextPaths:{
+      includeFilesAndDirectories: false,
+      includeDirectoriesOnly: true,
+    },
     truncateFilesOnEnvAfterLinesLimit: 1000,
     autoScaleAvailableModels: [
       {
@@ -124,7 +127,10 @@ describe("PhaseManager", () => {
         appName: "TestApp",
         autoScaler: false,
         autoScaleMaxTryPerModel: 2,
-        includeAllFilesOnEnvToContext: false,
+        contextPaths:{
+          includeFilesAndDirectories: false,
+          includeDirectoriesOnly: true,
+        },
         truncateFilesOnEnvAfterLinesLimit: 1000,
         autoScaleAvailableModels: [
           {
@@ -183,7 +189,10 @@ describe("PhaseManager", () => {
         executeModel: "model3",
         autoScaler: false,
         autoScaleMaxTryPerModel: 2,
-        includeAllFilesOnEnvToContext: false,
+        contextPaths:{
+          includeFilesAndDirectories: false,
+          includeDirectoriesOnly: true,
+        },
         truncateFilesOnEnvAfterLinesLimit: 1000,
         autoScaleAvailableModels: [
           {
