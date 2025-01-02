@@ -102,13 +102,28 @@ export class LLMContextCreator {
     return baseContext.message;
   }
 
+  private truncateFileContent(
+    content: string | null | undefined,
+    lineLimit: number,
+  ): string {
+    if (!content) return "";
+    const lines = content.split("\n");
+    if (lines.length <= lineLimit) return content;
+    return lines.slice(0, lineLimit).join("\n") + "\n[Content truncated...]";
+  }
+
   private async getEnvironmentDetails(root: string): Promise<string> {
     const scanResult = await this.directoryScanner.scan(root);
     if (!scanResult.success) {
       throw new Error(`Failed to scan directory: ${scanResult.error}`);
     }
 
-    return `# Current Working Directory (${root}) Files\n${scanResult.data}`;
+    const config = this.configService.getConfig();
+    const limit = config.truncateFilesOnEnvAfterLinesLimit;
+
+    const content = String(scanResult.data || "");
+    const truncatedContent = this.truncateFileContent(content, limit);
+    return `# Current Working Directory (${root}) Files\n${truncatedContent}`;
   }
 
   private async getProjectInfo(root: string): Promise<string> {
@@ -187,7 +202,7 @@ ${additionalInstructions ? `${additionalInstructions}` : ""}
     const phaseConfig = this.phaseManager.getCurrentPhaseConfig();
     const customInstructions = await this.loadCustomInstructions();
 
-    const envDetails = config.includeAllFilesOnEnvToContext
+    const envDetails = config.contextPaths.includeFilesAndDirectories
       ? context.environmentDetails
       : "";
 

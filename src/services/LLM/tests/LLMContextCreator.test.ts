@@ -83,7 +83,10 @@ describe("LLMContextCreator", () => {
     });
 
     mocker.mockPrototype(ConfigService, "getConfig", {
-      includeAllFilesOnEnvToContext: true,
+      contextPaths: {
+        includeFilesAndDirectories: false,
+        includeDirectoriesOnly: true,
+      },
       customInstructions: "Default custom instructions",
     });
 
@@ -308,7 +311,10 @@ describe("LLMContextCreator", () => {
 
     it("should not include environment details when config flag is false", async () => {
       mocker.mockPrototype(ConfigService, "getConfig", {
-        includeAllFilesOnEnvToContext: false,
+        contextPaths: {
+          includeFilesAndDirectories: false,
+          includeDirectoriesOnly: true,
+        },
         customInstructions: "Default custom instructions",
       });
 
@@ -426,6 +432,58 @@ describe("LLMContextCreator", () => {
       expect(result).toContain("custom instructions");
       expect(result).not.toContain("env details");
       expect(result).toContain("project info");
+    });
+  });
+
+  describe("file content truncation", () => {
+    it("should truncate file content when it exceeds the limit", async () => {
+      const longContent = Array(1500).fill("line").join("\n");
+      mocker.mockPrototype(DirectoryScanner, "scan", {
+        success: true,
+        data: longContent,
+      });
+
+      mocker.mockPrototype(ConfigService, "getConfig", {
+        contextPaths: {
+          includeFilesAndDirectories: false,
+          includeDirectoriesOnly: true,
+        },
+        truncateFilesOnEnvAfterLinesLimit: 1000,
+        customInstructions: "test",
+      });
+
+      const context = await contextCreator.create(
+        "test message",
+        "/root",
+        true,
+      );
+      expect(context).toContain("[Content truncated...]");
+      expect(context.split("\n").length).toBeLessThan(1500);
+    });
+
+    it("should not truncate file content when under the limit", async () => {
+      const shortContent = Array(500).fill("line").join("\n");
+      mocker.mockPrototype(DirectoryScanner, "scan", {
+        success: true,
+        data: shortContent,
+      });
+
+      mocker.mockPrototype(ConfigService, "getConfig", {
+        contextPaths: {
+          includeFilesAndDirectories: false,
+          includeDirectoriesOnly: true,
+        },
+        truncateFilesOnEnvAfterLinesLimit: 1000,
+        customInstructions: "test",
+      });
+
+      const context = await contextCreator.create(
+        "test message",
+        "/root",
+        true,
+      );
+      expect(context).not.toContain("[Content truncated...]");
+      expect(context.split("\n").length).toBeLessThan(1000);
     });
   });
 });

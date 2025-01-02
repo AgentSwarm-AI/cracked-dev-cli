@@ -40,7 +40,11 @@ export class ConfigServiceTestHelper {
     discoveryModel: "google/gemini-flash-1.5-8b",
     strategyModel: "qwen/qwq-32b-preview",
     executeModel: "anthropic/claude-3.5-sonnet:beta",
-    includeAllFilesOnEnvToContext: false,
+    contextPaths: {
+      includeFilesAndDirectories: false,
+      includeDirectoriesOnly: true,
+    },
+    truncateFilesOnEnvAfterLinesLimit: 1000,
     autoScaleAvailableModels: [
       {
         id: "qwen/qwen-2.5-coder-32b-instruct",
