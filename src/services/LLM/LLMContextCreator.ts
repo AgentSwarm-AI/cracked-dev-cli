@@ -102,7 +102,11 @@ export class LLMContextCreator {
     return baseContext.message;
   }
 
-  private truncateFileContent(content: string, lineLimit: number): string {
+  private truncateFileContent(
+    content: string | null | undefined,
+    lineLimit: number,
+  ): string {
+    if (!content) return "";
     const lines = content.split("\n");
     if (lines.length <= lineLimit) return content;
     return lines.slice(0, lineLimit).join("\n") + "\n[Content truncated...]";
