@@ -27,7 +27,10 @@ describe("PhaseManager", () => {
     executeModel: "model3",
     autoScaler: false,
     autoScaleMaxTryPerModel: 2,
-    includeAllFilesOnEnvToContext: false,
+    contextPaths:{
+      includeFilesAndDirectories: false,
+      includeDirectoriesOnly: true,
+    },
     truncateFilesOnEnvAfterLinesLimit: 1000,
     autoScaleAvailableModels: [
       {
@@ -49,6 +52,7 @@ describe("PhaseManager", () => {
       lockFiles: ["package-lock.json"],
     },
     referenceExamples: {},
+    timeoutSeconds: 0,
   };
 
   beforeAll(() => {
@@ -123,7 +127,10 @@ describe("PhaseManager", () => {
         appName: "TestApp",
         autoScaler: false,
         autoScaleMaxTryPerModel: 2,
-        includeAllFilesOnEnvToContext: false,
+        contextPaths:{
+          includeFilesAndDirectories: false,
+          includeDirectoriesOnly: true,
+        },
         truncateFilesOnEnvAfterLinesLimit: 1000,
         autoScaleAvailableModels: [
           {
@@ -145,6 +152,7 @@ describe("PhaseManager", () => {
           lockFiles: ["package-lock.json"],
         },
         referenceExamples: {},
+        timeoutSeconds: 0,
       };
 
       jest.spyOn(configService, "getConfig").mockReturnValue(customConfig);
@@ -181,7 +189,10 @@ describe("PhaseManager", () => {
         executeModel: "model3",
         autoScaler: false,
         autoScaleMaxTryPerModel: 2,
-        includeAllFilesOnEnvToContext: false,
+        contextPaths:{
+          includeFilesAndDirectories: false,
+          includeDirectoriesOnly: true,
+        },
         truncateFilesOnEnvAfterLinesLimit: 1000,
         autoScaleAvailableModels: [
           {
@@ -203,6 +214,7 @@ describe("PhaseManager", () => {
           lockFiles: ["package-lock.json"],
         },
         referenceExamples: {},
+        timeoutSeconds: 0,
       };
 
       jest.spyOn(configService, "getConfig").mockReturnValue(emptyConfig);

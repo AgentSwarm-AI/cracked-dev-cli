@@ -202,7 +202,7 @@ ${additionalInstructions ? `${additionalInstructions}` : ""}
     const phaseConfig = this.phaseManager.getCurrentPhaseConfig();
     const customInstructions = await this.loadCustomInstructions();
 
-    const envDetails = config.includeAllFilesOnEnvToContext
+    const envDetails = config.contextPaths.includeFilesAndDirectories
       ? context.environmentDetails
       : "";
 

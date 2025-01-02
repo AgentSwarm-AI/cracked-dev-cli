@@ -10,7 +10,9 @@ import { endTaskActionBlueprint } from "./endTaskActionBlueprint";
 import { fetchUrlActionBlueprint } from "./fetchUrlActionBlueprint";
 import { gitDiffActionBlueprint } from "./gitDiffActionBlueprint";
 import { gitPRDiffActionBlueprint } from "./gitPRDiffActionBlueprint";
+import { listDirectoryFilesActionBlueprint } from "./listDirectoryFilesActionBlueprint";
 import { moveFileActionBlueprint } from "./moveFileActionBlueprint";
+import { readDirectoryActionBlueprint } from "./readDirectoryActionBlueprint";
 import { readFileActionBlueprint } from "./readFileActionBlueprint";
 import { relativePathLookupActionBlueprint } from "./relativePathLookupActionBlueprint";
 import {
@@ -36,6 +38,8 @@ export const actionsBlueprints = {
   [searchFileActionBlueprint.tag]: searchFileActionBlueprint,
   [searchStringActionBlueprint.tag]: searchStringActionBlueprint,
   [writeFileActionBlueprint.tag]: writeFileActionBlueprint,
+  [listDirectoryFilesActionBlueprint.tag]: listDirectoryFilesActionBlueprint,
+  [readDirectoryActionBlueprint.tag]: readDirectoryActionBlueprint,
 } as const;
 
 // Type for action tags based on the blueprint map

@@ -41,7 +41,6 @@ export class CommandAction extends BaseAction {
       .replace(new RegExp(`<\\/${tag}>$`), "")
       .trim();
 
-    this.logInfo(`Parsed command: ${command}`);
     return { command };
   }
 
@@ -60,7 +59,7 @@ export class CommandAction extends BaseAction {
   ): Promise<IActionResult> {
     try {
       const { command } = params as CommandParams;
-      this.logInfo(`Executing command: ${command}`);
+      this.logInfo(`Executing: ${command}`);
       return this.executeCommand(command);
     } catch (error) {
       // Even on error, return success with the error message as output
