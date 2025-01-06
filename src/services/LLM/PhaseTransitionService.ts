@@ -1,6 +1,5 @@
 import { injectable } from "tsyringe";
 import { WriteActionData } from "./actions/types/ActionTypes";
-import { MessageContextHistory } from "./context/MessageContextHistory";
 import { MessageContextPhase } from "./context/MessageContextPhase";
 import { ModelManager } from "./ModelManager";
 import { PhaseManager } from "./PhaseManager";
@@ -12,7 +11,6 @@ export class PhaseTransitionService {
     private phaseManager: PhaseManager,
     private modelManager: ModelManager,
     private messageContextPhase: MessageContextPhase,
-    private messageContextHistory: MessageContextHistory,
   ) {}
 
   async transitionToNextPhase(): Promise<WriteActionData> {

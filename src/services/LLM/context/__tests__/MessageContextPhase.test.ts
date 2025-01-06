@@ -132,8 +132,7 @@ describe("MessageContextPhase", () => {
         { role: "user", content: "Regular message" },
         {
           role: "assistant",
-          content:
-            "Message with <phase_prompt>embedded phase</phase_prompt> and content",
+          content: "Message with  and content",
         },
       ]);
     });

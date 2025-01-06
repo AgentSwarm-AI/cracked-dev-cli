@@ -21,7 +21,9 @@ export const executePhaseBlueprint: IPhaseConfig = {
 - Full code only, no skipped lines
 - Avoid installing new deps. Confirm with the user first if needed. Aim to use project dependencies.
 - VERY IMPORTANT: Include code snippets ONLY within <write_file> tags. Do not use Markdown formatting such as triple backticks. Only use plain text or <write_file> tags to encapsulate code.
+- When writing tests, just stop when the specific test is passing.
 - Do not get stuck running tests or type checks over and over. After this action, try a solution with write_file.
+- Never execute runAllTestsCmd, unless all previous specific tests and type checks are passing and you're about to end the task.
 
 ## Before coding
 - Each task begins with a clear directive, such as "Change this...", "I'll help you...", or "Let me check...".
@@ -36,6 +38,7 @@ export const executePhaseBlueprint: IPhaseConfig = {
 - Ensure that new changes maintain compatibility with existing functionalities, preventing regressions.
 - Focus on the minimum required changes to achieve the goal. Do not remove a ton of code. 
 - Only output full code. No partial code with "skip" comments.
+- Don't use multiple execute_command per response.
 
 ## Example of how to behave
 
@@ -145,11 +148,7 @@ some code here
 </read_file>
 
 <execute_command>
-  <!-- Any command -->
-</execute_command>
-
-
-<execute_command>
+  <!-- no more than 1 per reply -->
   <!-- Any command like "ls -la" or "yarn install" -->
   <!-- Use project's package manager, no new deps unless allowed -->
   <!-- Avoid git commands, prefer git_diff/git_pr_diff -->

@@ -387,16 +387,15 @@ describe("LLMContextCreator", () => {
     it("should format initial instructions with all fields present", async () => {
       const context = {
         message: "test message",
+        environmentDetails: "env details",
         projectInfo: "project info",
       };
       const customInstructions = "custom instructions";
-      const envDetails = "env details";
 
       // @ts-ignore - accessing private method for testing
       const result = await contextCreator["formatInitialInstructions"](
         context,
         customInstructions,
-        envDetails,
       );
 
       expect(result).toContain("# Task");

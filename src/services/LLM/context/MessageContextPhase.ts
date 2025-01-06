@@ -35,9 +35,9 @@ export class MessageContextPhase {
         ...message,
         content: message.content.replace(
           /<phase_prompt>[\s\S]*?<\/phase_prompt>/g,
-          "<phase_prompt></phase_prompt>",
+          "",
         ),
       }))
-      .filter((message) => message.content.replace(/[\s\n]/g, "").length > 0);
+      .filter((message) => message.content.trim().length > 0);
   }
 }

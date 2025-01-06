@@ -3,8 +3,7 @@ import { IConversationHistoryMessage } from "@services/LLM/ILLMProvider";
 import { DebugLogger } from "@services/logging/DebugLogger";
 import * as fs from "fs";
 import * as path from "path";
-import { container, singleton } from "tsyringe";
-import { MessageContextHistory } from "./MessageContextHistory";
+import { singleton } from "tsyringe";
 import { MessageContextStore } from "./MessageContextStore";
 
 export interface MessageIActionResult {
@@ -106,10 +105,9 @@ export class MessageContextLogger {
   }
 
   async updateConversationHistory(): Promise<void> {
-    const messageContextHistory = container.resolve(MessageContextHistory);
-
-    const messages = messageContextHistory.getMessages();
-    const systemInstructions = messageContextHistory.getSystemInstructions();
+    const contextData = this.messageContextStore.getContextData();
+    const messages = contextData.conversationHistory;
+    const systemInstructions = contextData.systemInstructions;
 
     if (!this.isLoggingEnabled()) {
       this.debugLogger.log("MessageLogger", "Logging disabled");
