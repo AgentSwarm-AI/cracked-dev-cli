@@ -17,22 +17,8 @@ export class MessageContextLimiter {
     const wasCleaned = await this.messageContextCleanup.cleanupContext();
 
     if (wasCleaned) {
-      this.updateLogFile();
       return true;
     }
     return false;
-  }
-
-  private updateLogFile(): void {
-    // Skip logging in test environment or if disabled
-    if (process.env.NODE_ENV === "test" || !this.isLoggingEnabled()) return;
-    this.messageContextLogger.updateConversationHistory(
-      this.messageContextStore.getContextData().conversationHistory,
-      this.messageContextStore.getContextData().systemInstructions,
-    );
-  }
-
-  private isLoggingEnabled(): boolean {
-    return this.messageContextLogger.getConversationLogPath() !== null;
   }
 }

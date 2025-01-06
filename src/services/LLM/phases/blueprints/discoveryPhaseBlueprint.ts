@@ -8,8 +8,8 @@ const config = configService.getConfig();
 export const discoveryPhaseBlueprint: IPhaseConfig = {
   model: config.discoveryModel,
   generatePrompt: (args: IPhasePromptArgs) => `
-<!-- Internal instructions. Do not output. Follow precisely. -->
 <phase_prompt>
+  <!-- Internal instructions. Do not output. Follow precisely. -->
 ## Discovery Phase
 
 Gather relevant information for the current task. Avoid unnecessary detours.
@@ -113,8 +113,8 @@ REMEMBER: ONLY ONE ACTION PER REPLY!!!
 
 ### Commands
 - Run specific test: ${args.runOneTestCmd || "yarn jest {relativeTestPath}"}
-- Run type check (all files): ${args.runAllFilesTypeCheckCmd || "yarn tsc"}
-- Run type check (single file): ${args.runOneFileTypeCheckCmd || "yarn tsc {filePath}"}
+- Run type check (all files): ${args.runAllFilesTypeCheckCmd || "yarn tsc --noEmit"}
+- Run type check (single file): ${args.runOneFileTypeCheckCmd || "yarn tsc {filePath} --noEmit"}
 
 ## Environment
 ${args.projectInfo || ""}

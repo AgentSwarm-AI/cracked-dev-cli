@@ -70,14 +70,6 @@ export class MessageContextHistory {
     );
     this.messageContextStore.setContextData(updatedData);
 
-    if (log) {
-      this.logMessage({
-        role: role as "user" | "assistant" | "system",
-        content,
-      });
-    }
-
-    this.updateLogFile();
     this.messageContextTokenCount.logContextUsage();
 
     return true;
@@ -104,16 +96,6 @@ export class MessageContextHistory {
     return this.messageContextStore.getContextData().systemInstructions;
   }
 
-  public updateLogFile(): void {
-    if (process.env.NODE_ENV === "test" || !this.isLoggingEnabled()) return;
-    this.messageContextLogger.updateConversationHistory(
-      this.messageContextBuilder.getMessageContext(
-        this.messageContextStore.getContextData(),
-      ),
-      this.messageContextStore.getContextData().systemInstructions,
-    );
-  }
-
   private cleanContent(content: string): string {
     // Remove phase prompts
     content = content.replace(/<phase_prompt>.*?<\/phase_prompt>/gs, "").trim();
@@ -132,16 +114,8 @@ export class MessageContextHistory {
     return content;
   }
 
-  private logMessage(message: IConversationHistoryMessage): void {
-    if (process.env.NODE_ENV === "test" || !this.isLoggingEnabled()) return;
-    this.messageContextLogger.logMessage(message);
-  }
-
   private isLoggingEnabled(): boolean {
     const config = this.configService.getConfig();
-    return (
-      this.messageContextLogger.getConversationLogPath() !== null &&
-      config.enableConversationLog === true
-    );
+    return config.enableConversationLog === true;
   }
 }

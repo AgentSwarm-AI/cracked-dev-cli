@@ -40,11 +40,6 @@ export class PhaseTransitionService {
       message: "Continue with the next phase based on previous findings.",
     });
 
-    this.messageContextHistory.addMessage(
-      "system",
-      `Current phase is ${nextPhase}`,
-    );
-
     return {
       regenerate: true,
       selectedModel: nextPhaseConfig.model,

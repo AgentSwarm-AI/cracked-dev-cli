@@ -8,10 +8,10 @@ const config = configService.getConfig();
 export const strategyPhaseBlueprint: IPhaseConfig = {
   model: config.strategyModel,
   generatePrompt: (args: IPhasePromptArgs) => `
-  <!-- These are internal instructions. Do not output. -->
-
 <phase_prompt>
-## Strategy Phase
+<!-- These are internal instructions. Do not output. -->
+
+  ## Strategy Phase
 
 ### Overall Objective
 Plan a final solution from discovery findings. Instruct next agent clearly.
@@ -87,8 +87,8 @@ some code here
 ### Useful Commands
 - Run all tests: ${args.runAllTestsCmd || "yarn jest"}
 - Run a specific test: ${args.runOneTestCmd || "yarn jest {relativeTestPath}"}
-- Run type check (all files): ${args.runAllFilesTypeCheckCmd || "yarn tsc"}
-- Run type check (single file): ${args.runOneFileTypeCheckCmd || "yarn tsc {filePath}"}
+- Run type check (all files): ${args.runAllFilesTypeCheckCmd || "yarn tsc --noEmit"}
+- Run type check (single file): ${args.runOneFileTypeCheckCmd || "yarn tsc {filePath} --noEmit"}
 
 # Available Actions
 

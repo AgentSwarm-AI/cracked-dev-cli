@@ -1,8 +1,8 @@
 // services/messageContext/MessageContextPhase.ts
+import { IConversationHistoryMessage } from "@services/LLM/ILLMProvider";
 import { autoInjectable, singleton } from "tsyringe";
-import { MessageContextStore } from "./MessageContextStore";
-
 import { MessageContextHistory } from "./MessageContextHistory";
+import { MessageContextStore } from "./MessageContextStore";
 
 @singleton()
 @autoInjectable()
@@ -20,10 +20,24 @@ export class MessageContextPhase {
       phaseInstructions: new Map(),
       fileOperations: new Map(currentData.fileOperations),
       commandOperations: new Map(currentData.commandOperations),
-      conversationHistory: [...currentData.conversationHistory],
+      conversationHistory: this.cleanPhaseRelatedMessages(
+        currentData.conversationHistory,
+      ),
       systemInstructions: currentData.systemInstructions,
     });
+  }
 
-    this.messageContextHistory.updateLogFile();
+  private cleanPhaseRelatedMessages(
+    messages: IConversationHistoryMessage[],
+  ): IConversationHistoryMessage[] {
+    return messages
+      .map((message) => ({
+        ...message,
+        content: message.content.replace(
+          /<phase_prompt>[\s\S]*?<\/phase_prompt>/g,
+          "<phase_prompt></phase_prompt>",
+        ),
+      }))
+      .filter((message) => message.content.replace(/[\s\n]/g, "").length > 0);
   }
 }

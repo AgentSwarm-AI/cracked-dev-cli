@@ -28,14 +28,7 @@ export class ActionExecutor {
         const error = new Error(
           "No valid action tags found. Actions must be wrapped in XML-style tags.",
         );
-        this.messageContextLogger.logActionResult("unknown", {
-          success: false,
-          error,
-        });
-        this.messageContextHistory.addMessage(
-          "system",
-          "Action failed: No valid action tags found",
-        );
+
         return { success: false, error };
       }
 
@@ -58,14 +51,7 @@ export class ActionExecutor {
             this.actionQueue.enqueue(actionType, fullMatch);
           } else {
             const error = new Error(`Unknown action type: ${actionType}`);
-            this.messageContextLogger.logActionResult(actionType, {
-              success: false,
-              error,
-            });
-            this.messageContextHistory.addMessage(
-              "system",
-              `Action failed: Unknown type ${actionType}`,
-            );
+
             return { success: false, error };
           }
         }
@@ -84,14 +70,7 @@ export class ActionExecutor {
           const error = new Error(
             `Failed to create action instance for "${action.type}"`,
           );
-          this.messageContextLogger.logActionResult(action.type, {
-            success: false,
-            error,
-          });
-          this.messageContextHistory.addMessage(
-            "system",
-            `Action ${action.type} failed: Could not create instance`,
-          );
+
           return { success: false, error };
         }
 
@@ -101,15 +80,12 @@ export class ActionExecutor {
         // Execute action
         lastResult = await actionInstance.execute(action.content);
 
-        // Log the result
-        this.messageContextLogger.logActionResult(action.type, lastResult);
-
         // Add result to conversation history
         if (lastResult.success) {
           if (lastResult.data) {
             this.messageContextHistory.addMessage(
               "system",
-              `Action ${action.type} succeeded: ${JSON.stringify(lastResult.data)}`,
+              `Action ${action.type} results (analyze and act on): ${JSON.stringify(lastResult.data)}`,
             );
           } else {
             this.messageContextHistory.addMessage(
@@ -163,11 +139,6 @@ export class ActionExecutor {
       // Clear queue on error
       this.actionQueue.clear();
 
-      // Log the error
-      this.messageContextLogger.logActionResult("unknown", {
-        success: false,
-        error: error as Error,
-      });
       this.messageContextHistory.addMessage(
         "system",
         `Action failed with error: ${(error as Error).message}`,
@@ -177,6 +148,8 @@ export class ActionExecutor {
         success: false,
         error: error as Error,
       };
+    } finally {
+      this.messageContextLogger.updateConversationHistory();
     }
   }
 }

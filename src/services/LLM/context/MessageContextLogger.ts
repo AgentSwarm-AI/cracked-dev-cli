@@ -3,8 +3,8 @@ import { IConversationHistoryMessage } from "@services/LLM/ILLMProvider";
 import { DebugLogger } from "@services/logging/DebugLogger";
 import * as fs from "fs";
 import * as path from "path";
-import { inject, singleton } from "tsyringe";
-import { MessageContextBuilder } from "./MessageContextBuilder";
+import { container, singleton } from "tsyringe";
+import { MessageContextHistory } from "./MessageContextHistory";
 import { MessageContextStore } from "./MessageContextStore";
 
 export interface MessageIActionResult {
@@ -16,7 +16,6 @@ export interface MessageIActionResult {
 @singleton()
 export class MessageContextLogger {
   private readonly logDirectory: string;
-  private readonly conversationLogPath: string;
   private readonly conversationHistoryPath: string;
   private readonly logLock: Promise<void>;
   private isLogging: boolean;
@@ -24,17 +23,9 @@ export class MessageContextLogger {
   constructor(
     private debugLogger: DebugLogger,
     private configService: ConfigService,
-    @inject(MessageContextBuilder)
-    private messageContextBuilder: MessageContextBuilder,
-    @inject(MessageContextStore)
     private messageContextStore: MessageContextStore,
   ) {
     this.logDirectory = this.getLogDirectory();
-    this.conversationLogPath = path.join(
-      process.cwd(),
-      this.logDirectory,
-      "conversation.log",
-    );
     this.conversationHistoryPath = path.join(
       process.cwd(),
       this.logDirectory,
@@ -65,7 +56,7 @@ export class MessageContextLogger {
   }
 
   private ensureLogDirectoryExists(): void {
-    const logDir = path.dirname(this.conversationLogPath);
+    const logDir = path.dirname(this.conversationHistoryPath);
     if (!fs.existsSync(logDir)) {
       fs.mkdirSync(logDir, { recursive: true });
     }
@@ -95,7 +86,6 @@ export class MessageContextLogger {
     try {
       await this.acquireLogLock();
       this.ensureLogDirectoryExists();
-      fs.writeFileSync(this.conversationLogPath, "", "utf8");
       fs.writeFileSync(this.conversationHistoryPath, "[]", "utf8");
       this.debugLogger.log("MessageLogger", "Log files cleaned up", {
         logDirectory: this.logDirectory,
@@ -115,97 +105,25 @@ export class MessageContextLogger {
     return config.enableConversationLog === true;
   }
 
-  async logMessage(message: IConversationHistoryMessage): Promise<void> {
-    if (!this.isLoggingEnabled()) return;
-    try {
-      await this.acquireLogLock();
-      this.ensureLogDirectoryExists();
-      this.ensureHistoryFileExists();
-      const timestamp = new Date().toISOString();
-      const logEntry = `[${timestamp}] ${message.role}: ${message.content}\n`;
-      fs.appendFileSync(this.conversationLogPath, logEntry, "utf8");
-      this.debugLogger.log("MessageLogger", "Message logged", { message });
-    } catch (error) {
-      this.debugLogger.log("MessageLogger", "Error writing to log file", {
-        error,
-        logDirectory: this.logDirectory,
-      });
-    } finally {
-      this.releaseLogLock();
+  async updateConversationHistory(): Promise<void> {
+    this.debugLogger.log("MessageLogger", "Updating conversation history...");
+
+    const messageContextHistory = container.resolve(MessageContextHistory);
+
+    const messages = messageContextHistory.getMessages();
+    const systemInstructions = messageContextHistory.getSystemInstructions();
+
+    if (!this.isLoggingEnabled()) {
+      this.debugLogger.log("MessageLogger", "Logging disabled");
+      return;
     }
-  }
 
-  async logActionResult(
-    action: string,
-    result: MessageIActionResult,
-  ): Promise<void> {
-    if (!this.isLoggingEnabled()) return;
-    try {
-      await this.acquireLogLock();
-      this.ensureLogDirectoryExists();
-      this.ensureHistoryFileExists();
-      const timestamp = new Date().toISOString();
-      const status = result.success ? "SUCCESS" : "FAILED";
-      const details = result.error
-        ? ` - Error: ${result.error.message}`
-        : result.result
-          ? ` - ${result.result}`
-          : "";
-      const logEntry = `[${timestamp}] ACTION ${action}: ${status}${details}\n`;
-      fs.appendFileSync(this.conversationLogPath, logEntry, "utf8");
-
-      // Update operation result in context
-      const contextData = this.messageContextStore.getContextData();
-      const updatedContextData =
-        this.messageContextBuilder.updateOperationResult(
-          action as any,
-          action,
-          result.result || "",
-          contextData,
-          result.success,
-          result.error?.message,
-        );
-      this.messageContextStore.setContextData(updatedContextData);
-    } catch (error) {
-      this.debugLogger.log(
-        "MessageLogger",
-        "Error writing action result to log file",
-        { error, logDirectory: this.logDirectory },
-      );
-    } finally {
-      this.releaseLogLock();
-    }
-  }
-
-  async updateConversationHistory(
-    messages: IConversationHistoryMessage[],
-    systemInstructions: string | null,
-  ): Promise<void> {
-    if (!this.isLoggingEnabled()) return;
     try {
       await this.acquireLogLock();
       this.ensureLogDirectoryExists();
       this.ensureHistoryFileExists();
 
-      if (systemInstructions) {
-        const timestamp = new Date().toISOString();
-        fs.appendFileSync(
-          this.conversationLogPath,
-          `[${timestamp}] system: ${systemInstructions}\n`,
-          "utf8",
-        );
-      }
-
-      for (const message of messages) {
-        const timestamp = new Date().toISOString();
-        fs.appendFileSync(
-          this.conversationLogPath,
-          `[${timestamp}] ${message.role}: ${message.content}\n`,
-          "utf8",
-        );
-      }
-
-      const historyData = {
+      const historyEntry = {
         timestamp: new Date().toISOString(),
         systemInstructions,
         messages,
@@ -213,7 +131,7 @@ export class MessageContextLogger {
 
       fs.writeFileSync(
         this.conversationHistoryPath,
-        JSON.stringify(historyData, null, 2),
+        JSON.stringify([historyEntry], null, 2),
         "utf8",
       );
 
@@ -236,10 +154,6 @@ export class MessageContextLogger {
     return this.logDirectory;
   }
 
-  getConversationLogPath(): string {
-    return this.conversationLogPath;
-  }
-
   getConversationHistoryPath(): string {
     return this.conversationHistoryPath;
   }
@@ -248,7 +162,10 @@ export class MessageContextLogger {
     try {
       await this.acquireLogLock();
       const historyData = fs.readFileSync(this.conversationHistoryPath, "utf8");
-      return JSON.parse(historyData).messages;
+      const history = JSON.parse(historyData);
+      if (history.length === 0) return [];
+      // Return messages from the latest history entry
+      return history[history.length - 1].messages || [];
     } catch (error) {
       this.debugLogger.log(
         "MessageLogger",

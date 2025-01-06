@@ -8,9 +8,9 @@ const config = configService.getConfig();
 export const executePhaseBlueprint: IPhaseConfig = {
   model: config.executeModel,
   generatePrompt: (args: IPhasePromptArgs) => `
+<phase_prompt>
 <!-- These are internal instructions. Just follow them. Do not output. -->
 
-<phase_prompt>
 ## Execute Phase
 
 ## Critical Instructions
@@ -119,8 +119,8 @@ some code here
 ## Commands
 - Run specific test: ${args.runOneTestCmd || "yarn jest {relativeTestPath}"}
 - Run all tests: ${args.runAllTestsCmd || "yarn jest"}
-- Type check (all files): ${args.runAllFilesTypeCheckCmd || "yarn tsc"}
-- Type check (single file): ${args.runOneFileTypeCheckCmd || "yarn tsc {filePath}"}
+- Type check (all files): ${args.runAllFilesTypeCheckCmd || "yarn tsc --noEmit"}
+- Type check (single file): ${args.runOneFileTypeCheckCmd || "yarn tsc {filePath} --noEmit"}
 
 ## Available Actions
 <write_file>
@@ -199,7 +199,8 @@ some code here
 
 
 <end_task>
-  <!-- Summarize and finalize -->
+  <!-- Remember you can only finish after running all tests and type checks, and its passing -->
+  <!-- Add a summary of your changes here, in a list format -->
 </end_task>
 
 ${args.projectInfo ? `\n## Project Context\n${args.projectInfo}` : ""}

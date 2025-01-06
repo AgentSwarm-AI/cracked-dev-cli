@@ -15,7 +15,7 @@ yarn jest src/services/__tests__/MyService.test.ts
 
 2. Check types:
 <execute_command>
-yarn tsc
+yarn tsc --noEmit
 </execute_command>
 
 3. List directory contents:

@@ -21,10 +21,7 @@ const configSchema = z.object({
   // Phase-specific model configurations
   discoveryModel: z.string().optional().default("google/gemini-flash-1.5-8b"),
   strategyModel: z.string().optional().default("openai/o1-mini"),
-  executeModel: z
-    .string()
-    .optional()
-    .default("anthropic/claude-3.5-sonnet:beta"),
+  executeModel: z.string().optional().default("deepseek/deepseek-chat"),
   autoScaleAvailableModels: z.array(
     z.object({
       id: z.string(),
@@ -187,34 +184,29 @@ export class ConfigService {
         autoScaler: true,
         autoScaleMaxTryPerModel: 2,
         // Phase-specific model configurations
-        discoveryModel: "google/gemini-flash-1.5-8b",
-        strategyModel: "qwen/qwq-32b-preview",
-        executeModel: "anthropic/claude-3.5-sonnet:beta",
+        discoveryModel: "google/gemini-pro-1.5",
+        strategyModel: "deepseek/deepseek-chat",
+        executeModel: "deepseek/deepseek-chat",
         includeAllFilesOnEnvToContext: false,
         autoScaleAvailableModels: [
           {
-            id: "qwen/qwen-2.5-coder-32b-instruct",
+            id: "anthropic/claude-3.5-sonnet:beta",
             description: "Cheap, fast, slightly better than GPT4o-mini",
             maxWriteTries: 5,
             maxGlobalTries: 10,
           },
           {
-            id: "anthropic/claude-3.5-sonnet:beta",
-            description: "Scaled model for retry attempts",
+            id: "openai/o1-mini",
+            description: "Cheap, fast, slightly better than GPT4o-mini",
             maxWriteTries: 5,
-            maxGlobalTries: 15,
-          },
-          {
-            id: "openai/gpt-4o-2024-11-20",
-            description: "Scaled model for retry attempts",
-            maxWriteTries: 2,
-            maxGlobalTries: 20,
+            maxGlobalTries: 10,
           },
         ],
         runAllTestsCmd: "yarn jest",
         runOneTestCmd: "yarn jest {relativeTestPath}",
-        runAllFilesTypeCheckCmd: "yarn eslint --fix",
-        runOneFileTypeCheckCmd: "yarn eslint --fix {relativeFilePath}",
+        runAllFilesTypeCheckCmd: "yarn tsc --noEmit && yarn eslint --fix",
+        runOneFileTypeCheckCmd:
+          "yarn tsc --noEmit {relativeFilePath} && yarn eslint {relativeFilePath}",
         enableConversationLog: false,
         logDirectory: "logs",
         directoryScanner: {

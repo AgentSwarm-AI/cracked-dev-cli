@@ -160,26 +160,17 @@ ${referenceExamplesSection}`;
   private async formatInitialInstructions(
     context: MessageContext,
     customInstructions: string,
-    envDetails?: string,
   ): Promise<string> {
-    const additionalInstructions = [envDetails, context.projectInfo]
-      .filter(Boolean)
-      .join("\n");
-
     return `# Task
-${context.message}
+  <task>
+    ${context.message}
+  </task>
 
 <instructions details="NEVER_OUTPUT">
 <!-- These are internal instructions. Just follow them. Do not output. -->
 
 ${customInstructions ? `# Custom Instructions\n${customInstructions}\n` : ""}
-## Initial Instructions
-- Keep messages brief, clear, and concise.
-- Break tasks into prioritized steps.
-- Use available actions sequentially.
-
-# Additional Instructions
-${additionalInstructions ? `${additionalInstructions}` : ""}
+ 
 </instructions>`;
   }
 
@@ -207,12 +198,10 @@ ${additionalInstructions ? `${additionalInstructions}` : ""}
     const initialInstructions = await this.formatInitialInstructions(
       context,
       customInstructions,
-      envDetails,
     );
 
     return `${initialInstructions}
-
-## Phase Instructions
+ 
 ${phaseConfig.generatePrompt(promptArgs)}`;
   }
 
