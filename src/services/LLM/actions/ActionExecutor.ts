@@ -29,6 +29,10 @@ export class ActionExecutor {
           "No valid action tags found. Actions must be wrapped in XML-style tags.",
         );
 
+        this.messageContextHistory.addMessage(
+          "system",
+          "Action failed: No valid action tags found",
+        );
         return { success: false, error };
       }
 
@@ -52,6 +56,10 @@ export class ActionExecutor {
           } else {
             const error = new Error(`Unknown action type: ${actionType}`);
 
+            this.messageContextHistory.addMessage(
+              "system",
+              `Action failed: Unknown type ${actionType}`,
+            );
             return { success: false, error };
           }
         }
@@ -71,11 +79,20 @@ export class ActionExecutor {
             `Failed to create action instance for "${action.type}"`,
           );
 
+          this.messageContextHistory.addMessage(
+            "system",
+            `Action ${action.type} failed: Could not create instance`,
+          );
           return { success: false, error };
         }
 
         // Get blueprint for logging
         const blueprint = getBlueprint(action.type as ActionTag);
+        if (blueprint) {
+          console.log(
+            `⚡ ${blueprint.description || `Executing ${action.type}`}...`,
+          );
+        }
 
         // Execute action
         lastResult = await actionInstance.execute(action.content);
@@ -85,7 +102,7 @@ export class ActionExecutor {
           if (lastResult.data) {
             this.messageContextHistory.addMessage(
               "system",
-              `Action ${action.type} results (analyze and act on): ${JSON.stringify(lastResult.data)}`,
+              `Action ${action.type} results: ${JSON.stringify(lastResult.data)}`,
             );
           } else {
             this.messageContextHistory.addMessage(

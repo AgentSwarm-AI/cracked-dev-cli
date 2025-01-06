@@ -98,15 +98,17 @@ export class MessageContextHistory {
 
   private cleanContent(content: string): string {
     // Remove phase prompts
-    content = content.replace(/<phase_prompt>.*?<\/phase_prompt>/gs, "").trim();
+    content = content
+      ?.replace(/<phase_prompt>.*?<\/phase_prompt>/gs, "")
+      .trim();
 
     // Remove file operation messages
     if (
-      content.includes("Content of") ||
-      content.includes("Written to") ||
-      content.includes("FILE CREATED AND EXISTS:") ||
-      content.includes("Command executed:") ||
-      content.includes("Command:")
+      content?.includes("Content of") ||
+      content?.includes("Written to") ||
+      content?.includes("FILE CREATED AND EXISTS:") ||
+      content?.includes("Command executed:") ||
+      content?.includes("Command:")
     ) {
       return "";
     }

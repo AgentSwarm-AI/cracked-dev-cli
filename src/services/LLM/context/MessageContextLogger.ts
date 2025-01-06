@@ -106,8 +106,6 @@ export class MessageContextLogger {
   }
 
   async updateConversationHistory(): Promise<void> {
-    this.debugLogger.log("MessageLogger", "Updating conversation history...");
-
     const messageContextHistory = container.resolve(MessageContextHistory);
 
     const messages = messageContextHistory.getMessages();
@@ -134,12 +132,6 @@ export class MessageContextLogger {
         JSON.stringify([historyEntry], null, 2),
         "utf8",
       );
-
-      this.debugLogger.log("MessageLogger", "Conversation history updated", {
-        messagesCount: messages.length,
-        hasSystemInstructions: !!systemInstructions,
-        logDirectory: this.logDirectory,
-      });
     } catch (error) {
       this.debugLogger.log("MessageLogger", "Error updating log files", {
         error,

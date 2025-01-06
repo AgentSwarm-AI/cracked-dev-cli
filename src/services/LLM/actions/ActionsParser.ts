@@ -11,6 +11,7 @@ import { HtmlEntityDecoder } from "@services/text/HTMLEntityDecoder";
 import path from "path";
 import { autoInjectable } from "tsyringe";
 import { v4 as uuidv4 } from "uuid";
+import { MessageContextHistory } from "../context/MessageContextHistory";
 import { getBlueprint, getImplementedActions } from "./blueprints";
 
 export interface ActionExecutionResult {
@@ -32,6 +33,7 @@ export class ActionsParser {
     private contextCreator: LLMContextCreator,
     private htmlEntityDecoder: HtmlEntityDecoder,
     private actionTagsExtractor: ActionTagsExtractor,
+    private messageContextHistory: MessageContextHistory,
   ) {}
 
   reset() {
@@ -374,6 +376,14 @@ export class ActionsParser {
               action: action.content,
               result,
             });
+
+            if (result.data) {
+              this.messageContextHistory.addMessage(
+                "user",
+                String(result.data ?? ""),
+                true,
+              );
+            }
 
             results.push({ action: action.content, result });
 

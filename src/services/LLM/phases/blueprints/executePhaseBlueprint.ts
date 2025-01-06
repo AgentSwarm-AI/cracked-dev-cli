@@ -124,6 +124,7 @@ some code here
 
 ## Available Actions
 <write_file>
+  <!-- If you're trying to move a file due to incorrect path, use the move_file action instead -->
   <type>new/update</type>
   <path>/path/here</path>
   <content>

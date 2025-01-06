@@ -53,7 +53,7 @@ export class PhaseTransitionService {
       case Phase.Strategy:
         return Phase.Execute;
       case Phase.Execute:
-        return Phase.Discovery;
+        return Phase.Execute;
       default:
         return Phase.Discovery;
     }
