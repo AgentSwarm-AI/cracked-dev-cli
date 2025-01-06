@@ -8,6 +8,10 @@ export interface IPhasePromptArgs {
   message: string;
   environmentDetails?: string;
   projectInfo?: string;
+  runAllTestsCmd?: string;
+  runOneTestCmd?: string;
+  runAllFilesTypeCheckCmd?: string;
+  runOneFileTypeCheckCmd?: string;
   [key: string]: any;
 }
 

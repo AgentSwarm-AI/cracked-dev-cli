@@ -1,6 +1,6 @@
 {
   "name": "cracked-dev-cli",
-  "version": "1.0.6",
+  "version": "1.2.14",
   "description": "AI-powered CLI tool for software development",
   "license": "MIT",
   "type": "module",
@@ -32,7 +32,7 @@
     "build": "tsup",
     "dev": "tsup --watch",
     "test": "jest --silent",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && yarn lint --fix",
     "lint": "eslint 'src/**/*.{ts,tsx}'",
     "format": "prettier --write . --loglevel silent",
     "prepack": "yarn build",

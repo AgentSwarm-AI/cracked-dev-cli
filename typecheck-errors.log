@@ -1,0 +1,6 @@
+src/services/LLM/actions/ActionExecutor.test.ts(26,22): error TS2554: Expected 4 arguments, but got 3.
+src/services/LLM/actions/FileActionHandler.ts(4,25): error TS2305: Module '"./types/ActionTypes"' has no exported member 'IFileOperationResult'.
+src/services/LLM/actions/handlers/FileActionHandler.ts(1,55): error TS2307: Cannot find module '../../FileManagement/types/FileManagementTypes' or its corresponding type declarations.
+src/services/LLM/actions/handlers/FileActionHandler.ts(2,32): error TS2307: Cannot find module '../../FileManagement/FileOperations' or its corresponding type declarations.
+src/services/LLM/actions/handlers/FileActionHandler.ts(3,37): error TS2307: Cannot find module './ActionTagsExtractor' or its corresponding type declarations.
+src/services/LLM/actions/handlers/FileActionHandler.ts(4,31): error TS2307: Cannot find module './types/ActionTypes' or its corresponding type declarations.

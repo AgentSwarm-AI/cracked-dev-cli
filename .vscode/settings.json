@@ -1,0 +1,12 @@
+{
+  "rest-client.environmentVariables": {
+    "$shared": {
+      "version": "v1"
+    },
+    "development": {
+      "openRouterURL": "https://openrouter.ai/api/v1",
+      "openRouteRAPIKey": "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"
+    }
+  },
+  "workbench.activityBar.orientation": "vertical"
+}

@@ -1,7 +1,7 @@
 import chalk from "chalk";
 import * as fs from "fs";
 import * as path from "path";
-import { autoInjectable } from "tsyringe";
+import { singleton } from "tsyringe";
 import { z } from "zod";
 
 const configSchema = z.object({
@@ -22,10 +22,7 @@ const configSchema = z.object({
   // Phase-specific model configurations
   discoveryModel: z.string().optional().default("google/gemini-flash-1.5-8b"),
   strategyModel: z.string().optional().default("openai/o1-mini"),
-  executeModel: z
-    .string()
-    .optional()
-    .default("anthropic/claude-3.5-sonnet:beta"),
+  executeModel: z.string().optional().default("deepseek/deepseek-chat"),
   autoScaleAvailableModels: z.array(
     z.object({
       id: z.string(),
@@ -36,7 +33,8 @@ const configSchema = z.object({
   ),
   runAllTestsCmd: z.string().optional(),
   runOneTestCmd: z.string().optional(),
-  runTypeCheckCmd: z.string().optional(),
+  runAllFilesTypeCheckCmd: z.string().optional(),
+  runOneFileTypeCheckCmd: z.string().optional(),
   enableConversationLog: z.boolean().optional(),
   logDirectory: z.string().optional(),
   directoryScanner: z
@@ -98,14 +96,55 @@ const configSchema = z.object({
   referenceExamples: z.record(z.string(), z.string()).optional().default({}),
   projectLanguage: z.string().default("typescript"),
   packageManager: z.string().default("yarn"),
+  timeoutSeconds: z.number().optional().default(0), // Add timeout property
 });
 
 export type Config = z.infer<typeof configSchema>;
 
-@autoInjectable()
+@singleton()
 export class ConfigService {
-  private readonly CONFIG_PATH = path.resolve("crkdrc.json");
+  private CONFIG_PATH: string;
   private readonly GITIGNORE_PATH = path.resolve(".gitignore");
+
+  constructor() {
+    this.CONFIG_PATH = path.resolve("crkdrc.json");
+  }
+
+  private validateConfigPath(resolvedPath: string): void {
+    // Allow default path to not exist
+    if (resolvedPath === path.resolve("crkdrc.json")) {
+      return;
+    }
+
+    // For custom paths, require the file to exist
+    if (!fs.existsSync(resolvedPath)) {
+      throw new Error(`Config path does not exist: ${resolvedPath}`);
+    }
+
+    try {
+      const stats = fs.statSync(resolvedPath);
+      if (!stats.isFile()) {
+        throw new Error(`Path exists but is not a file: ${resolvedPath}`);
+      }
+      fs.accessSync(resolvedPath, fs.constants.R_OK | fs.constants.W_OK);
+    } catch (error) {
+      if (error instanceof Error) {
+        throw new Error(`Invalid config path: ${error.message}`);
+      }
+      throw error;
+    }
+  }
+
+  public setConfigPath(configPath?: string): void {
+    if (!configPath || !configPath.trim()) {
+      this.CONFIG_PATH = path.resolve("crkdrc.json");
+      return;
+    }
+
+    const resolvedPath = path.resolve(configPath.trim());
+    this.validateConfigPath(resolvedPath);
+    this.CONFIG_PATH = resolvedPath;
+  }
 
   private ensureGitIgnore(): void {
     const gitignoreContent = fs.existsSync(this.GITIGNORE_PATH)
@@ -118,7 +157,10 @@ export class ConfigService {
           ? `${gitignoreContent}crkdrc.json\n`
           : `${gitignoreContent}\ncrkdrc.json\n`;
 
-      fs.writeFileSync(this.GITIGNORE_PATH, updatedContent);
+      fs.writeFileSync(
+        this.GITIGNORE_PATH,
+        updatedContent.replace(/\n/g, "\\n"),
+      );
     }
   }
 
@@ -148,29 +190,27 @@ export class ConfigService {
         executeModel: "anthropic/claude-3.5-sonnet:beta",
         includeAllFilesOnEnvToContext: true,
         truncateFilesOnEnvAfterLinesLimit: 1000,
+
         autoScaleAvailableModels: [
           {
-            id: "qwen/qwen-2.5-coder-32b-instruct",
+            id: "anthropic/claude-3.5-sonnet:beta",
             description: "Cheap, fast, slightly better than GPT4o-mini",
             maxWriteTries: 5,
             maxGlobalTries: 10,
           },
           {
-            id: "anthropic/claude-3.5-sonnet:beta",
-            description: "Scaled model for retry attempts",
+            id: "openai/o1-mini",
+            description: "Cheap, fast, slightly better than GPT4o-mini",
             maxWriteTries: 5,
-            maxGlobalTries: 15,
-          },
-          {
-            id: "openai/gpt-4o-2024-11-20",
-            description: "Scaled model for retry attempts",
-            maxWriteTries: 2,
-            maxGlobalTries: 20,
+            maxGlobalTries: 10,
           },
         ],
-        runAllTestsCmd: "yarn test",
-        runOneTestCmd: "yarn test {relativeTestPath}",
-        runTypeCheckCmd: "yarn typecheck",
+        runAllTestsCmd: "yarn jest",
+        runOneTestCmd: "yarn jest {relativeTestPath}",
+        runAllFilesTypeCheckCmd:
+          "yarn tsc --noEmit --skipLibCheck && yarn eslint --fix",
+        runOneFileTypeCheckCmd:
+          "yarn tsc --noEmit --skipLibCheck {relativeFilePath} && yarn eslint {relativeFilePath}",
         enableConversationLog: false,
         logDirectory: "logs",
         directoryScanner: {
@@ -207,10 +247,8 @@ export class ConfigService {
         },
         referenceExamples: {
           example1: "path/to/example1/file.ts",
-          example2: "path/to/example2/file.ts",
-          myService: "src/services/MyService.ts",
-          anotherKey: "path/to/some/other/example.ts",
         },
+        timeoutSeconds: 0, // Add default timeout
       };
       fs.writeFileSync(
         this.CONFIG_PATH,

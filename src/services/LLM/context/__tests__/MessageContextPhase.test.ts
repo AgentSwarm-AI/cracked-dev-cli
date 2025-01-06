@@ -85,5 +85,56 @@ describe("MessageContextPhase", () => {
       expect(updatedData.conversationHistory).toEqual([]);
       expect(updatedData.systemInstructions).toBeNull();
     });
+
+    it("should clean phase-related messages from conversation history", () => {
+      // Setup initial context with mixed messages
+      const initialContextData = {
+        phaseInstructions: new Map(),
+        fileOperations: new Map(),
+        commandOperations: new Map(),
+        conversationHistory: [
+          {
+            role: "system",
+            content: "<phase_prompt>Phase instruction</phase_prompt>",
+          },
+          { role: "user", content: "Regular message" },
+          {
+            role: "assistant",
+            content:
+              "Message with <phase_prompt>embedded phase</phase_prompt> and content",
+          },
+          {
+            role: "user",
+            content: "<phase_prompt>Only phase content</phase_prompt>",
+          },
+        ],
+        systemInstructions: null,
+      };
+
+      // Mock the store to return our initial context
+      const getContextDataSpy = mocker
+        .spyPrototype(MessageContextStore, "getContextData")
+        .mockReturnValue(initialContextData);
+
+      // Mock setContextData to capture the updated data
+      const setContextDataSpy = mocker.spyPrototype(
+        MessageContextStore,
+        "setContextData",
+      );
+
+      // Call cleanupPhaseContent
+      messageContextPhase.cleanupPhaseContent();
+
+      // Verify the conversation history is cleaned correctly
+      const updatedData = setContextDataSpy.mock.calls[0][0];
+      expect(updatedData.conversationHistory).toHaveLength(2);
+      expect(updatedData.conversationHistory).toEqual([
+        { role: "user", content: "Regular message" },
+        {
+          role: "assistant",
+          content: "Message with  and content",
+        },
+      ]);
+    });
   });
 });

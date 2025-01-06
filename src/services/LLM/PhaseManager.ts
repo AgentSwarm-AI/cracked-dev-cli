@@ -96,8 +96,8 @@ export class PhaseManager {
         this.currentPhase = Phase.Execute;
         break;
       case Phase.Execute:
-        // Execute is the final phase, stays there
-        break;
+        // Execute is the final phase, return current phase
+        return this.currentPhase;
     }
     return this.currentPhase;
   }

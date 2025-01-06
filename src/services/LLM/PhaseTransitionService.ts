@@ -1,6 +1,5 @@
 import { injectable } from "tsyringe";
 import { WriteActionData } from "./actions/types/ActionTypes";
-import { MessageContextHistory } from "./context/MessageContextHistory";
 import { MessageContextPhase } from "./context/MessageContextPhase";
 import { ModelManager } from "./ModelManager";
 import { PhaseManager } from "./PhaseManager";
@@ -12,7 +11,6 @@ export class PhaseTransitionService {
     private phaseManager: PhaseManager,
     private modelManager: ModelManager,
     private messageContextPhase: MessageContextPhase,
-    private messageContextHistory: MessageContextHistory,
   ) {}
 
   async transitionToNextPhase(): Promise<WriteActionData> {
@@ -40,11 +38,6 @@ export class PhaseTransitionService {
       message: "Continue with the next phase based on previous findings.",
     });
 
-    this.messageContextHistory.addMessage(
-      "system",
-      `Current phase is ${nextPhase}`,
-    );
-
     return {
       regenerate: true,
       selectedModel: nextPhaseConfig.model,
@@ -58,7 +51,7 @@ export class PhaseTransitionService {
       case Phase.Strategy:
         return Phase.Execute;
       case Phase.Execute:
-        return Phase.Discovery;
+        return Phase.Execute;
       default:
         return Phase.Discovery;
     }

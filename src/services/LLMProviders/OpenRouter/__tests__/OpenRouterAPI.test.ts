@@ -243,6 +243,13 @@ describe("OpenRouterAPI", () => {
     });
   });
   describe("Streaming", () => {
+    // beforeEach(() => {
+    //   jest.useFakeTimers();
+    // });
+
+    // afterEach(() => {
+    //   jest.useRealTimers();
+    // });
     it("should handle streaming messages correctly", async () => {
       const mockStreamData = [
         'data: {"choices": [{"delta": {"content": "Hel"}}]}\n',
@@ -314,6 +321,35 @@ describe("OpenRouterAPI", () => {
       });
 
       expect(callback).not.toHaveBeenCalled();
+    });
+
+    it("should not timeout when timeout is 0", async () => {
+      const mockStreamData = [
+        'data: {"choices": [{"delta": {"content": "Hel"}}]}\n',
+        'data: {"choices": [{"delta": {"content": "lo"}}]}\n',
+        'data: {"choices": [{"delta": {"content": "!"}}]}\n',
+        "data: [DONE]\n",
+      ];
+
+      const mockStream = new Readable({
+        read() {
+          mockStreamData.forEach((chunk) => {
+            this.push(Buffer.from(chunk));
+          });
+          this.push(null);
+        },
+      });
+
+      postSpy.mockResolvedValue({ data: mockStream });
+      openRouterAPI.updateTimeout(0); // No timeout
+
+      const callback = jest.fn();
+      await openRouterAPI.streamMessage("gpt-4", "Hi", callback);
+
+      expect(callback).toHaveBeenCalledTimes(3);
+      expect(callback).toHaveBeenNthCalledWith(1, "Hel");
+      expect(callback).toHaveBeenNthCalledWith(2, "lo");
+      expect(callback).toHaveBeenNthCalledWith(3, "!");
     });
 
     it("should handle aborted stream", async () => {
@@ -526,6 +562,79 @@ describe("OpenRouterAPI", () => {
       formattedMessages.forEach((msg: { content: any }) => {
         expect(typeof msg.content).toBe("string");
       });
+    });
+  });
+
+  describe("cancelStream", () => {
+    it("should store current message in MessageContextHistory when aborting", () => {
+      // Set up
+      const stream = {
+        removeAllListeners: jest.fn(),
+        destroy: jest.fn(),
+      };
+      (openRouterAPI as any).stream = stream;
+      (openRouterAPI as any).currentMessage = "test message";
+
+      const setAbortedMessageSpy = jest.spyOn(
+        MessageContextHistory.prototype,
+        "setAbortedMessage",
+      );
+
+      // Execute
+      openRouterAPI.cancelStream();
+
+      // Verify
+      expect(setAbortedMessageSpy).toHaveBeenCalledWith("test message");
+      expect(stream.removeAllListeners).toHaveBeenCalled();
+      expect(stream.destroy).toHaveBeenCalled();
+      expect((openRouterAPI as any).stream).toBeNull();
+      expect((openRouterAPI as any).aborted).toBe(true);
+    });
+
+    it("should not call setAbortedMessage if no stream exists", () => {
+      // Set up
+      (openRouterAPI as any).stream = null;
+      (openRouterAPI as any).currentMessage = "test message";
+
+      const setAbortedMessageSpy = jest.spyOn(
+        MessageContextHistory.prototype,
+        "setAbortedMessage",
+      );
+
+      // Execute
+      openRouterAPI.cancelStream();
+
+      // Verify
+      expect(setAbortedMessageSpy).not.toHaveBeenCalled();
+      expect((openRouterAPI as any).aborted).toBe(true);
+    });
+  });
+
+  describe("streamMessage", () => {
+    it("should store the current message", async () => {
+      // Set up
+      const message = "test message";
+      const callback = jest.fn();
+
+      // Mock the necessary methods to prevent actual API calls
+      jest.spyOn(openRouterAPI as any, "makeRequest").mockResolvedValue({
+        data: new Readable({
+          read() {
+            this.push(
+              Buffer.from(
+                'data: {"choices": [{"delta": {"content": "response"}}]}\n',
+              ),
+            );
+            this.push(null);
+          },
+        }),
+      });
+
+      // Execute
+      await openRouterAPI.streamMessage("test-model", message, callback);
+
+      // Verify
+      expect((openRouterAPI as any).currentMessage).toBe(message);
     });
   });
 });

@@ -130,9 +130,12 @@ export class LLMContextCreator {
       return "";
     }
 
-    const runAllTestsCmd = config.runAllTestsCmd || "yarn test";
-    const runOneTestCmd = config.runOneTestCmd || "yarn test {testPath}";
-    const runTypeCheckCmd = config.runTypeCheckCmd || "yarn type-check";
+    const runAllTestsCmd = config.runAllTestsCmd || "yarn jest";
+    const runOneTestCmd = config.runOneTestCmd || "yarn jest {testPath}";
+    const runAllFilesTypeCheckCmd =
+      config.runAllFilesTypeCheckCmd || "yarn type-check";
+    const runOneFileTypeCheckCmd =
+      config.runOneFileTypeCheckCmd || "yarn type-check {filePath}";
 
     // Add project language and package manager info
     const projectSetup = `# Project Setup
@@ -159,7 +162,7 @@ ${Object.entries(info.scripts)
 # Test Commands
 Run All Tests: ${runAllTestsCmd}
 Run Single Test: ${runOneTestCmd}
-Run Type Check: ${runTypeCheckCmd}
+Run Type Check: ${runAllFilesTypeCheckCmd}
 
 # Reference Examples
 ${referenceExamplesSection}`;
@@ -168,26 +171,17 @@ ${referenceExamplesSection}`;
   private async formatInitialInstructions(
     context: MessageContext,
     customInstructions: string,
-    envDetails?: string,
   ): Promise<string> {
-    const additionalInstructions = [envDetails, context.projectInfo]
-      .filter(Boolean)
-      .join("\n");
-
     return `# Task
-${context.message}
+  <task>
+    ${context.message}
+  </task>
 
 <instructions details="NEVER_OUTPUT">
 <!-- These are internal instructions. Just follow them. Do not output. -->
 
 ${customInstructions ? `# Custom Instructions\n${customInstructions}\n` : ""}
-## Initial Instructions
-- Keep messages brief, clear, and concise.
-- Break tasks into prioritized steps.
-- Use available actions sequentially.
-
-# Additional Instructions
-${additionalInstructions ? `${additionalInstructions}` : ""}
+ 
 </instructions>`;
   }
 
@@ -208,18 +202,17 @@ ${additionalInstructions ? `${additionalInstructions}` : ""}
       projectInfo: context.projectInfo,
       runAllTestsCmd: config.runAllTestsCmd,
       runOneTestCmd: config.runOneTestCmd,
-      runTypeCheckCmd: config.runTypeCheckCmd,
+      runAllFilesTypeCheckCmd: config.runAllFilesTypeCheckCmd,
+      runOneFileTypeCheckCmd: config.runOneFileTypeCheckCmd,
     };
 
     const initialInstructions = await this.formatInitialInstructions(
       context,
       customInstructions,
-      envDetails,
     );
 
     return `${initialInstructions}
-
-## Phase Instructions
+ 
 ${phaseConfig.generatePrompt(promptArgs)}`;
   }
 

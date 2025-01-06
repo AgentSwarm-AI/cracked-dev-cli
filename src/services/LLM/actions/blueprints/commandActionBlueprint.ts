@@ -10,12 +10,12 @@ export const commandActionBlueprint: IActionBlueprint = {
 
 1. Run tests:
 <execute_command>
-yarn test src/services/__tests__/MyService.test.ts
+yarn jest src/services/__tests__/MyService.test.ts
 </execute_command>
 
 2. Check types:
 <execute_command>
-yarn tsc
+yarn tsc --noEmit --skipLibCheck
 </execute_command>
 
 3. List directory contents:
