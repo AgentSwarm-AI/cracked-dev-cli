@@ -204,9 +204,10 @@ export class ConfigService {
         ],
         runAllTestsCmd: "yarn jest",
         runOneTestCmd: "yarn jest {relativeTestPath}",
-        runAllFilesTypeCheckCmd: "yarn tsc --noEmit && yarn eslint --fix",
+        runAllFilesTypeCheckCmd:
+          "yarn tsc --noEmit --skipLibCheck && yarn eslint --fix",
         runOneFileTypeCheckCmd:
-          "yarn tsc --noEmit {relativeFilePath} && yarn eslint {relativeFilePath}",
+          "yarn tsc --noEmit --skipLibCheck {relativeFilePath} && yarn eslint {relativeFilePath}",
         enableConversationLog: false,
         logDirectory: "logs",
         directoryScanner: {
@@ -243,9 +244,6 @@ export class ConfigService {
         },
         referenceExamples: {
           example1: "path/to/example1/file.ts",
-          example2: "path/to/example2/file.ts",
-          myService: "src/services/MyService.ts",
-          anotherKey: "path/to/some/other/example.ts",
         },
         timeoutSeconds: 0, // Add default timeout
       };

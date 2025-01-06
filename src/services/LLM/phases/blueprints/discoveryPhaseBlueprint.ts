@@ -113,8 +113,8 @@ REMEMBER: ONLY ONE ACTION PER REPLY!!!
 
 ### Commands
 - Run specific test: ${args.runOneTestCmd || "yarn jest {relativeTestPath}"}
-- Run type check (all files): ${args.runAllFilesTypeCheckCmd || "yarn tsc --noEmit"}
-- Run type check (single file): ${args.runOneFileTypeCheckCmd || "yarn tsc {filePath} --noEmit"}
+- Run type check (all files): ${args.runAllFilesTypeCheckCmd || "yarn tsc --noEmit --skipLibCheck"}
+- Run type check (single file): ${args.runOneFileTypeCheckCmd || "yarn tsc {filePath} --noEmit --skipLibCheck"}
 
 ## Environment
 ${args.projectInfo || ""}

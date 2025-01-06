@@ -119,8 +119,8 @@ some code here
 ## Commands
 - Run specific test: ${args.runOneTestCmd || "yarn jest {relativeTestPath}"}
 - Run all tests: ${args.runAllTestsCmd || "yarn jest"}
-- Type check (all files): ${args.runAllFilesTypeCheckCmd || "yarn tsc --noEmit"}
-- Type check (single file): ${args.runOneFileTypeCheckCmd || "yarn tsc {filePath} --noEmit"}
+- Type check (all files): ${args.runAllFilesTypeCheckCmd || "yarn tsc --noEmit --skipLibCheck"}
+- Type check (single file): ${args.runOneFileTypeCheckCmd || "yarn tsc {filePath} --noEmit --skipLibCheck"}
 
 ## Available Actions
 <write_file>

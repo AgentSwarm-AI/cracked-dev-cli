@@ -87,8 +87,8 @@ some code here
 ### Useful Commands
 - Run all tests: ${args.runAllTestsCmd || "yarn jest"}
 - Run a specific test: ${args.runOneTestCmd || "yarn jest {relativeTestPath}"}
-- Run type check (all files): ${args.runAllFilesTypeCheckCmd || "yarn tsc --noEmit"}
-- Run type check (single file): ${args.runOneFileTypeCheckCmd || "yarn tsc {filePath} --noEmit"}
+- Run type check (all files): ${args.runAllFilesTypeCheckCmd || "yarn tsc --noEmit --skipLibCheck"}
+- Run type check (single file): ${args.runOneFileTypeCheckCmd || "yarn tsc {filePath} --noEmit --skipLibCheck"}
 
 # Available Actions
 
