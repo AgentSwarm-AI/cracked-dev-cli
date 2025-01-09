@@ -20,8 +20,8 @@ const configSchema = z.object({
   includeAllFilesOnEnvToContext: z.boolean().optional().default(true),
   truncateFilesOnEnvAfterLinesLimit: z.number().optional().default(1000),
   // Phase-specific model configurations
-  discoveryModel: z.string().optional().default("google/gemini-flash-1.5-8b"),
-  strategyModel: z.string().optional().default("openai/o1-mini"),
+  discoveryModel: z.string().optional().default("google/gemini-pro-1.5"),
+  strategyModel: z.string().optional().default("deepseek/deepseek-chat"),
   executeModel: z.string().optional().default("deepseek/deepseek-chat"),
   autoScaleAvailableModels: z.array(
     z.object({
