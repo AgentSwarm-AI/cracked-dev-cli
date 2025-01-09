@@ -185,9 +185,9 @@ export class ConfigService {
         autoScaler: true,
         autoScaleMaxTryPerModel: 2,
         // Phase-specific model configurations
-        discoveryModel: "google/gemini-flash-1.5-8b",
-        strategyModel: "qwen/qwq-32b-preview",
-        executeModel: "anthropic/claude-3.5-sonnet:beta",
+        discoveryModel: "google/gemini-pro-1.5",
+        strategyModel: "deepseek/deepseek-chat",
+        executeModel: "deepseek/deepseek-chat",
         includeAllFilesOnEnvToContext: true,
         truncateFilesOnEnvAfterLinesLimit: 1000,
 
